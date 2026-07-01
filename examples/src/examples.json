@@ -143,6 +143,17 @@
       "shapes"
     ]
   },
+  "example-triangle-mesh": {
+    "title": "Triangle Mesh",
+    "description": "balls roll across a procedural triangle-mesh terrain",
+    "tags": [
+      "world",
+      "physics",
+      "triangle-mesh",
+      "mesh",
+      "terrain"
+    ]
+  },
   "example-sensor": {
     "title": "Sensor",
     "description": "a kinematic sensor sweeps past bodies \u00b7 hit / no-hit",
