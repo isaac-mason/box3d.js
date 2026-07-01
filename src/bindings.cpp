@@ -381,20 +381,34 @@ EMSCRIPTEN_BINDINGS( box3d )
 			return b3CreateHullShape( bodyId, &def, &hull.base );
 		} );
 
-	// Binding-side helper: build a convex hull from a flat JS point array
-	// [x,y,z, ...] and create a hull shape from it. b3CreateHullShape copies the
-	// hull, so the temporary is freed immediately.
-	function( "b3CreateHullShapeFromPoints",
-		+[]( b3BodyId bodyId, b3ShapeDef def, val points )
-		{
-			std::vector<float> f = convertJSArrayToNumberVector<float>( points );
-			std::vector<b3Vec3> pts( f.size() / 3 );
-			for ( size_t i = 0; i < pts.size(); ++i ) pts[i] = b3Vec3{ f[i * 3], f[i * 3 + 1], f[i * 3 + 2] };
-			b3HullData* hull = b3CreateHull( pts.data(), (int)pts.size(), (int)pts.size() );
-			b3ShapeId shape = b3CreateHullShape( bodyId, &def, hull );
-			b3DestroyHull( hull );
-			return shape;
-		} );
+	// Convex hulls are reusable *data*: compute the hull once (expensive) and
+	// instance it into many shapes (cheap), mirroring box3d. b3HullData is an
+	// opaque handle owned by JS — free it with b3DestroyHull when done.
+	class_<b3HullData>( "b3HullData" );
+
+	// b3CreateHull( Float32Array [x,y,z, ...] ). b3Vec3 is three packed floats,
+	// so the float buffer aliases b3Vec3[] with no second copy.
+	function( "b3CreateHull", +[]( val points ) -> b3HullData*
+	{
+		std::vector<float> f = convertJSArrayToNumberVector<float>( points );
+		int count = (int)( f.size() / 3 );
+		return b3CreateHull( reinterpret_cast<const b3Vec3*>( f.data() ), count, count );
+	}, allow_raw_pointers() );
+	function( "b3CreateCylinder", &b3CreateCylinder, allow_raw_pointers() );
+	function( "b3CreateCone", &b3CreateCone, allow_raw_pointers() );
+	function( "b3CreateRock", &b3CreateRock, allow_raw_pointers() );
+	function( "b3CloneAndTransformHull", &b3CloneAndTransformHull, allow_raw_pointers() );
+	function( "b3DestroyHull", &b3DestroyHull, allow_raw_pointers() );
+	function( "b3CreateHullShape",
+		+[]( b3BodyId bodyId, b3ShapeDef def, b3HullData* hull ) { return b3CreateHullShape( bodyId, &def, hull ); },
+		allow_raw_pointers() );
+	// Hull vertices (local space) as a flat, zero-copy Float32Array — works on
+	// any hull handle (e.g. to build render geometry).
+	function( "b3GetHullVertices", +[]( const b3HullData* hull ) -> val
+	{
+		if ( hull == nullptr ) return val::global( "Float32Array" ).new_( 0 );
+		return val( typed_memory_view( (size_t)hull->vertexCount * 3, reinterpret_cast<const float*>( b3GetHullPoints( hull ) ) ) );
+	}, allow_raw_pointers() );
 
 	register_vector<b3ShapeId>( "b3ShapeIdVector" );
 	register_vector<b3JointId>( "b3JointIdVector" );
