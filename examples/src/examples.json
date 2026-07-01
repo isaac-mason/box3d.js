@@ -16,7 +16,12 @@
   },
   "example-friction": {
     "title": "Friction",
-    "description": "boxes with friction 0 → 1 on a ramp · low slides, high sticks",
+    "description": "spheres, boxes & capsules launched across a floor, friction 0 → 1",
     "tags": ["world", "physics", "friction", "material", "sliding"]
+  },
+  "example-multithreading": {
+    "title": "Multithreading",
+    "description": "a cube-heap stress test spread across worker threads",
+    "tags": ["world", "physics", "multithreading", "pthreads", "workers", "stress-test", "performance"]
   }
 }

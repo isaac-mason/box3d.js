@@ -410,6 +410,66 @@ EMSCRIPTEN_BINDINGS( box3d )
 		return val( typed_memory_view( (size_t)hull->vertexCount * 3, reinterpret_cast<const float*>( b3GetHullPoints( hull ) ) ) );
 	}, allow_raw_pointers() );
 
+	// Triangle meshes are reusable data too (opaque handle, freed with b3DestroyMesh).
+	// b3CreateMesh( Float32Array positions [x,y,z,...], Int32Array indices ).
+	class_<b3MeshData>( "b3MeshData" );
+	function( "b3CreateMesh", +[]( val positions, val indices ) -> b3MeshData*
+	{
+		std::vector<float> vf = convertJSArrayToNumberVector<float>( positions );
+		std::vector<int32_t> vi = convertJSArrayToNumberVector<int32_t>( indices );
+		b3MeshDef def = {};
+		def.vertices = reinterpret_cast<b3Vec3*>( vf.data() );
+		def.vertexCount = (int)( vf.size() / 3 );
+		def.indices = vi.data();
+		def.triangleCount = (int)( vi.size() / 3 );
+		def.weldVertices = true;
+		return b3CreateMesh( &def, nullptr, 0 );
+	}, allow_raw_pointers() );
+	function( "b3DestroyMesh", &b3DestroyMesh, allow_raw_pointers() );
+	function( "b3CreateMeshShape",
+		+[]( b3BodyId bodyId, b3ShapeDef def, b3MeshData* mesh, b3Vec3 scale ) { return b3CreateMeshShape( bodyId, &def, mesh, scale ); },
+		allow_raw_pointers() );
+
+	// Explosion (radial impulse).
+	value_object<b3ExplosionDef>( "b3ExplosionDef" )
+		.field( "maskBits", &b3ExplosionDef::maskBits )
+		.field( "position", &b3ExplosionDef::position )
+		.field( "radius", &b3ExplosionDef::radius )
+		.field( "falloff", &b3ExplosionDef::falloff )
+		.field( "impulsePerArea", &b3ExplosionDef::impulsePerArea );
+	function( "b3DefaultExplosionDef", &b3DefaultExplosionDef );
+	function( "b3World_Explode", +[]( b3WorldId worldId, b3ExplosionDef def ) { b3World_Explode( worldId, &def ); } );
+
+	// Proxy-based queries. A proxy is a convex point cloud + radius (sphere =
+	// [center] r; box = 8 corners r=0). OverlapShape: cb(shapeId)->bool.
+	// CastShape (SHAPECAST): cb(shapeId, point, normal, fraction)->number.
+	function( "b3World_OverlapShape",
+		+[]( b3WorldId worldId, b3Vec3 origin, val points, float radius, b3QueryFilter filter, val cb )
+		{
+			std::vector<float> f = convertJSArrayToNumberVector<float>( points );
+			b3ShapeProxy proxy{ reinterpret_cast<const b3Vec3*>( f.data() ), (int)( f.size() / 3 ), radius };
+			b3World_OverlapShape( worldId, origin, &proxy, filter,
+				[]( b3ShapeId shapeId, void* ctx ) -> bool
+				{
+					val r = ( *static_cast<val*>( ctx ) )( shapeId );
+					return r.isUndefined() ? true : r.as<bool>();
+				},
+				&cb );
+		} );
+	function( "b3World_CastShape",
+		+[]( b3WorldId worldId, b3Vec3 origin, val points, float radius, b3Vec3 translation, b3QueryFilter filter, val cb )
+		{
+			std::vector<float> f = convertJSArrayToNumberVector<float>( points );
+			b3ShapeProxy proxy{ reinterpret_cast<const b3Vec3*>( f.data() ), (int)( f.size() / 3 ), radius };
+			b3World_CastShape( worldId, origin, &proxy, translation, filter,
+				[]( b3ShapeId shapeId, b3Pos point, b3Vec3 normal, float fraction, uint64_t, int, int, void* ctx ) -> float
+				{
+					val r = ( *static_cast<val*>( ctx ) )( shapeId, point, normal, fraction );
+					return r.isUndefined() ? 1.0f : r.as<float>();
+				},
+				&cb );
+		} );
+
 	register_vector<b3ShapeId>( "b3ShapeIdVector" );
 	register_vector<b3JointId>( "b3JointIdVector" );
 

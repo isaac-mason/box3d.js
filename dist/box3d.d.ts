@@ -30,6 +30,9 @@ export type b3JointType = b3JointTypeValue<0>|b3JointTypeValue<1>|b3JointTypeVal
 export interface b3HullData extends ClassHandle {
 }
 
+export interface b3MeshData extends ClassHandle {
+}
+
 export interface b3ShapeIdVector extends ClassHandle {
   push_back(_0: b3ShapeId): void;
   resize(_0: number, _1: b3ShapeId): void;
@@ -246,6 +249,14 @@ export type b3ShapeDef = {
   internalValue: number
 };
 
+export type b3ExplosionDef = {
+  maskBits: bigint,
+  position: b3Vec3,
+  radius: number,
+  falloff: number,
+  impulsePerArea: number
+};
+
 export type b3JointDef = {
   bodyIdA: b3BodyId,
   bodyIdB: b3BodyId,
@@ -420,6 +431,7 @@ interface EmbindModule {
   b3ShapeType: {b3_capsuleShape: b3ShapeTypeValue<0>, b3_compoundShape: b3ShapeTypeValue<1>, b3_heightShape: b3ShapeTypeValue<2>, b3_hullShape: b3ShapeTypeValue<3>, b3_meshShape: b3ShapeTypeValue<4>, b3_sphereShape: b3ShapeTypeValue<5>};
   b3JointType: {b3_parallelJoint: b3JointTypeValue<0>, b3_distanceJoint: b3JointTypeValue<1>, b3_filterJoint: b3JointTypeValue<2>, b3_motorJoint: b3JointTypeValue<3>, b3_prismaticJoint: b3JointTypeValue<4>, b3_revoluteJoint: b3JointTypeValue<5>, b3_sphericalJoint: b3JointTypeValue<6>, b3_weldJoint: b3JointTypeValue<7>, b3_wheelJoint: b3JointTypeValue<8>};
   b3HullData: {};
+  b3MeshData: {};
   b3ShapeIdVector: {
     new(): b3ShapeIdVector;
   };
@@ -427,6 +439,7 @@ interface EmbindModule {
     new(): b3JointIdVector;
   };
   b3DestroyHull(_0: b3HullData | null): void;
+  b3DestroyMesh(_0: b3MeshData | null): void;
   b3IsDoublePrecision(): boolean;
   b3DestroyWorld(_0: b3WorldId): void;
   b3World_IsValid(_0: b3WorldId): boolean;
@@ -601,6 +614,7 @@ interface EmbindModule {
   b3CreateSphereShape(_0: b3BodyId, _1: b3ShapeDef, _2: b3Sphere): b3ShapeId;
   b3CreateCapsuleShape(_0: b3BodyId, _1: b3ShapeDef, _2: b3Capsule): b3ShapeId;
   b3CreateHullShape(_0: b3BodyId, _1: b3ShapeDef, _2: b3HullData | null): b3ShapeId;
+  b3CreateMeshShape(_0: b3BodyId, _1: b3ShapeDef, _2: b3MeshData | null, _3: b3Vec3): b3ShapeId;
   b3World_Step(_0: b3WorldId, _1: number, _2: number): void;
   b3World_SetRestitutionThreshold(_0: b3WorldId, _1: number): void;
   b3World_GetRestitutionThreshold(_0: b3WorldId): number;
@@ -615,6 +629,8 @@ interface EmbindModule {
   b3CreateCylinder(_0: number, _1: number, _2: number, _3: number): b3HullData | null;
   b3CreateCone(_0: number, _1: number, _2: number, _3: number): b3HullData | null;
   b3CreateRock(_0: number): b3HullData | null;
+  b3DefaultExplosionDef(): b3ExplosionDef;
+  b3World_Explode(_0: b3WorldId, _1: b3ExplosionDef): void;
   b3Body_SetTargetTransform(_0: b3BodyId, _1: b3Transform, _2: number, _3: boolean): void;
   b3Body_GetMass(_0: b3BodyId): number;
   b3Body_GetInverseMass(_0: b3BodyId): number;
@@ -785,6 +801,9 @@ interface EmbindModule {
   b3Body_GetName(_0: b3BodyId): string;
   b3CreateHull(_0: any): b3HullData | null;
   b3GetHullVertices(_0: b3HullData | null): any;
+  b3CreateMesh(_0: any, _1: any): b3MeshData | null;
+  b3World_OverlapShape(_0: b3WorldId, _1: b3Vec3, _2: any, _3: number, _4: b3QueryFilter, _5: any): void;
+  b3World_CastShape(_0: b3WorldId, _1: b3Vec3, _2: any, _3: number, _4: b3Vec3, _5: b3QueryFilter, _6: any): void;
   b3Shape_GetHullVertices(_0: b3ShapeId): any;
   b3DistanceJoint_GetSpringForceRange(_0: b3JointId): any;
   b3World_OverlapAABB(_0: b3WorldId, _1: b3AABB, _2: b3QueryFilter, _3: any): void;

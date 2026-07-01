@@ -9,12 +9,32 @@
 
 import * as THREE from 'three';
 import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
-import type { Box3DModule, b3ShapeId, b3WorldId } from 'box3d.js';
+import type { Box3DModule, b3BodyId, b3ShapeId, b3WorldId } from 'box3d.js';
 
 const HUGE_BOUNDS = { lowerBound: { x: -1e9, y: -1e9, z: -1e9 }, upperBound: { x: 1e9, y: 1e9, z: 1e9 } };
 const PALETTE = [0xff6b6b, 0xffd93d, 0x6bcb77, 0x4d96ff, 0xc78bff, 0xff9f45, 0x22d3ee];
 
 const shapeKey = ( s: b3ShapeId ): string => `${s.index1}:${s.world0}:${s.generation}`;
+
+// Per-shape color, following crashcat's "instance" scheme: static bodies get
+// dark greys (slight per-body variance), dynamic/kinematic bodies cycle the
+// bright palette so the sim stays readable.
+function colorFor( b3: Box3DModule, body: b3BodyId, dynamicIdx: number ): THREE.Color
+{
+	const isStatic = b3.b3Body_GetType( body ).value === b3.b3BodyType.b3_staticBody.value;
+	const color = new THREE.Color();
+	if ( isStatic )
+	{
+		const hash = body.index1 * 137.5;
+		const lightness = 0.22 + ( ( hash % 100 ) / 100 ) * 0.2; // 0.22 – 0.42
+		color.setHSL( 0, 0, lightness );
+	}
+	else
+	{
+		color.setHex( PALETTE[dynamicIdx % PALETTE.length] );
+	}
+	return color;
+}
 
 export type WorldRenderer = {
 	/** Add this to your THREE scene. */
@@ -75,14 +95,18 @@ export function createWorldRenderer( b3: Box3DModule, world: b3WorldId ): WorldR
 			const key = shapeKey( shapeId );
 			seen.add( key );
 
+			const body = b3.b3Shape_GetBody( shapeId );
+
 			let mesh = meshes.get( key );
 			if ( mesh === undefined )
 			{
 				const material = new THREE.MeshStandardMaterial( {
-					color: PALETTE[colorIdx++ % PALETTE.length],
+					color: colorFor( b3, body, colorIdx ),
 					roughness: 0.5,
 					metalness: 0.05,
 				} );
+				// Only advance the bright palette for dynamic/kinematic bodies.
+				if ( b3.b3Body_GetType( body ).value !== b3.b3BodyType.b3_staticBody.value ) colorIdx++;
 				mesh = new THREE.Mesh( geometryFor( shapeId ), material );
 				mesh.castShadow = true;
 				mesh.receiveShadow = true;
@@ -90,7 +114,6 @@ export function createWorldRenderer( b3: Box3DModule, world: b3WorldId ): WorldR
 				group.add( mesh );
 			}
 
-			const body = b3.b3Shape_GetBody( shapeId );
 			const p = b3.b3Body_GetPosition( body );
 			const q = b3.b3Body_GetRotation( body );
 			mesh.position.set( p.x, p.y, p.z );

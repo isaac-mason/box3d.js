@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Multithreading — box3d.js</title>
+		<!-- Registers a service worker that adds COOP/COEP so SharedArrayBuffer
+		     (and thus the multithreaded build) works on GitHub Pages. -->
+		<script src="./coi-serviceworker.js"></script>
+		<link rel="stylesheet" href="./src/example.css" />
+	</head>
+	<body>
+		<div class="overlay" id="status"><b>Multithreading</b><br />loading…</div>
+		<script type="module" src="./src/example-multithreading.ts"></script>
+	</body>
+</html>

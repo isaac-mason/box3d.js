@@ -12,10 +12,19 @@ for ( const file of fs.readdirSync( './' ) )
 	}
 }
 
+// Cross-origin isolation headers so SharedArrayBuffer (the multithreaded build)
+// works in dev/preview. On GitHub Pages these can't be set, so coi-serviceworker
+// (examples/public) supplies them instead.
+const coopCoepHeaders = {
+	'Cross-Origin-Opener-Policy': 'same-origin',
+	'Cross-Origin-Embedder-Policy': 'require-corp',
+};
+
 export default defineConfig( {
 	base: './',
 	build: { outDir: 'dist', target: 'esnext', rollupOptions: { input } },
-	server: { open: '/index.html' },
+	server: { open: '/index.html', headers: coopCoepHeaders },
+	preview: { headers: coopCoepHeaders },
 	// The emscripten module is a large self-contained bundle; let it pass
 	// through rather than having esbuild pre-bundle the inlined wasm.
 	optimizeDeps: { exclude: ['box3d.js'] },
