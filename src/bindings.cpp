@@ -497,6 +497,50 @@ EMSCRIPTEN_BINDINGS( box3d )
 		+[]( b3BodyId bodyId, b3ShapeDef def, b3HeightFieldData* hf ) { return b3CreateHeightFieldShape( bodyId, &def, hf ); },
 		allow_raw_pointers() );
 
+	// --- mover queries: sweep/collide a capsule for character controllers ---
+	value_object<b3PlaneResult>( "b3PlaneResult" )
+		.field( "plane", &b3PlaneResult::plane )
+		.field( "point", &b3PlaneResult::point );
+	// CastMover: cb(shapeId)->bool filter; returns the clip fraction [0,1].
+	function( "b3World_CastMover",
+		+[]( b3WorldId worldId, b3Vec3 origin, b3Capsule mover, b3Vec3 translation, b3QueryFilter filter, val cb ) -> float
+		{
+			return b3World_CastMover( worldId, origin, &mover, translation, filter,
+				[]( b3ShapeId shapeId, void* ctx ) -> bool
+				{ val r = ( *static_cast<val*>( ctx ) )( shapeId ); return r.isUndefined() ? true : r.as<bool>(); },
+				&cb );
+		} );
+	// CollideMover: cb(shapeId, planes[]) -> bool. planes are {plane, point} for
+	// collide-and-slide resolution.
+	function( "b3World_CollideMover", +[]( b3WorldId worldId, b3Vec3 origin, b3Capsule mover, b3QueryFilter filter, val cb )
+	{
+		b3World_CollideMover( worldId, origin, &mover, filter,
+			[]( b3ShapeId shapeId, const b3PlaneResult* planes, int planeCount, void* ctx ) -> bool
+			{
+				val arr = val::array();
+				for ( int i = 0; i < planeCount; ++i ) arr.call<void>( "push", val( planes[i] ) );
+				val r = ( *static_cast<val*>( ctx ) )( shapeId, arr );
+				return r.isUndefined() ? true : r.as<bool>();
+			},
+			&cb );
+	} );
+
+	// --- world statistics (counters). Fixed-array fields (colorCounts/
+	// manifoldCounts) are omitted; the scalar counts are what tooling wants. ---
+	value_object<b3Counters>( "b3Counters" )
+		.field( "bodyCount", &b3Counters::bodyCount )
+		.field( "shapeCount", &b3Counters::shapeCount )
+		.field( "contactCount", &b3Counters::contactCount )
+		.field( "jointCount", &b3Counters::jointCount )
+		.field( "islandCount", &b3Counters::islandCount )
+		.field( "stackUsed", &b3Counters::stackUsed )
+		.field( "byteCount", &b3Counters::byteCount )
+		.field( "taskCount", &b3Counters::taskCount )
+		.field( "awakeContactCount", &b3Counters::awakeContactCount )
+		.field( "treeHeight", &b3Counters::treeHeight )
+		.field( "staticTreeHeight", &b3Counters::staticTreeHeight );
+	function( "b3World_GetCounters", &b3World_GetCounters );
+
 	// Explosion (radial impulse).
 	value_object<b3ExplosionDef>( "b3ExplosionDef" )
 		.field( "maskBits", &b3ExplosionDef::maskBits )

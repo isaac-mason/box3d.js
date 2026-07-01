@@ -115,6 +115,20 @@ export type b3Capacity = {
   contactCount: number
 };
 
+export type b3Counters = {
+  bodyCount: number,
+  shapeCount: number,
+  contactCount: number,
+  jointCount: number,
+  islandCount: number,
+  stackUsed: number,
+  byteCount: number,
+  taskCount: number,
+  awakeContactCount: number,
+  treeHeight: number,
+  staticTreeHeight: number
+};
+
 export type b3ContactId = {
   index1: number,
   world0: number,
@@ -182,6 +196,11 @@ export type b3BodyMoveEvent = {
 export type b3Plane = {
   normal: b3Vec3,
   offset: number
+};
+
+export type b3PlaneResult = {
+  plane: b3Plane,
+  point: b3Vec3
 };
 
 export type b3Sphere = {
@@ -551,6 +570,7 @@ interface EmbindModule {
   b3World_GetAwakeBodyCount(_0: b3WorldId): number;
   b3World_SetWorkerCount(_0: b3WorldId, _1: number): void;
   b3World_GetWorkerCount(_0: b3WorldId): number;
+  b3World_GetCounters(_0: b3WorldId): b3Counters;
   b3Body_GetShapeCount(_0: b3BodyId): number;
   b3Body_GetJointCount(_0: b3BodyId): number;
   b3DefaultFilter(): b3Filter;
@@ -816,6 +836,8 @@ interface EmbindModule {
   b3CreateMesh(_0: any, _1: any): b3MeshData | null;
   b3CreateCompound(_0: any): b3CompoundData | null;
   b3CreateHeightField(_0: any, _1: number, _2: number, _3: b3Vec3): b3HeightFieldData | null;
+  b3World_CastMover(_0: b3WorldId, _1: b3Vec3, _2: b3Capsule, _3: b3Vec3, _4: b3QueryFilter, _5: any): number;
+  b3World_CollideMover(_0: b3WorldId, _1: b3Vec3, _2: b3Capsule, _3: b3QueryFilter, _4: any): void;
   b3World_OverlapShape(_0: b3WorldId, _1: b3Vec3, _2: any, _3: number, _4: b3QueryFilter, _5: any): void;
   b3World_CastShape(_0: b3WorldId, _1: b3Vec3, _2: any, _3: number, _4: b3Vec3, _5: b3QueryFilter, _6: any): void;
   b3Shape_GetHullVertices(_0: b3ShapeId): any;
