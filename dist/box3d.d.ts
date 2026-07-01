@@ -911,6 +911,9 @@ interface EmbindModule {
   b3ShapeDistance(_0: any, _1: number, _2: any, _3: number, _4: b3Transform, _5: boolean): b3DistanceOutput;
   b3ShapeCast(_0: any, _1: number, _2: any, _3: number, _4: b3Transform, _5: b3Vec3, _6: number, _7: boolean): b3WorldCastOutput;
   b3TimeOfImpact(_0: any, _1: number, _2: any, _3: number, _4: b3Sweep, _5: b3Sweep, _6: number): b3TOIOutput;
+  b3Body_GetContactData(_0: b3BodyId): any;
+  b3Shape_GetContactData(_0: b3ShapeId): any;
+  b3Shape_GetSensorData(_0: b3ShapeId): any;
   b3World_OverlapShape(_0: b3WorldId, _1: b3Vec3, _2: any, _3: number, _4: b3QueryFilter, _5: any): void;
   b3World_CastShape(_0: b3WorldId, _1: b3Vec3, _2: any, _3: number, _4: b3Vec3, _5: b3QueryFilter, _6: any): void;
   b3Shape_GetHullVertices(_0: b3ShapeId): any;

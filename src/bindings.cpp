@@ -38,6 +38,40 @@ val eventsToArray( const T* data, int count )
 	return arr;
 }
 
+// Marshal b3ContactData[] into a JS array of { shapeIdA, shapeIdB, manifolds:
+// [{ normal, points: [{ anchorA, anchorB, separation }] }] }.
+inline val contactsToArray( const b3ContactData* data, int count )
+{
+	val arr = val::array();
+	for ( int i = 0; i < count; ++i )
+	{
+		val c = val::object();
+		c.set( "shapeIdA", val( data[i].shapeIdA ) );
+		c.set( "shapeIdB", val( data[i].shapeIdB ) );
+		val manifolds = val::array();
+		for ( int m = 0; m < data[i].manifoldCount; ++m )
+		{
+			const b3Manifold& man = data[i].manifolds[m];
+			val mo = val::object();
+			mo.set( "normal", val( man.normal ) );
+			val pts = val::array();
+			for ( int p = 0; p < man.pointCount; ++p )
+			{
+				val po = val::object();
+				po.set( "anchorA", val( man.points[p].anchorA ) );
+				po.set( "anchorB", val( man.points[p].anchorB ) );
+				po.set( "separation", man.points[p].separation );
+				pts.call<void>( "push", po );
+			}
+			mo.set( "points", pts );
+			manifolds.call<void>( "push", mo );
+		}
+		c.set( "manifolds", manifolds );
+		arr.call<void>( "push", c );
+	}
+	return arr;
+}
+
 // Faithful debug-draw binding. b3World_Draw takes a b3DebugDraw struct of C
 // function pointers; we bridge each to a method on a JS handler object carried
 // through the context pointer. This crosses into JS per primitive, so it is for
@@ -686,6 +720,32 @@ EMSCRIPTEN_BINDINGS( box3d )
 		.field( "sleepIslands", &b3Profile::sleepIslands )
 		.field( "sensors", &b3Profile::sensors );
 	function( "b3World_GetProfile", &b3World_GetProfile );
+
+	// --- live contact / sensor data getters ---
+	// Contacts as a JS array: { shapeIdA, shapeIdB, manifolds: [{ normal,
+	// points: [{ anchorA, anchorB, separation }] }] }. Anchors are offsets from
+	// each body's centre of mass, in world orientation.
+	function( "b3Body_GetContactData", +[]( b3BodyId bodyId ) -> val
+	{
+		std::vector<b3ContactData> data( (size_t)b3Body_GetContactCapacity( bodyId ) );
+		int n = data.empty() ? 0 : b3Body_GetContactData( bodyId, data.data(), (int)data.size() );
+		return contactsToArray( data.data(), n );
+	} );
+	function( "b3Shape_GetContactData", +[]( b3ShapeId shapeId ) -> val
+	{
+		std::vector<b3ContactData> data( (size_t)b3Shape_GetContactCapacity( shapeId ) );
+		int n = data.empty() ? 0 : b3Shape_GetContactData( shapeId, data.data(), (int)data.size() );
+		return contactsToArray( data.data(), n );
+	} );
+	// sensor overlaps: JS array of visitor shape ids currently inside this sensor.
+	function( "b3Shape_GetSensorData", +[]( b3ShapeId shapeId ) -> val
+	{
+		std::vector<b3ShapeId> ids( (size_t)b3Shape_GetSensorCapacity( shapeId ) );
+		int n = ids.empty() ? 0 : b3Shape_GetSensorData( shapeId, ids.data(), (int)ids.size() );
+		val arr = val::array();
+		for ( int i = 0; i < n; ++i ) arr.call<void>( "push", val( ids[i] ) );
+		return arr;
+	} );
 
 	// Explosion (radial impulse).
 	value_object<b3ExplosionDef>( "b3ExplosionDef" )
