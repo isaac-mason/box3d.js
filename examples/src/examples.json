@@ -165,6 +165,17 @@
       "mesh"
     ]
   },
+  "example-cast-shape": {
+    "title": "Cast Shape",
+    "description": "a sphere is swept at a spinning mesh; closest hits marked (shapecast)",
+    "tags": [
+      "world",
+      "physics",
+      "shapecast",
+      "query",
+      "mesh"
+    ]
+  },
   "example-sensor": {
     "title": "Sensor",
     "description": "a kinematic sensor sweeps past bodies \u00b7 hit / no-hit",
