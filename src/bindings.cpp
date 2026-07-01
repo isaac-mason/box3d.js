@@ -232,6 +232,35 @@ EMSCRIPTEN_BINDINGS( box3d )
 	function( "b3World_SetGravity", &b3World_SetGravity );
 	function( "b3World_GetGravity", &b3World_GetGravity );
 
+	// =====================================================================
+	// Section 5a2 — world tuning / counts / misc (direct binds)
+	// =====================================================================
+	function( "b3GetWorldCount", &b3GetWorldCount );
+	function( "b3GetMaxWorldCount", &b3GetMaxWorldCount );
+	function( "b3World_GetBounds", &b3World_GetBounds );
+	function( "b3World_EnableSleeping", &b3World_EnableSleeping );
+	function( "b3World_IsSleepingEnabled", &b3World_IsSleepingEnabled );
+	function( "b3World_EnableContinuous", &b3World_EnableContinuous );
+	function( "b3World_IsContinuousEnabled", &b3World_IsContinuousEnabled );
+	function( "b3World_SetRestitutionThreshold", &b3World_SetRestitutionThreshold );
+	function( "b3World_GetRestitutionThreshold", &b3World_GetRestitutionThreshold );
+	function( "b3World_SetHitEventThreshold", &b3World_SetHitEventThreshold );
+	function( "b3World_GetHitEventThreshold", &b3World_GetHitEventThreshold );
+	function( "b3World_SetContactTuning", &b3World_SetContactTuning );
+	function( "b3World_SetContactRecycleDistance", &b3World_SetContactRecycleDistance );
+	function( "b3World_GetContactRecycleDistance", &b3World_GetContactRecycleDistance );
+	function( "b3World_SetMaximumLinearSpeed", &b3World_SetMaximumLinearSpeed );
+	function( "b3World_GetMaximumLinearSpeed", &b3World_GetMaximumLinearSpeed );
+	function( "b3World_EnableWarmStarting", &b3World_EnableWarmStarting );
+	function( "b3World_IsWarmStartingEnabled", &b3World_IsWarmStartingEnabled );
+	function( "b3World_GetAwakeBodyCount", &b3World_GetAwakeBodyCount );
+	function( "b3World_SetWorkerCount", &b3World_SetWorkerCount );
+	function( "b3World_GetWorkerCount", &b3World_GetWorkerCount );
+	function( "b3World_RebuildStaticTree", &b3World_RebuildStaticTree );
+	function( "b3World_EnableSpeculative", &b3World_EnableSpeculative );
+	function( "b3World_GetMaxCapacity", &b3World_GetMaxCapacity );
+	function( "b3World_DumpShapeBounds", &b3World_DumpShapeBounds );
+
 	// body
 	function( "b3CreateBody", +[]( b3WorldId worldId, b3BodyDef def ) { return b3CreateBody( worldId, &def ); } );
 	function( "b3DestroyBody", &b3DestroyBody );
