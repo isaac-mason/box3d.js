@@ -1,6 +1,6 @@
-// Shared three.js boilerplate every example builds on: renderer, scene, camera,
-// orbit controls, lights, a ground grid, resize handling, and a delta-clamped
-// animation loop. Examples register per-frame callbacks and call start().
+// Shared three.js boilerplate, matching the crashcat examples' rendering setup:
+// scene (0x1a1a1a), a 75° camera, ambient + directional light, orbit controls,
+// resize handling, and a delta-clamped animation loop. Camera pose is per-example.
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -12,58 +12,58 @@ export type Harness = {
 	controls: OrbitControls;
 	onFrame( cb: ( dt: number ) => void ): void;
 	start(): void;
+};
+
+export interface HarnessOptions
+{
+	camera?: [number, number, number];
+	target?: [number, number, number];
 }
 
-export function createHarness(): Harness
+export function createHarness( options: HarnessOptions = {} ): Harness
 {
-	const scene = new THREE.Scene();
-	scene.background = new THREE.Color( 0x15151a );
+	const { camera: cameraPos = [0, 10, 20], target = [0, 3, 0] } = options;
 
-	const camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 0.1, 1000 );
-	camera.position.set( 14, 11, 18 );
+	const scene = new THREE.Scene();
+	scene.background = new THREE.Color( 0x1a1a1a );
+
+	const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+	camera.position.set( cameraPos[0], cameraPos[1], cameraPos[2] );
+	camera.lookAt( target[0], target[1], target[2] );
 
 	const renderer = new THREE.WebGLRenderer( { antialias: true } );
-	renderer.setPixelRatio( window.devicePixelRatio );
 	renderer.setSize( window.innerWidth, window.innerHeight );
-	renderer.shadowMap.enabled = true;
-	renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 	document.body.appendChild( renderer.domElement );
 
-	const controls = new OrbitControls( camera, renderer.domElement );
-	controls.enableDamping = true;
-	controls.target.set( 0, 2, 0 );
-
-	scene.add( new THREE.AmbientLight( 0xffffff, 0.5 ) );
-	const sun = new THREE.DirectionalLight( 0xffffff, 2.0 );
-	sun.position.set( 12, 22, 8 );
-	sun.castShadow = true;
-	sun.shadow.mapSize.set( 2048, 2048 );
-	sun.shadow.camera.near = 1;
-	sun.shadow.camera.far = 80;
-	const s = 30;
-	sun.shadow.camera.left = -s;
-	sun.shadow.camera.right = s;
-	sun.shadow.camera.top = s;
-	sun.shadow.camera.bottom = -s;
-	scene.add( sun );
-
-	window.addEventListener( 'resize', () =>
+	const onResize = () =>
 	{
 		camera.aspect = window.innerWidth / window.innerHeight;
 		camera.updateProjectionMatrix();
 		renderer.setSize( window.innerWidth, window.innerHeight );
-	} );
+	};
+	window.addEventListener( 'resize', onResize );
+	onResize();
+
+	const controls = new OrbitControls( camera, renderer.domElement );
+	controls.enableDamping = true;
+	controls.target.set( target[0], target[1], target[2] );
+
+	scene.add( new THREE.AmbientLight( 0xffffff, 0.5 ) );
+	const directionalLight = new THREE.DirectionalLight( 0xffffff, 0.8 );
+	directionalLight.position.set( 5, 10, 7 );
+	scene.add( directionalLight );
 
 	const callbacks: Array<( dt: number ) => void> = [];
-	let last = performance.now();
+	const maxDelta = 1 / 30;
+	let lastTime = performance.now();
 
-	function loop(): void
+	function animate(): void
 	{
-		requestAnimationFrame( loop );
+		requestAnimationFrame( animate );
 		const now = performance.now();
-		const dt = Math.min( ( now - last ) / 1000, 1 / 30 );
-		last = now;
-		for ( const cb of callbacks ) cb( dt );
+		const delta = Math.min( ( now - lastTime ) / 1000, maxDelta );
+		lastTime = now;
+		for ( const cb of callbacks ) cb( delta );
 		controls.update();
 		renderer.render( scene, camera );
 	}
@@ -76,8 +76,8 @@ export function createHarness(): Harness
 		onFrame: ( cb ) => callbacks.push( cb ),
 		start: () =>
 		{
-			last = performance.now();
-			loop();
+			lastTime = performance.now();
+			animate();
 		},
 	};
 }

@@ -1,18 +1,22 @@
 {
   "example-shapes": {
     "title": "Shapes",
-    "tags": ["dynamics", "shapes", "hulls", "cylinder", "respawn"]
+    "description": "spawn spheres, boxes & capsules · drag to orbit",
+    "tags": ["world", "physics", "shapes", "primitives", "dynamics"]
   },
-  "example-stacking": {
-    "title": "Stacking",
-    "tags": ["stacking", "boxes", "contacts", "solver"]
+  "example-cube-heap": {
+    "title": "Cube Heap",
+    "description": "a churning pile of cubes under strong gravity",
+    "tags": ["world", "physics", "cube-heap"]
   },
   "example-restitution": {
     "title": "Restitution",
-    "tags": ["restitution", "bounce", "material", "spheres"]
+    "description": "a row of balls, restitution 0 → 1 · press drop",
+    "tags": ["world", "physics", "restitution", "bounce", "material"]
   },
   "example-friction": {
     "title": "Friction",
-    "tags": ["friction", "ramp", "material", "sliding"]
+    "description": "boxes with friction 0 → 1 on a ramp · low slides, high sticks",
+    "tags": ["world", "physics", "friction", "material", "sliding"]
   }
 }

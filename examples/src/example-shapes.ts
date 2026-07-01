@@ -45,7 +45,7 @@ const shapeConfigs: ShapeConfig[] = [
 type DynamicShape = { body: b3BodyId; config: ShapeConfig };
 const dynamicShapes: DynamicShape[] = [];
 
-const settings = { numberOfBodies: 60, respawnIntervalMs: 500 };
+const settings = { numberOfBodies: 200, respawnIntervalMs: 10 };
 const SPAWN_HEIGHT = 15;
 const SPAWN_AREA = 8;
 
@@ -93,7 +93,7 @@ app.scene.add( renderer.object3d );
 
 const gui = new GUI();
 gui.add( settings, 'numberOfBodies', 0, 300, 1 ).name( 'number of bodies' ).onChange( updateBodyCount );
-gui.add( settings, 'respawnIntervalMs', 100, 3000, 100 ).name( 'respawn interval (ms)' );
+gui.add( settings, 'respawnIntervalMs', 100, 1000, 10 ).name( 'respawn interval (ms)' );
 
 let lastRespawn = performance.now();
 let respawnIndex = 0;
