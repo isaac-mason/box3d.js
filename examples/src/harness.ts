@@ -47,9 +47,6 @@ export function createHarness(): Harness
 	sun.shadow.camera.bottom = -s;
 	scene.add( sun );
 
-	const grid = new THREE.GridHelper( 60, 60, 0x333333, 0x222222 );
-	scene.add( grid );
-
 	window.addEventListener( 'resize', () =>
 	{
 		camera.aspect = window.innerWidth / window.innerHeight;

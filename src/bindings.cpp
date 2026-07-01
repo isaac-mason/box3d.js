@@ -381,6 +381,21 @@ EMSCRIPTEN_BINDINGS( box3d )
 			return b3CreateHullShape( bodyId, &def, &hull.base );
 		} );
 
+	// Binding-side helper: build a convex hull from a flat JS point array
+	// [x,y,z, ...] and create a hull shape from it. b3CreateHullShape copies the
+	// hull, so the temporary is freed immediately.
+	function( "b3CreateHullShapeFromPoints",
+		+[]( b3BodyId bodyId, b3ShapeDef def, val points )
+		{
+			std::vector<float> f = convertJSArrayToNumberVector<float>( points );
+			std::vector<b3Vec3> pts( f.size() / 3 );
+			for ( size_t i = 0; i < pts.size(); ++i ) pts[i] = b3Vec3{ f[i * 3], f[i * 3 + 1], f[i * 3 + 2] };
+			b3HullData* hull = b3CreateHull( pts.data(), (int)pts.size(), (int)pts.size() );
+			b3ShapeId shape = b3CreateHullShape( bodyId, &def, hull );
+			b3DestroyHull( hull );
+			return shape;
+		} );
+
 	register_vector<b3ShapeId>( "b3ShapeIdVector" );
 	register_vector<b3JointId>( "b3JointIdVector" );
 
