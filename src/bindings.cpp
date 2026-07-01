@@ -904,6 +904,32 @@ EMSCRIPTEN_BINDINGS( box3d )
 	function( "b3Shape_ComputeMassData", &b3Shape_ComputeMassData );
 	function( "b3Shape_RayCast", &b3Shape_RayCast );
 
+	// Callback-driven spatial queries. The JS callback is invoked once per
+	// result; &cb stays valid for the synchronous duration of the query.
+	// OverlapAABB: cb(shapeId) -> bool (return false to stop).
+	function( "b3World_OverlapAABB", +[]( b3WorldId worldId, b3AABB aabb, b3QueryFilter filter, val cb )
+	{
+		b3World_OverlapAABB( worldId, aabb, filter,
+			[]( b3ShapeId shapeId, void* ctx ) -> bool
+			{
+				val r = ( *static_cast<val*>( ctx ) )( shapeId );
+				return r.isUndefined() ? true : r.as<bool>();
+			},
+			&cb );
+	} );
+	// CastRay: cb(shapeId, point, normal, fraction) -> number. Return the new
+	// clip fraction (0 stops, 1 continues, -1 skips this shape), per box3d.
+	function( "b3World_CastRay", +[]( b3WorldId worldId, b3Vec3 origin, b3Vec3 translation, b3QueryFilter filter, val cb )
+	{
+		b3World_CastRay( worldId, origin, translation, filter,
+			[]( b3ShapeId shapeId, b3Pos point, b3Vec3 normal, float fraction, uint64_t, int, int, void* ctx ) -> float
+			{
+				val r = ( *static_cast<val*>( ctx ) )( shapeId, point, normal, fraction );
+				return r.isUndefined() ? 1.0f : r.as<float>();
+			},
+			&cb );
+	} );
+
 	// =====================================================================
 	// Section 8 — events. Leaf event structs as value_objects (void* userData
 	// omitted); the four world getters return native JS arrays mirroring the C
