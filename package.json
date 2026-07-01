@@ -1,0 +1,35 @@
+{
+  "name": "box3d",
+  "version": "0.0.0-alpha.0",
+  "description": "WebAssembly bindings for box3d, Erin Catto's 3D physics engine",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/box3d.d.ts",
+      "import": "./dist/box3d.mjs"
+    },
+    "./inline": {
+      "types": "./dist/box3d.d.ts",
+      "import": "./dist/box3d.single.mjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:debug": "node scripts/build.mjs --debug",
+    "test": "node test/smoke.mjs"
+  },
+  "keywords": [
+    "box3d",
+    "physics",
+    "3d",
+    "wasm",
+    "emscripten",
+    "embind"
+  ],
+  "author": "",
+  "license": "MIT",
+  "packageManager": "pnpm@10.32.1"
+}

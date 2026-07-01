@@ -1,0 +1,3 @@
+[submodule "vendor/box3d"]
+	path = vendor/box3d
+	url = https://github.com/erincatto/box3d.git

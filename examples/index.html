@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>box3d.js — examples</title>
+		<style>
+			* { margin: 0; padding: 0; box-sizing: border-box; }
+			html, body { height: 100%; font-family: system-ui, sans-serif; background: #0f0f13; color: #e8e8ea; }
+			#app { display: grid; grid-template-columns: 260px 1fr; height: 100%; }
+			#sidebar { border-right: 1px solid #26262c; overflow-y: auto; padding: 16px; }
+			#sidebar h1 { font-size: 16px; margin-bottom: 4px; }
+			#sidebar p { font-size: 12px; color: #8a8a92; margin-bottom: 16px; }
+			.item { display: block; padding: 10px 12px; border-radius: 8px; cursor: pointer; text-decoration: none; color: #e8e8ea; }
+			.item:hover { background: #1b1b22; }
+			.item.active { background: #223; }
+			.item .title { font-size: 14px; font-weight: 600; }
+			.item .tags { font-size: 11px; color: #7a7a82; margin-top: 2px; }
+			iframe { width: 100%; height: 100%; border: 0; }
+		</style>
+	</head>
+	<body>
+		<div id="app">
+			<nav id="sidebar">
+				<h1>box3d.js</h1>
+				<p>3D physics for the web — examples</p>
+				<div id="list"></div>
+			</nav>
+			<iframe id="frame" title="example"></iframe>
+		</div>
+		<script type="module">
+			import examples from './src/examples.json';
+
+			const list = document.getElementById( 'list' );
+			const frame = document.getElementById( 'frame' );
+			const keys = Object.keys( examples );
+
+			function select( key )
+			{
+				frame.src = `./${key}.html`;
+				location.hash = key;
+				for ( const el of list.children )
+				{
+					el.classList.toggle( 'active', el.dataset.key === key );
+				}
+			}
+
+			for ( const key of keys )
+			{
+				const { title, tags } = examples[key];
+				const a = document.createElement( 'a' );
+				a.className = 'item';
+				a.dataset.key = key;
+				a.innerHTML = `<div class="title">${title}</div><div class="tags">${tags.join( ' · ' )}</div>`;
+				a.onclick = ( e ) => { e.preventDefault(); select( key ); };
+				list.appendChild( a );
+			}
+
+			select( location.hash.slice( 1 ) || keys[0] );
+		</script>
+	</body>
+</html>
