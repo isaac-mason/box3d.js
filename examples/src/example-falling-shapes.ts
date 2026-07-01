@@ -3,12 +3,12 @@
 // transforms back into three.js meshes each frame.
 
 import Box3D from 'box3d.js/inline';
-import type { MainModule, b3BodyId, b3ShapeDef } from 'box3d.js';
+import type { Box3DModule, b3BodyId, b3ShapeDef } from 'box3d.js';
 import * as THREE from 'three';
 import { BodyMeshMap } from './box3d-three';
 import { createHarness } from './harness';
 
-const b3: MainModule = await Box3D();
+const b3: Box3DModule = await Box3D();
 const app = createHarness();
 const bodies = new BodyMeshMap( b3 );
 

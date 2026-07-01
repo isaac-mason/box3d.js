@@ -7,7 +7,7 @@
 // Requires the Emscripten SDK on PATH (emcmake / em++). Source emsdk_env first.
 
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, readdirSync, statSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 
@@ -81,6 +81,14 @@ const common = [
 
 // Separate-wasm build (also emits the shared TypeScript defs).
 run( 'em++', [ ...common, '--emit-tsd', 'box3d.d.ts', '-o', 'dist/box3d.mjs' ] );
+
+// emscripten hardcodes MainModule / MainModuleFactory in --emit-tsd output.
+// Rename them to friendlier box3d names.
+const tsdPath = join( root, 'dist', 'box3d.d.ts' );
+const tsd = readFileSync( tsdPath, 'utf8' )
+	.replaceAll( 'MainModuleFactory', 'Box3DFactory' )
+	.replaceAll( 'MainModule', 'Box3DModule' );
+writeFileSync( tsdPath, tsd );
 
 // Inlined single-file build (wasm base64-embedded).
 run( 'em++', [ ...common, '-sSINGLE_FILE=1', '-o', 'dist/box3d.single.mjs' ] );

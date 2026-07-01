@@ -5,10 +5,10 @@
 // published `box3d.js/three` subpath export.
 
 import * as THREE from 'three';
-import type { MainModule, b3BodyId } from 'box3d.js';
+import type { Box3DModule, b3BodyId } from 'box3d.js';
 
 /** Copy a box3d body's world transform onto a three.js object. */
-export function syncMesh( b3: MainModule, bodyId: b3BodyId, object: THREE.Object3D ): void
+export function syncMesh( b3: Box3DModule, bodyId: b3BodyId, object: THREE.Object3D ): void
 {
 	const p = b3.b3Body_GetPosition( bodyId );
 	const q = b3.b3Body_GetRotation( bodyId ); // b3Quat = { v: {x,y,z}, s }
@@ -21,7 +21,7 @@ export class BodyMeshMap
 {
 	private pairs: Array<{ bodyId: b3BodyId; mesh: THREE.Object3D }> = [];
 
-	constructor( private b3: MainModule ) {}
+	constructor( private b3: Box3DModule ) {}
 
 	add( bodyId: b3BodyId, mesh: THREE.Object3D ): void
 	{
