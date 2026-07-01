@@ -1,5 +1,5 @@
 {
-  "name": "box3d",
+  "name": "box3d.js",
   "version": "0.0.0-alpha.0",
   "description": "WebAssembly bindings for box3d, Erin Catto's 3D physics engine",
   "type": "module",
