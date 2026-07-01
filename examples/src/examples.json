@@ -39,6 +39,11 @@
     "description": "boxes launched at one speed, damping 0 → 0.9 · press R",
     "tags": ["world", "physics", "damping", "velocity", "dynamics"]
   },
+  "example-angular-damping": {
+    "title": "Angular Damping",
+    "description": "zero-gravity boxes spun equally, angular damping 0 → 0.9 · press R",
+    "tags": ["world", "physics", "damping", "rotation", "angular"]
+  },
   "example-sensor": {
     "title": "Sensor",
     "description": "a kinematic sensor sweeps past bodies · hit / no-hit",
