@@ -19,6 +19,11 @@
     "description": "spheres, boxes & capsules launched across a floor, friction 0 → 1",
     "tags": ["world", "physics", "friction", "material", "sliding"]
   },
+  "example-conveyor-belt": {
+    "title": "Conveyor Belt",
+    "description": "belts carry cargo via surface tangent velocity, friction 0 → 1",
+    "tags": ["world", "physics", "conveyor", "tangent-velocity", "friction"]
+  },
   "example-ccd": {
     "title": "Continuous Collision Detection",
     "description": "a heavy bullet sphere smashes through box walls without tunneling",
