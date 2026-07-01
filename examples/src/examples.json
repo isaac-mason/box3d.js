@@ -1,7 +1,7 @@
 {
   "example-shapes": {
     "title": "Shapes",
-    "tags": ["dynamics", "shapes", "spheres", "boxes", "capsules"]
+    "tags": ["dynamics", "shapes", "hulls", "cylinder", "respawn"]
   },
   "example-stacking": {
     "title": "Stacking",
@@ -10,5 +10,9 @@
   "example-restitution": {
     "title": "Restitution",
     "tags": ["restitution", "bounce", "material", "spheres"]
+  },
+  "example-friction": {
+    "title": "Friction",
+    "tags": ["friction", "ramp", "material", "sliding"]
   }
 }
