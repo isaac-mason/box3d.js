@@ -39,6 +39,11 @@ export interface b3CompoundData extends ClassHandle {
 export interface b3HeightFieldData extends ClassHandle {
 }
 
+export interface b3TOIStateValue<T extends number> {
+  value: T;
+}
+export type b3TOIState = b3TOIStateValue<0>|b3TOIStateValue<1>|b3TOIStateValue<2>|b3TOIStateValue<3>|b3TOIStateValue<4>;
+
 export interface b3ShapeIdVector extends ClassHandle {
   push_back(_0: b3ShapeId): void;
   resize(_0: number, _1: b3ShapeId): void;
@@ -193,6 +198,14 @@ export type b3BodyMoveEvent = {
   fellAsleep: boolean
 };
 
+export type b3Sweep = {
+  localCenter: b3Vec3,
+  c1: b3Vec3,
+  c2: b3Vec3,
+  q1: b3Quat,
+  q2: b3Quat
+};
+
 export type b3Plane = {
   normal: b3Vec3,
   offset: number
@@ -272,6 +285,27 @@ export type b3ShapeDef = {
   invokeContactCreation: boolean,
   updateBodyMass: boolean,
   internalValue: number
+};
+
+export type b3DistanceOutput = {
+  pointA: b3Vec3,
+  pointB: b3Vec3,
+  normal: b3Vec3,
+  distance: number,
+  iterations: number,
+  simplexCount: number
+};
+
+export type b3TOIOutput = {
+  state: b3TOIState,
+  point: b3Vec3,
+  normal: b3Vec3,
+  fraction: number,
+  distance: number,
+  distanceIterations: number,
+  pushBackIterations: number,
+  rootIterations: number,
+  usedFallback: boolean
 };
 
 export type b3ExplosionDef = {
@@ -459,6 +493,7 @@ interface EmbindModule {
   b3MeshData: {};
   b3CompoundData: {};
   b3HeightFieldData: {};
+  b3TOIState: {b3_toiStateUnknown: b3TOIStateValue<0>, b3_toiStateFailed: b3TOIStateValue<1>, b3_toiStateOverlapped: b3TOIStateValue<2>, b3_toiStateHit: b3TOIStateValue<3>, b3_toiStateSeparated: b3TOIStateValue<4>};
   b3ShapeIdVector: {
     new(): b3ShapeIdVector;
   };
@@ -840,6 +875,9 @@ interface EmbindModule {
   b3World_CollideMover(_0: b3WorldId, _1: b3Vec3, _2: b3Capsule, _3: b3QueryFilter, _4: any): void;
   b3World_SetCustomFilterCallback(_0: b3WorldId, _1: any): void;
   b3World_SetPreSolveCallback(_0: b3WorldId, _1: any): void;
+  b3ShapeDistance(_0: any, _1: number, _2: any, _3: number, _4: b3Transform, _5: boolean): b3DistanceOutput;
+  b3ShapeCast(_0: any, _1: number, _2: any, _3: number, _4: b3Transform, _5: b3Vec3, _6: number, _7: boolean): b3WorldCastOutput;
+  b3TimeOfImpact(_0: any, _1: number, _2: any, _3: number, _4: b3Sweep, _5: b3Sweep, _6: number): b3TOIOutput;
   b3World_OverlapShape(_0: b3WorldId, _1: b3Vec3, _2: any, _3: number, _4: b3QueryFilter, _5: any): void;
   b3World_CastShape(_0: b3WorldId, _1: b3Vec3, _2: any, _3: number, _4: b3Vec3, _5: b3QueryFilter, _6: any): void;
   b3Shape_GetHullVertices(_0: b3ShapeId): any;

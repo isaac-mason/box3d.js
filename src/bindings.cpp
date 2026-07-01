@@ -565,6 +565,93 @@ EMSCRIPTEN_BINDINGS( box3d )
 			held );
 	} );
 
+	// =====================================================================
+	// Section 10 — low-level collision (collision.h): GJK distance, convex
+	// shape cast, and time of impact. Shapes are passed as point-cloud proxies
+	// (Float32Array of local points + radius), matching b3ShapeProxy.
+	// =====================================================================
+	enum_<b3TOIState>( "b3TOIState" )
+		.value( "b3_toiStateUnknown", b3_toiStateUnknown )
+		.value( "b3_toiStateFailed", b3_toiStateFailed )
+		.value( "b3_toiStateOverlapped", b3_toiStateOverlapped )
+		.value( "b3_toiStateHit", b3_toiStateHit )
+		.value( "b3_toiStateSeparated", b3_toiStateSeparated );
+
+	value_object<b3DistanceOutput>( "b3DistanceOutput" )
+		.field( "pointA", &b3DistanceOutput::pointA )
+		.field( "pointB", &b3DistanceOutput::pointB )
+		.field( "normal", &b3DistanceOutput::normal )
+		.field( "distance", &b3DistanceOutput::distance )
+		.field( "iterations", &b3DistanceOutput::iterations )
+		.field( "simplexCount", &b3DistanceOutput::simplexCount );
+
+	// b3CastOutput === b3WorldCastOutput in float mode (already registered).
+
+	value_object<b3Sweep>( "b3Sweep" )
+		.field( "localCenter", &b3Sweep::localCenter )
+		.field( "c1", &b3Sweep::c1 )
+		.field( "c2", &b3Sweep::c2 )
+		.field( "q1", &b3Sweep::q1 )
+		.field( "q2", &b3Sweep::q2 );
+
+	value_object<b3TOIOutput>( "b3TOIOutput" )
+		.field( "state", &b3TOIOutput::state )
+		.field( "point", &b3TOIOutput::point )
+		.field( "normal", &b3TOIOutput::normal )
+		.field( "fraction", &b3TOIOutput::fraction )
+		.field( "distance", &b3TOIOutput::distance )
+		.field( "distanceIterations", &b3TOIOutput::distanceIterations )
+		.field( "pushBackIterations", &b3TOIOutput::pushBackIterations )
+		.field( "rootIterations", &b3TOIOutput::rootIterations )
+		.field( "usedFallback", &b3TOIOutput::usedFallback );
+
+	// GJK closest points/distance between two convex point clouds. transformB is
+	// shape B's pose in shape A's frame.
+	function( "b3ShapeDistance",
+		+[]( val pointsA, float radiusA, val pointsB, float radiusB, b3Transform transformB, bool useRadii ) -> b3DistanceOutput
+		{
+			std::vector<float> fa = convertJSArrayToNumberVector<float>( pointsA );
+			std::vector<float> fb = convertJSArrayToNumberVector<float>( pointsB );
+			b3DistanceInput input = {};
+			input.proxyA = { reinterpret_cast<const b3Vec3*>( fa.data() ), (int)( fa.size() / 3 ), radiusA };
+			input.proxyB = { reinterpret_cast<const b3Vec3*>( fb.data() ), (int)( fb.size() / 3 ), radiusB };
+			input.transform = transformB;
+			input.useRadii = useRadii;
+			b3SimplexCache cache = {};
+			return b3ShapeDistance( &input, &cache, nullptr, 0 );
+		} );
+
+	// Convex cast of shape B (swept by translationB) against shape A.
+	function( "b3ShapeCast",
+		+[]( val pointsA, float radiusA, val pointsB, float radiusB, b3Transform transformB, b3Vec3 translationB, float maxFraction, bool canEncroach ) -> b3CastOutput
+		{
+			std::vector<float> fa = convertJSArrayToNumberVector<float>( pointsA );
+			std::vector<float> fb = convertJSArrayToNumberVector<float>( pointsB );
+			b3ShapeCastPairInput input = {};
+			input.proxyA = { reinterpret_cast<const b3Vec3*>( fa.data() ), (int)( fa.size() / 3 ), radiusA };
+			input.proxyB = { reinterpret_cast<const b3Vec3*>( fb.data() ), (int)( fb.size() / 3 ), radiusB };
+			input.transform = transformB;
+			input.translationB = translationB;
+			input.maxFraction = maxFraction;
+			input.canEncroach = canEncroach;
+			return b3ShapeCast( &input );
+		} );
+
+	// Time of impact between two swept convex shapes.
+	function( "b3TimeOfImpact",
+		+[]( val pointsA, float radiusA, val pointsB, float radiusB, b3Sweep sweepA, b3Sweep sweepB, float maxFraction ) -> b3TOIOutput
+		{
+			std::vector<float> fa = convertJSArrayToNumberVector<float>( pointsA );
+			std::vector<float> fb = convertJSArrayToNumberVector<float>( pointsB );
+			b3TOIInput input = {};
+			input.proxyA = { reinterpret_cast<const b3Vec3*>( fa.data() ), (int)( fa.size() / 3 ), radiusA };
+			input.proxyB = { reinterpret_cast<const b3Vec3*>( fb.data() ), (int)( fb.size() / 3 ), radiusB };
+			input.sweepA = sweepA;
+			input.sweepB = sweepB;
+			input.maxFraction = maxFraction;
+			return b3TimeOfImpact( &input );
+		} );
+
 	// Explosion (radial impulse).
 	value_object<b3ExplosionDef>( "b3ExplosionDef" )
 		.field( "maskBits", &b3ExplosionDef::maskBits )
