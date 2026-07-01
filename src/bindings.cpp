@@ -487,6 +487,17 @@ EMSCRIPTEN_BINDINGS( box3d )
 
 	function( "b3Shape_GetSphere", &b3Shape_GetSphere );
 	function( "b3Shape_GetCapsule", &b3Shape_GetCapsule );
+	// Introspection helper: convex hull vertices as a flat, zero-copy Float32Array
+	// [x0,y0,z0, x1,y1,z1, ...] in shape-local space (b3Vec3 is 3 contiguous
+	// floats). One boundary crossing, no per-vertex marshaling. The view aliases
+	// box3d memory — copy it (e.g. into geometry) before the shape changes.
+	function( "b3Shape_GetHullVertices", +[]( b3ShapeId shapeId ) -> val
+	{
+		const b3HullData* hull = b3Shape_GetHull( shapeId );
+		if ( hull == nullptr ) return val::global( "Float32Array" ).new_( 0 );
+		const b3Vec3* pts = b3GetHullPoints( hull );
+		return val( typed_memory_view( (size_t)hull->vertexCount * 3, reinterpret_cast<const float*>( pts ) ) );
+	} );
 	function( "b3Shape_SetSphere", +[]( b3ShapeId shapeId, b3Sphere sphere ) { b3Shape_SetSphere( shapeId, &sphere ); } );
 	function( "b3Shape_SetCapsule", +[]( b3ShapeId shapeId, b3Capsule capsule ) { b3Shape_SetCapsule( shapeId, &capsule ); } );
 
