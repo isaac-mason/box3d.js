@@ -23,6 +23,9 @@ const coopCoepHeaders = {
 export default defineConfig( {
 	base: './',
 	build: { outDir: 'dist', target: 'esnext', rollupOptions: { input } },
+	// Emit worker chunks as ES modules so emscripten's pthread worker (which uses
+	// top-level await) can be bundled for production — the default `iife` can't.
+	worker: { format: 'es' },
 	server: { open: '/index.html', headers: coopCoepHeaders },
 	preview: { headers: coopCoepHeaders },
 	// The emscripten module is a large self-contained bundle; let it pass
