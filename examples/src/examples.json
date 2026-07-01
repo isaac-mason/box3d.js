@@ -119,6 +119,19 @@
       "categories"
     ]
   },
+  "example-constraints": {
+    "title": "Constraints",
+    "description": "chains of boxes hung by weld, ball & distance joints, then flicked",
+    "tags": [
+      "world",
+      "physics",
+      "constraints",
+      "joints",
+      "weld",
+      "spherical",
+      "distance"
+    ]
+  },
   "example-sensor": {
     "title": "Sensor",
     "description": "a kinematic sensor sweeps past bodies \u00b7 hit / no-hit",
