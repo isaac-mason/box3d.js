@@ -176,6 +176,19 @@
       "mesh"
     ]
   },
+  "example-hinge-motor": {
+    "title": "Hinge Motor",
+    "description": "a motorized turntable spins and carries boxes; adjustable speed",
+    "tags": [
+      "world",
+      "physics",
+      "constraints",
+      "joints",
+      "motor",
+      "hinge",
+      "revolute"
+    ]
+  },
   "example-sensor": {
     "title": "Sensor",
     "description": "a kinematic sensor sweeps past bodies \u00b7 hit / no-hit",
