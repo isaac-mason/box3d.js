@@ -22,6 +22,22 @@ using namespace emscripten;
 // embind's function() wants. Wrappers below adapt pointer-taking C functions to
 // by-value value_object arguments.
 
+// Convert a C (pointer, count) event array into a native JS array of the
+// (registered) value_object element type.
+namespace
+{
+template <class T>
+val eventsToArray( const T* data, int count )
+{
+	val arr = val::array();
+	for ( int i = 0; i < count; ++i )
+	{
+		arr.call<void>( "push", val( data[i] ) );
+	}
+	return arr;
+}
+} // namespace
+
 EMSCRIPTEN_BINDINGS( box3d )
 {
 	// =====================================================================
@@ -761,7 +777,82 @@ EMSCRIPTEN_BINDINGS( box3d )
 	function( "b3WheelJoint_GetSteeringTorque", &b3WheelJoint_GetSteeringTorque );
 	// Section 6  — collision.h               (M3) ... TODO
 	// Section 7  — math helpers              (M3) ... TODO
-	// Section 8  — events (pointer+count)    (M3) ... TODO  (glue.h)
+	// =====================================================================
+
+	// =====================================================================
+	// Section 8 — events. Leaf event structs as value_objects (void* userData
+	// omitted); the four world getters return native JS arrays mirroring the C
+	// container structs.
+	// =====================================================================
+	value_object<b3BodyMoveEvent>( "b3BodyMoveEvent" )
+		.field( "transform", &b3BodyMoveEvent::transform )
+		.field( "bodyId", &b3BodyMoveEvent::bodyId )
+		.field( "fellAsleep", &b3BodyMoveEvent::fellAsleep );
+
+	value_object<b3SensorBeginTouchEvent>( "b3SensorBeginTouchEvent" )
+		.field( "sensorShapeId", &b3SensorBeginTouchEvent::sensorShapeId )
+		.field( "visitorShapeId", &b3SensorBeginTouchEvent::visitorShapeId );
+
+	value_object<b3SensorEndTouchEvent>( "b3SensorEndTouchEvent" )
+		.field( "sensorShapeId", &b3SensorEndTouchEvent::sensorShapeId )
+		.field( "visitorShapeId", &b3SensorEndTouchEvent::visitorShapeId );
+
+	value_object<b3ContactBeginTouchEvent>( "b3ContactBeginTouchEvent" )
+		.field( "shapeIdA", &b3ContactBeginTouchEvent::shapeIdA )
+		.field( "shapeIdB", &b3ContactBeginTouchEvent::shapeIdB )
+		.field( "contactId", &b3ContactBeginTouchEvent::contactId );
+
+	value_object<b3ContactEndTouchEvent>( "b3ContactEndTouchEvent" )
+		.field( "shapeIdA", &b3ContactEndTouchEvent::shapeIdA )
+		.field( "shapeIdB", &b3ContactEndTouchEvent::shapeIdB )
+		.field( "contactId", &b3ContactEndTouchEvent::contactId );
+
+	value_object<b3ContactHitEvent>( "b3ContactHitEvent" )
+		.field( "shapeIdA", &b3ContactHitEvent::shapeIdA )
+		.field( "shapeIdB", &b3ContactHitEvent::shapeIdB )
+		.field( "contactId", &b3ContactHitEvent::contactId )
+		.field( "point", &b3ContactHitEvent::point )
+		.field( "normal", &b3ContactHitEvent::normal )
+		.field( "approachSpeed", &b3ContactHitEvent::approachSpeed )
+		.field( "userMaterialIdA", &b3ContactHitEvent::userMaterialIdA )
+		.field( "userMaterialIdB", &b3ContactHitEvent::userMaterialIdB );
+
+	value_object<b3JointEvent>( "b3JointEvent" )
+		.field( "jointId", &b3JointEvent::jointId );
+
+	function( "b3World_GetBodyEvents", +[]( b3WorldId worldId )
+	{
+		b3BodyEvents e = b3World_GetBodyEvents( worldId );
+		val o = val::object();
+		o.set( "moveEvents", eventsToArray( e.moveEvents, e.moveCount ) );
+		return o;
+	} );
+	function( "b3World_GetSensorEvents", +[]( b3WorldId worldId )
+	{
+		b3SensorEvents e = b3World_GetSensorEvents( worldId );
+		val o = val::object();
+		o.set( "beginEvents", eventsToArray( e.beginEvents, e.beginCount ) );
+		o.set( "endEvents", eventsToArray( e.endEvents, e.endCount ) );
+		return o;
+	} );
+	function( "b3World_GetContactEvents", +[]( b3WorldId worldId )
+	{
+		b3ContactEvents e = b3World_GetContactEvents( worldId );
+		val o = val::object();
+		o.set( "beginEvents", eventsToArray( e.beginEvents, e.beginCount ) );
+		o.set( "endEvents", eventsToArray( e.endEvents, e.endCount ) );
+		o.set( "hitEvents", eventsToArray( e.hitEvents, e.hitCount ) );
+		return o;
+	} );
+	function( "b3World_GetJointEvents", +[]( b3WorldId worldId )
+	{
+		b3JointEvents e = b3World_GetJointEvents( worldId );
+		val o = val::object();
+		o.set( "jointEvents", eventsToArray( e.jointEvents, e.count ) );
+		return o;
+	} );
+
+	// =====================================================================
 	// Section 9  — callbacks & debug draw    (M4) ... TODO  (glue.h)
 	// =====================================================================
 }
