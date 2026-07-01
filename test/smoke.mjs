@@ -56,5 +56,5 @@ async function check( label, importPath )
 
 console.log( 'box3d.js smoke test' );
 await check( 'separate-wasm', '../dist/box3d.mjs' );
-await check( 'single-file  ', '../dist/box3d.single.mjs' );
+await check( 'inline       ', '../dist/box3d.inline.mjs' );
 console.log( 'OK' );

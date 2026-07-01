@@ -10,7 +10,15 @@
     },
     "./inline": {
       "types": "./dist/box3d.d.ts",
-      "import": "./dist/box3d.single.mjs"
+      "import": "./dist/box3d.inline.mjs"
+    },
+    "./mt": {
+      "types": "./dist/box3d.d.ts",
+      "import": "./dist/box3d.mt.mjs"
+    },
+    "./mt-inline": {
+      "types": "./dist/box3d.d.ts",
+      "import": "./dist/box3d.mt.inline.mjs"
     }
   },
   "files": [
