@@ -11,6 +11,7 @@
 #include <vector>
 
 #include <emscripten/bind.h>
+#include <emscripten/val.h>
 
 #include <box3d/box3d.h>
 #include <box3d/collision.h>
@@ -541,7 +542,194 @@ EMSCRIPTEN_BINDINGS( box3d )
 	function( "b3Joint_GetTorqueThreshold", &b3Joint_GetTorqueThreshold );
 
 	// =====================================================================
-	// Section 5e — per-joint-type accessors  (next) ... TODO
+	// =====================================================================
+	// Section 5e — per-joint-type accessors (all direct binds)
+	// =====================================================================
+	// parallel joint
+	function( "b3ParallelJoint_SetSpringHertz", &b3ParallelJoint_SetSpringHertz );
+	function( "b3ParallelJoint_SetSpringDampingRatio", &b3ParallelJoint_SetSpringDampingRatio );
+	function( "b3ParallelJoint_GetSpringHertz", &b3ParallelJoint_GetSpringHertz );
+	function( "b3ParallelJoint_GetSpringDampingRatio", &b3ParallelJoint_GetSpringDampingRatio );
+	function( "b3ParallelJoint_SetMaxTorque", &b3ParallelJoint_SetMaxTorque );
+	function( "b3ParallelJoint_GetMaxTorque", &b3ParallelJoint_GetMaxTorque );
+
+	// distance joint
+	function( "b3DistanceJoint_SetLength", &b3DistanceJoint_SetLength );
+	function( "b3DistanceJoint_GetLength", &b3DistanceJoint_GetLength );
+	function( "b3DistanceJoint_EnableSpring", &b3DistanceJoint_EnableSpring );
+	function( "b3DistanceJoint_IsSpringEnabled", &b3DistanceJoint_IsSpringEnabled );
+	function( "b3DistanceJoint_SetSpringForceRange", &b3DistanceJoint_SetSpringForceRange );
+	function( "b3DistanceJoint_GetSpringForceRange", +[]( b3JointId jointId )
+	{
+		float lowerForce = 0.0f, upperForce = 0.0f;
+		b3DistanceJoint_GetSpringForceRange( jointId, &lowerForce, &upperForce );
+		val out = val::object();
+		out.set( "lowerForce", lowerForce );
+		out.set( "upperForce", upperForce );
+		return out;
+	} );
+	function( "b3DistanceJoint_SetSpringHertz", &b3DistanceJoint_SetSpringHertz );
+	function( "b3DistanceJoint_SetSpringDampingRatio", &b3DistanceJoint_SetSpringDampingRatio );
+	function( "b3DistanceJoint_GetSpringHertz", &b3DistanceJoint_GetSpringHertz );
+	function( "b3DistanceJoint_GetSpringDampingRatio", &b3DistanceJoint_GetSpringDampingRatio );
+	function( "b3DistanceJoint_EnableLimit", &b3DistanceJoint_EnableLimit );
+	function( "b3DistanceJoint_IsLimitEnabled", &b3DistanceJoint_IsLimitEnabled );
+	function( "b3DistanceJoint_SetLengthRange", &b3DistanceJoint_SetLengthRange );
+	function( "b3DistanceJoint_GetMinLength", &b3DistanceJoint_GetMinLength );
+	function( "b3DistanceJoint_GetMaxLength", &b3DistanceJoint_GetMaxLength );
+	function( "b3DistanceJoint_GetCurrentLength", &b3DistanceJoint_GetCurrentLength );
+	function( "b3DistanceJoint_EnableMotor", &b3DistanceJoint_EnableMotor );
+	function( "b3DistanceJoint_IsMotorEnabled", &b3DistanceJoint_IsMotorEnabled );
+	function( "b3DistanceJoint_SetMotorSpeed", &b3DistanceJoint_SetMotorSpeed );
+	function( "b3DistanceJoint_GetMotorSpeed", &b3DistanceJoint_GetMotorSpeed );
+	function( "b3DistanceJoint_SetMaxMotorForce", &b3DistanceJoint_SetMaxMotorForce );
+	function( "b3DistanceJoint_GetMaxMotorForce", &b3DistanceJoint_GetMaxMotorForce );
+	function( "b3DistanceJoint_GetMotorForce", &b3DistanceJoint_GetMotorForce );
+
+	// motor joint
+	function( "b3MotorJoint_SetLinearVelocity", &b3MotorJoint_SetLinearVelocity );
+	function( "b3MotorJoint_GetLinearVelocity", &b3MotorJoint_GetLinearVelocity );
+	function( "b3MotorJoint_SetAngularVelocity", &b3MotorJoint_SetAngularVelocity );
+	function( "b3MotorJoint_GetAngularVelocity", &b3MotorJoint_GetAngularVelocity );
+	function( "b3MotorJoint_SetMaxVelocityForce", &b3MotorJoint_SetMaxVelocityForce );
+	function( "b3MotorJoint_GetMaxVelocityForce", &b3MotorJoint_GetMaxVelocityForce );
+	function( "b3MotorJoint_SetMaxVelocityTorque", &b3MotorJoint_SetMaxVelocityTorque );
+	function( "b3MotorJoint_GetMaxVelocityTorque", &b3MotorJoint_GetMaxVelocityTorque );
+	function( "b3MotorJoint_SetLinearHertz", &b3MotorJoint_SetLinearHertz );
+	function( "b3MotorJoint_GetLinearHertz", &b3MotorJoint_GetLinearHertz );
+	function( "b3MotorJoint_SetLinearDampingRatio", &b3MotorJoint_SetLinearDampingRatio );
+	function( "b3MotorJoint_GetLinearDampingRatio", &b3MotorJoint_GetLinearDampingRatio );
+	function( "b3MotorJoint_SetAngularHertz", &b3MotorJoint_SetAngularHertz );
+	function( "b3MotorJoint_GetAngularHertz", &b3MotorJoint_GetAngularHertz );
+	function( "b3MotorJoint_SetAngularDampingRatio", &b3MotorJoint_SetAngularDampingRatio );
+	function( "b3MotorJoint_GetAngularDampingRatio", &b3MotorJoint_GetAngularDampingRatio );
+	function( "b3MotorJoint_SetMaxSpringForce", &b3MotorJoint_SetMaxSpringForce );
+	function( "b3MotorJoint_GetMaxSpringForce", &b3MotorJoint_GetMaxSpringForce );
+	function( "b3MotorJoint_SetMaxSpringTorque", &b3MotorJoint_SetMaxSpringTorque );
+	function( "b3MotorJoint_GetMaxSpringTorque", &b3MotorJoint_GetMaxSpringTorque );
+
+	// prismatic joint
+	function( "b3PrismaticJoint_EnableSpring", &b3PrismaticJoint_EnableSpring );
+	function( "b3PrismaticJoint_IsSpringEnabled", &b3PrismaticJoint_IsSpringEnabled );
+	function( "b3PrismaticJoint_SetSpringHertz", &b3PrismaticJoint_SetSpringHertz );
+	function( "b3PrismaticJoint_GetSpringHertz", &b3PrismaticJoint_GetSpringHertz );
+	function( "b3PrismaticJoint_SetSpringDampingRatio", &b3PrismaticJoint_SetSpringDampingRatio );
+	function( "b3PrismaticJoint_GetSpringDampingRatio", &b3PrismaticJoint_GetSpringDampingRatio );
+	function( "b3PrismaticJoint_SetTargetTranslation", &b3PrismaticJoint_SetTargetTranslation );
+	function( "b3PrismaticJoint_GetTargetTranslation", &b3PrismaticJoint_GetTargetTranslation );
+	function( "b3PrismaticJoint_EnableLimit", &b3PrismaticJoint_EnableLimit );
+	function( "b3PrismaticJoint_IsLimitEnabled", &b3PrismaticJoint_IsLimitEnabled );
+	function( "b3PrismaticJoint_GetLowerLimit", &b3PrismaticJoint_GetLowerLimit );
+	function( "b3PrismaticJoint_GetUpperLimit", &b3PrismaticJoint_GetUpperLimit );
+	function( "b3PrismaticJoint_SetLimits", &b3PrismaticJoint_SetLimits );
+	function( "b3PrismaticJoint_EnableMotor", &b3PrismaticJoint_EnableMotor );
+	function( "b3PrismaticJoint_IsMotorEnabled", &b3PrismaticJoint_IsMotorEnabled );
+	function( "b3PrismaticJoint_SetMotorSpeed", &b3PrismaticJoint_SetMotorSpeed );
+	function( "b3PrismaticJoint_GetMotorSpeed", &b3PrismaticJoint_GetMotorSpeed );
+	function( "b3PrismaticJoint_SetMaxMotorForce", &b3PrismaticJoint_SetMaxMotorForce );
+	function( "b3PrismaticJoint_GetMaxMotorForce", &b3PrismaticJoint_GetMaxMotorForce );
+	function( "b3PrismaticJoint_GetMotorForce", &b3PrismaticJoint_GetMotorForce );
+	function( "b3PrismaticJoint_GetTranslation", &b3PrismaticJoint_GetTranslation );
+	function( "b3PrismaticJoint_GetSpeed", &b3PrismaticJoint_GetSpeed );
+
+	// revolute joint
+	function( "b3RevoluteJoint_EnableSpring", &b3RevoluteJoint_EnableSpring );
+	function( "b3RevoluteJoint_IsSpringEnabled", &b3RevoluteJoint_IsSpringEnabled );
+	function( "b3RevoluteJoint_SetSpringHertz", &b3RevoluteJoint_SetSpringHertz );
+	function( "b3RevoluteJoint_GetSpringHertz", &b3RevoluteJoint_GetSpringHertz );
+	function( "b3RevoluteJoint_SetSpringDampingRatio", &b3RevoluteJoint_SetSpringDampingRatio );
+	function( "b3RevoluteJoint_GetSpringDampingRatio", &b3RevoluteJoint_GetSpringDampingRatio );
+	function( "b3RevoluteJoint_SetTargetAngle", &b3RevoluteJoint_SetTargetAngle );
+	function( "b3RevoluteJoint_GetTargetAngle", &b3RevoluteJoint_GetTargetAngle );
+	function( "b3RevoluteJoint_GetAngle", &b3RevoluteJoint_GetAngle );
+	function( "b3RevoluteJoint_EnableLimit", &b3RevoluteJoint_EnableLimit );
+	function( "b3RevoluteJoint_IsLimitEnabled", &b3RevoluteJoint_IsLimitEnabled );
+	function( "b3RevoluteJoint_GetLowerLimit", &b3RevoluteJoint_GetLowerLimit );
+	function( "b3RevoluteJoint_GetUpperLimit", &b3RevoluteJoint_GetUpperLimit );
+	function( "b3RevoluteJoint_SetLimits", &b3RevoluteJoint_SetLimits );
+	function( "b3RevoluteJoint_EnableMotor", &b3RevoluteJoint_EnableMotor );
+	function( "b3RevoluteJoint_IsMotorEnabled", &b3RevoluteJoint_IsMotorEnabled );
+	function( "b3RevoluteJoint_SetMotorSpeed", &b3RevoluteJoint_SetMotorSpeed );
+	function( "b3RevoluteJoint_GetMotorSpeed", &b3RevoluteJoint_GetMotorSpeed );
+	function( "b3RevoluteJoint_GetMotorTorque", &b3RevoluteJoint_GetMotorTorque );
+	function( "b3RevoluteJoint_SetMaxMotorTorque", &b3RevoluteJoint_SetMaxMotorTorque );
+	function( "b3RevoluteJoint_GetMaxMotorTorque", &b3RevoluteJoint_GetMaxMotorTorque );
+
+	// spherical joint
+	function( "b3SphericalJoint_EnableConeLimit", &b3SphericalJoint_EnableConeLimit );
+	function( "b3SphericalJoint_IsConeLimitEnabled", &b3SphericalJoint_IsConeLimitEnabled );
+	function( "b3SphericalJoint_GetConeLimit", &b3SphericalJoint_GetConeLimit );
+	function( "b3SphericalJoint_SetConeLimit", &b3SphericalJoint_SetConeLimit );
+	function( "b3SphericalJoint_GetConeAngle", &b3SphericalJoint_GetConeAngle );
+	function( "b3SphericalJoint_EnableTwistLimit", &b3SphericalJoint_EnableTwistLimit );
+	function( "b3SphericalJoint_IsTwistLimitEnabled", &b3SphericalJoint_IsTwistLimitEnabled );
+	function( "b3SphericalJoint_GetLowerTwistLimit", &b3SphericalJoint_GetLowerTwistLimit );
+	function( "b3SphericalJoint_GetUpperTwistLimit", &b3SphericalJoint_GetUpperTwistLimit );
+	function( "b3SphericalJoint_SetTwistLimits", &b3SphericalJoint_SetTwistLimits );
+	function( "b3SphericalJoint_GetTwistAngle", &b3SphericalJoint_GetTwistAngle );
+	function( "b3SphericalJoint_EnableSpring", &b3SphericalJoint_EnableSpring );
+	function( "b3SphericalJoint_IsSpringEnabled", &b3SphericalJoint_IsSpringEnabled );
+	function( "b3SphericalJoint_SetSpringHertz", &b3SphericalJoint_SetSpringHertz );
+	function( "b3SphericalJoint_GetSpringHertz", &b3SphericalJoint_GetSpringHertz );
+	function( "b3SphericalJoint_SetSpringDampingRatio", &b3SphericalJoint_SetSpringDampingRatio );
+	function( "b3SphericalJoint_GetSpringDampingRatio", &b3SphericalJoint_GetSpringDampingRatio );
+	function( "b3SphericalJoint_SetTargetRotation", &b3SphericalJoint_SetTargetRotation );
+	function( "b3SphericalJoint_GetTargetRotation", &b3SphericalJoint_GetTargetRotation );
+	function( "b3SphericalJoint_EnableMotor", &b3SphericalJoint_EnableMotor );
+	function( "b3SphericalJoint_IsMotorEnabled", &b3SphericalJoint_IsMotorEnabled );
+	function( "b3SphericalJoint_SetMotorVelocity", &b3SphericalJoint_SetMotorVelocity );
+	function( "b3SphericalJoint_GetMotorVelocity", &b3SphericalJoint_GetMotorVelocity );
+	function( "b3SphericalJoint_GetMotorTorque", &b3SphericalJoint_GetMotorTorque );
+	function( "b3SphericalJoint_SetMaxMotorTorque", &b3SphericalJoint_SetMaxMotorTorque );
+	function( "b3SphericalJoint_GetMaxMotorTorque", &b3SphericalJoint_GetMaxMotorTorque );
+
+	// weld joint
+	function( "b3WeldJoint_SetLinearHertz", &b3WeldJoint_SetLinearHertz );
+	function( "b3WeldJoint_GetLinearHertz", &b3WeldJoint_GetLinearHertz );
+	function( "b3WeldJoint_SetLinearDampingRatio", &b3WeldJoint_SetLinearDampingRatio );
+	function( "b3WeldJoint_GetLinearDampingRatio", &b3WeldJoint_GetLinearDampingRatio );
+	function( "b3WeldJoint_SetAngularHertz", &b3WeldJoint_SetAngularHertz );
+	function( "b3WeldJoint_GetAngularHertz", &b3WeldJoint_GetAngularHertz );
+	function( "b3WeldJoint_SetAngularDampingRatio", &b3WeldJoint_SetAngularDampingRatio );
+	function( "b3WeldJoint_GetAngularDampingRatio", &b3WeldJoint_GetAngularDampingRatio );
+
+	// wheel joint
+	function( "b3WheelJoint_EnableSuspension", &b3WheelJoint_EnableSuspension );
+	function( "b3WheelJoint_IsSuspensionEnabled", &b3WheelJoint_IsSuspensionEnabled );
+	function( "b3WheelJoint_SetSuspensionHertz", &b3WheelJoint_SetSuspensionHertz );
+	function( "b3WheelJoint_GetSuspensionHertz", &b3WheelJoint_GetSuspensionHertz );
+	function( "b3WheelJoint_SetSuspensionDampingRatio", &b3WheelJoint_SetSuspensionDampingRatio );
+	function( "b3WheelJoint_GetSuspensionDampingRatio", &b3WheelJoint_GetSuspensionDampingRatio );
+	function( "b3WheelJoint_EnableSuspensionLimit", &b3WheelJoint_EnableSuspensionLimit );
+	function( "b3WheelJoint_IsSuspensionLimitEnabled", &b3WheelJoint_IsSuspensionLimitEnabled );
+	function( "b3WheelJoint_GetLowerSuspensionLimit", &b3WheelJoint_GetLowerSuspensionLimit );
+	function( "b3WheelJoint_GetUpperSuspensionLimit", &b3WheelJoint_GetUpperSuspensionLimit );
+	function( "b3WheelJoint_SetSuspensionLimits", &b3WheelJoint_SetSuspensionLimits );
+	function( "b3WheelJoint_EnableSpinMotor", &b3WheelJoint_EnableSpinMotor );
+	function( "b3WheelJoint_IsSpinMotorEnabled", &b3WheelJoint_IsSpinMotorEnabled );
+	function( "b3WheelJoint_SetSpinMotorSpeed", &b3WheelJoint_SetSpinMotorSpeed );
+	function( "b3WheelJoint_GetSpinMotorSpeed", &b3WheelJoint_GetSpinMotorSpeed );
+	function( "b3WheelJoint_SetMaxSpinTorque", &b3WheelJoint_SetMaxSpinTorque );
+	function( "b3WheelJoint_GetMaxSpinTorque", &b3WheelJoint_GetMaxSpinTorque );
+	function( "b3WheelJoint_GetSpinSpeed", &b3WheelJoint_GetSpinSpeed );
+	function( "b3WheelJoint_GetSpinTorque", &b3WheelJoint_GetSpinTorque );
+	function( "b3WheelJoint_EnableSteering", &b3WheelJoint_EnableSteering );
+	function( "b3WheelJoint_IsSteeringEnabled", &b3WheelJoint_IsSteeringEnabled );
+	function( "b3WheelJoint_SetSteeringHertz", &b3WheelJoint_SetSteeringHertz );
+	function( "b3WheelJoint_GetSteeringHertz", &b3WheelJoint_GetSteeringHertz );
+	function( "b3WheelJoint_SetSteeringDampingRatio", &b3WheelJoint_SetSteeringDampingRatio );
+	function( "b3WheelJoint_GetSteeringDampingRatio", &b3WheelJoint_GetSteeringDampingRatio );
+	function( "b3WheelJoint_SetMaxSteeringTorque", &b3WheelJoint_SetMaxSteeringTorque );
+	function( "b3WheelJoint_GetMaxSteeringTorque", &b3WheelJoint_GetMaxSteeringTorque );
+	function( "b3WheelJoint_EnableSteeringLimit", &b3WheelJoint_EnableSteeringLimit );
+	function( "b3WheelJoint_IsSteeringLimitEnabled", &b3WheelJoint_IsSteeringLimitEnabled );
+	function( "b3WheelJoint_GetLowerSteeringLimit", &b3WheelJoint_GetLowerSteeringLimit );
+	function( "b3WheelJoint_GetUpperSteeringLimit", &b3WheelJoint_GetUpperSteeringLimit );
+	function( "b3WheelJoint_SetSteeringLimits", &b3WheelJoint_SetSteeringLimits );
+	function( "b3WheelJoint_SetTargetSteeringAngle", &b3WheelJoint_SetTargetSteeringAngle );
+	function( "b3WheelJoint_GetTargetSteeringAngle", &b3WheelJoint_GetTargetSteeringAngle );
+	function( "b3WheelJoint_GetSteeringAngle", &b3WheelJoint_GetSteeringAngle );
+	function( "b3WheelJoint_GetSteeringTorque", &b3WheelJoint_GetSteeringTorque );
 	// Section 6  — collision.h               (M3) ... TODO
 	// Section 7  — math helpers              (M3) ... TODO
 	// Section 8  — events (pointer+count)    (M3) ... TODO  (glue.h)
