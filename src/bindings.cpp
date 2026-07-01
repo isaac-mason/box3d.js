@@ -38,163 +38,79 @@ val eventsToArray( const T* data, int count )
 	return arr;
 }
 
-// Buffer-based debug renderer. Instead of calling into JS per primitive (which
-// would cross the wasm/JS boundary thousands of times per frame), b3World_Draw
-// drives C++ trampolines that tessellate every primitive into line segments and
-// accumulate them into flat float buffers. JS reads the buffers once per frame
-// as zero-copy typed-array views -> a single THREE.LineSegments.
-class DebugDraw
+// Faithful debug-draw binding. b3World_Draw takes a b3DebugDraw struct of C
+// function pointers; we bridge each to a method on a JS handler object carried
+// through the context pointer. This crosses into JS per primitive, so it is for
+// debug/inspection, NOT the render hot path (examples map shapes to solid
+// meshes and only read body transforms).
+struct JsDebugDraw
 {
-public:
-	DebugDraw()
-	{
-		m_draw = b3DefaultDebugDraw();
-		m_draw.context = this;
-		m_draw.drawShapes = true;
-		// draw everything regardless of the default culling bounds
-		m_draw.drawingBounds = b3AABB{ b3Vec3{ -1e30f, -1e30f, -1e30f }, b3Vec3{ 1e30f, 1e30f, 1e30f } };
-		m_draw.DrawSegmentFcn = &DebugDraw::onSegment;
-		m_draw.DrawPointFcn = &DebugDraw::onPoint;
-		m_draw.DrawSphereFcn = &DebugDraw::onSphere;
-		m_draw.DrawCapsuleFcn = &DebugDraw::onCapsule;
-		m_draw.DrawBoxFcn = &DebugDraw::onBox;
-		m_draw.DrawBoundsFcn = &DebugDraw::onBounds;
-		m_draw.DrawTransformFcn = &DebugDraw::onTransform;
-		m_draw.DrawShapeFcn = &DebugDraw::onShape;
-		m_draw.DrawStringFcn = &DebugDraw::onString;
-	}
-
-	void setDrawShapes( bool v ) { m_draw.drawShapes = v; }
-	void setDrawJoints( bool v ) { m_draw.drawJoints = v; }
-	void setDrawBounds( bool v ) { m_draw.drawBounds = v; }
-	void setDrawContacts( bool v ) { m_draw.drawContacts = v; }
-	void setDrawMass( bool v ) { m_draw.drawMass = v; }
-
-	// Traverse the world once, filling the segment buffers.
-	void draw( b3WorldId worldId )
-	{
-		m_positions.clear();
-		m_colors.clear();
-		b3World_Draw( worldId, &m_draw, ~0ull );
-	}
-
-	// xyz per vertex, 2 vertices per segment. Zero-copy view (valid until next draw()).
-	val positions() { return val( typed_memory_view( m_positions.size(), m_positions.data() ) ); }
-	// rgb (0..1) per vertex, parallel to positions.
-	val colors() { return val( typed_memory_view( m_colors.size(), m_colors.data() ) ); }
-	size_t vertexCount() const { return m_positions.size() / 3; }
-
-private:
-	b3DebugDraw m_draw;
-	std::vector<float> m_positions;
-	std::vector<float> m_colors;
-
-	void vertex( b3Vec3 p, uint32_t c )
-	{
-		m_positions.push_back( p.x );
-		m_positions.push_back( p.y );
-		m_positions.push_back( p.z );
-		m_colors.push_back( ( ( c >> 16 ) & 0xFF ) / 255.0f );
-		m_colors.push_back( ( ( c >> 8 ) & 0xFF ) / 255.0f );
-		m_colors.push_back( ( c & 0xFF ) / 255.0f );
-	}
-	void seg( b3Vec3 a, b3Vec3 b, uint32_t c ) { vertex( a, c ); vertex( b, c ); }
-
-	// A circle centered at `center`, in the plane perpendicular to `axis`.
-	void ring( b3Vec3 center, b3Vec3 axis, float radius, uint32_t color )
-	{
-		float len = std::sqrt( axis.x * axis.x + axis.y * axis.y + axis.z * axis.z );
-		b3Vec3 n = ( len > 1e-6f ) ? b3Vec3{ axis.x / len, axis.y / len, axis.z / len } : b3Vec3{ 0, 1, 0 };
-		b3Vec3 t = ( std::fabs( n.y ) < 0.99f ) ? b3Vec3{ 0, 1, 0 } : b3Vec3{ 1, 0, 0 };
-		b3Vec3 u = { n.y * t.z - n.z * t.y, n.z * t.x - n.x * t.z, n.x * t.y - n.y * t.x };
-		float ul = std::sqrt( u.x * u.x + u.y * u.y + u.z * u.z );
-		u = { u.x / ul, u.y / ul, u.z / ul };
-		b3Vec3 v = { n.y * u.z - n.z * u.y, n.z * u.x - n.x * u.z, n.x * u.y - n.y * u.x };
-		const int N = 20;
-		b3Vec3 prev{};
-		for ( int i = 0; i <= N; ++i )
-		{
-			float a = (float)i / N * 6.2831853f;
-			float cu = std::cos( a ) * radius, cv = std::sin( a ) * radius;
-			b3Vec3 p = { center.x + u.x * cu + v.x * cv, center.y + u.y * cu + v.y * cv, center.z + u.z * cu + v.z * cv };
-			if ( i > 0 ) seg( prev, p, color );
-			prev = p;
-		}
-	}
-
-	static DebugDraw* self( void* ctx ) { return static_cast<DebugDraw*>( ctx ); }
-
-	static void onSegment( b3Pos p1, b3Pos p2, b3HexColor color, void* ctx ) { self( ctx )->seg( p1, p2, (uint32_t)color ); }
-	static void onPoint( b3Pos p, float, b3HexColor color, void* ctx )
-	{
-		auto* s = self( ctx );
-		uint32_t c = (uint32_t)color;
-		float r = 0.06f;
-		s->seg( b3Vec3{ p.x - r, p.y, p.z }, b3Vec3{ p.x + r, p.y, p.z }, c );
-		s->seg( b3Vec3{ p.x, p.y - r, p.z }, b3Vec3{ p.x, p.y + r, p.z }, c );
-		s->seg( b3Vec3{ p.x, p.y, p.z - r }, b3Vec3{ p.x, p.y, p.z + r }, c );
-	}
-	static void onSphere( b3Pos p, float radius, b3HexColor color, float, void* ctx )
-	{
-		auto* s = self( ctx );
-		uint32_t c = (uint32_t)color;
-		s->ring( p, b3Vec3{ 1, 0, 0 }, radius, c );
-		s->ring( p, b3Vec3{ 0, 1, 0 }, radius, c );
-		s->ring( p, b3Vec3{ 0, 0, 1 }, radius, c );
-	}
-	static void onCapsule( b3Pos p1, b3Pos p2, float radius, b3HexColor color, float, void* ctx )
-	{
-		auto* s = self( ctx );
-		uint32_t c = (uint32_t)color;
-		b3Vec3 axis = { p2.x - p1.x, p2.y - p1.y, p2.z - p1.z };
-		s->ring( p1, axis, radius, c );
-		s->ring( p2, axis, radius, c );
-		s->seg( p1, p2, c );
-	}
-	static void onBox( b3Vec3 extents, b3WorldTransform xf, b3HexColor color, void* ctx )
-	{
-		auto* s = self( ctx );
-		uint32_t c = (uint32_t)color;
-		b3Vec3 crn[8];
-		int k = 0;
-		for ( int xi = -1; xi <= 1; xi += 2 )
-			for ( int yi = -1; yi <= 1; yi += 2 )
-				for ( int zi = -1; zi <= 1; zi += 2 )
-					crn[k++] = b3TransformPoint( xf, b3Vec3{ extents.x * xi, extents.y * yi, extents.z * zi } );
-		drawBoxEdges( s, crn, c );
-	}
-	static void onBounds( b3AABB ab, b3HexColor color, void* ctx )
-	{
-		auto* s = self( ctx );
-		uint32_t c = (uint32_t)color;
-		b3Vec3 lo = ab.lowerBound, hi = ab.upperBound;
-		b3Vec3 crn[8];
-		int k = 0;
-		for ( int xi = 0; xi < 2; ++xi )
-			for ( int yi = 0; yi < 2; ++yi )
-				for ( int zi = 0; zi < 2; ++zi )
-					crn[k++] = b3Vec3{ xi ? hi.x : lo.x, yi ? hi.y : lo.y, zi ? hi.z : lo.z };
-		drawBoxEdges( s, crn, c );
-	}
-	static void drawBoxEdges( DebugDraw* s, const b3Vec3 crn[8], uint32_t c )
-	{
-		// corner index = 4*x + 2*y + 1*z; edges connect corners differing in one axis
-		static const int E[12][2] = {
-			{ 0, 1 }, { 0, 2 }, { 0, 4 }, { 1, 3 }, { 1, 5 }, { 2, 3 },
-			{ 2, 6 }, { 3, 7 }, { 4, 5 }, { 4, 6 }, { 5, 7 }, { 6, 7 } };
-		for ( auto& e : E ) s->seg( crn[e[0]], crn[e[1]], c );
-	}
-	static void onTransform( b3WorldTransform xf, void* ctx )
-	{
-		auto* s = self( ctx );
-		float L = 0.4f;
-		s->seg( xf.p, b3TransformPoint( xf, b3Vec3{ L, 0, 0 } ), 0xFF0000 );
-		s->seg( xf.p, b3TransformPoint( xf, b3Vec3{ 0, L, 0 } ), 0x00FF00 );
-		s->seg( xf.p, b3TransformPoint( xf, b3Vec3{ 0, 0, L } ), 0x0000FF );
-	}
-	static bool onShape( void*, b3WorldTransform, b3HexColor, void* ) { return true; }
-	static void onString( b3Pos, const char*, b3HexColor, void* ) {}
+	val handlers;
 };
+
+void jsDrawSegment( b3Pos p1, b3Pos p2, b3HexColor color, void* ctx )
+{
+	static_cast<JsDebugDraw*>( ctx )->handlers.call<void>( "drawSegment", p1, p2, (uint32_t)color );
+}
+void jsDrawPoint( b3Pos p, float size, b3HexColor color, void* ctx )
+{
+	static_cast<JsDebugDraw*>( ctx )->handlers.call<void>( "drawPoint", p, size, (uint32_t)color );
+}
+void jsDrawSphere( b3Pos p, float radius, b3HexColor color, float alpha, void* ctx )
+{
+	static_cast<JsDebugDraw*>( ctx )->handlers.call<void>( "drawSphere", p, radius, (uint32_t)color, alpha );
+}
+void jsDrawCapsule( b3Pos p1, b3Pos p2, float radius, b3HexColor color, float alpha, void* ctx )
+{
+	static_cast<JsDebugDraw*>( ctx )->handlers.call<void>( "drawCapsule", p1, p2, radius, (uint32_t)color, alpha );
+}
+void jsDrawBox( b3Vec3 extents, b3WorldTransform xf, b3HexColor color, void* ctx )
+{
+	static_cast<JsDebugDraw*>( ctx )->handlers.call<void>( "drawBox", extents, xf, (uint32_t)color );
+}
+void jsDrawBounds( b3AABB aabb, b3HexColor color, void* ctx )
+{
+	static_cast<JsDebugDraw*>( ctx )->handlers.call<void>( "drawBounds", aabb, (uint32_t)color );
+}
+void jsDrawTransform( b3WorldTransform xf, void* ctx )
+{
+	static_cast<JsDebugDraw*>( ctx )->handlers.call<void>( "drawTransform", xf );
+}
+
+// Run b3World_Draw, dispatching primitives to methods on the JS `handlers`
+// object. Only handler methods that are present get wired; flags on the same
+// object (drawJoints/drawBounds/drawContacts/drawMass) select what is emitted.
+void worldDraw( b3WorldId worldId, val handlers )
+{
+	JsDebugDraw jd{ handlers };
+	b3DebugDraw dd = b3DefaultDebugDraw();
+	dd.context = &jd;
+	dd.drawingBounds = b3AABB{ b3Vec3{ -1e30f, -1e30f, -1e30f }, b3Vec3{ 1e30f, 1e30f, 1e30f } };
+
+	auto has = [&]( const char* k ) { return handlers.hasOwnProperty( k ) && !handlers[k].isUndefined(); };
+	auto flag = [&]( const char* k, bool dflt ) { return has( k ) ? handlers[k].as<bool>() : dflt; };
+
+	// Only wire trampolines the caller supplied; leave the rest NULL.
+	dd.DrawSegmentFcn = has( "drawSegment" ) ? jsDrawSegment : nullptr;
+	dd.DrawPointFcn = has( "drawPoint" ) ? jsDrawPoint : nullptr;
+	dd.DrawSphereFcn = has( "drawSphere" ) ? jsDrawSphere : nullptr;
+	dd.DrawCapsuleFcn = has( "drawCapsule" ) ? jsDrawCapsule : nullptr;
+	dd.DrawBoxFcn = has( "drawBox" ) ? jsDrawBox : nullptr;
+	dd.DrawBoundsFcn = has( "drawBounds" ) ? jsDrawBounds : nullptr;
+	dd.DrawTransformFcn = has( "drawTransform" ) ? jsDrawTransform : nullptr;
+	// Shape outlines require the world-level createDebugShape cache (deferred),
+	// so never let box3d call a NULL DrawShapeFcn.
+	dd.DrawShapeFcn = nullptr;
+	dd.DrawStringFcn = nullptr;
+	dd.drawShapes = false;
+
+	dd.drawJoints = flag( "drawJoints", dd.drawJoints );
+	dd.drawBounds = flag( "drawBounds", dd.drawBounds );
+	dd.drawContacts = flag( "drawContacts", dd.drawContacts );
+	dd.drawMass = flag( "drawMass", dd.drawMass );
+
+	b3World_Draw( worldId, &dd, B3_DEFAULT_MASK_BITS );
+}
 } // namespace
 
 EMSCRIPTEN_BINDINGS( box3d )
@@ -1074,20 +990,13 @@ EMSCRIPTEN_BINDINGS( box3d )
 	function( "b3AABB_Union", &b3AABB_Union );
 
 	// =====================================================================
-	// Section 9 — buffer-based debug renderer (no per-primitive JS callbacks).
-	// Consumers: dd.draw(worldId); const p = dd.positions(); (Float32Array of
-	// xyz, 2 verts per line segment) + dd.colors() (rgb 0..1). One boundary
-	// crossing per frame -> a single THREE.LineSegments.
+	// Section 9 — debug draw (faithful). b3World_Draw takes a JS handler object
+	// whose methods receive primitives: drawSegment(p1,p2,color),
+	// drawPoint(p,size,color), drawSphere(p,radius,color,alpha),
+	// drawCapsule(p1,p2,radius,color,alpha), drawBox(extents,transform,color),
+	// drawBounds(aabb,color), drawTransform(transform). Colors are 0xRRGGBB
+	// numbers. Flags on the same object: drawJoints/drawBounds/drawContacts/
+	// drawMass. Per-primitive JS calls -> for inspection, not the hot path.
 	// =====================================================================
-	class_<DebugDraw>( "DebugDraw" )
-		.constructor<>()
-		.function( "draw", &DebugDraw::draw )
-		.function( "positions", &DebugDraw::positions )
-		.function( "colors", &DebugDraw::colors )
-		.function( "vertexCount", &DebugDraw::vertexCount )
-		.function( "setDrawShapes", &DebugDraw::setDrawShapes )
-		.function( "setDrawJoints", &DebugDraw::setDrawJoints )
-		.function( "setDrawBounds", &DebugDraw::setDrawBounds )
-		.function( "setDrawContacts", &DebugDraw::setDrawContacts )
-		.function( "setDrawMass", &DebugDraw::setDrawMass );
+	function( "b3World_Draw", &worldDraw );
 }

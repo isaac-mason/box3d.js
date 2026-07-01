@@ -5,8 +5,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-export interface Harness
-{
+export type Harness = {
 	scene: THREE.Scene;
 	camera: THREE.PerspectiveCamera;
 	renderer: THREE.WebGLRenderer;
