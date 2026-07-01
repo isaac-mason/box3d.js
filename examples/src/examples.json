@@ -29,6 +29,16 @@
     "description": "a heavy bullet sphere smashes through box walls without tunneling",
     "tags": ["world", "physics", "ccd", "continuous", "bullet", "dynamics"]
   },
+  "example-gravity-factor": {
+    "title": "Gravity Factor",
+    "description": "a row of boxes with per-body gravity scale 0 → 2 · press R",
+    "tags": ["world", "physics", "gravity", "gravity-scale", "dynamics"]
+  },
+  "example-linear-damping": {
+    "title": "Linear Damping",
+    "description": "boxes launched at one speed, damping 0 → 0.9 · press R",
+    "tags": ["world", "physics", "damping", "velocity", "dynamics"]
+  },
   "example-sensor": {
     "title": "Sensor",
     "description": "a kinematic sensor sweeps past bodies · hit / no-hit",
