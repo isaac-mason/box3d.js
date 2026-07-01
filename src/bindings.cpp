@@ -660,6 +660,33 @@ EMSCRIPTEN_BINDINGS( box3d )
 	function( "b3ComputeCapsuleAABB", +[]( b3Capsule c, b3Transform t ) { return b3ComputeCapsuleAABB( &c, t ); } );
 	function( "b3ComputeHullAABB", +[]( b3HullData* h, b3Transform t ) { return b3ComputeHullAABB( h, t ); }, allow_raw_pointers() );
 
+	// world timing profile (per-step milliseconds)
+	value_object<b3Profile>( "b3Profile" )
+		.field( "step", &b3Profile::step )
+		.field( "pairs", &b3Profile::pairs )
+		.field( "collide", &b3Profile::collide )
+		.field( "solve", &b3Profile::solve )
+		.field( "solverSetup", &b3Profile::solverSetup )
+		.field( "constraints", &b3Profile::constraints )
+		.field( "prepareConstraints", &b3Profile::prepareConstraints )
+		.field( "integrateVelocities", &b3Profile::integrateVelocities )
+		.field( "warmStart", &b3Profile::warmStart )
+		.field( "solveImpulses", &b3Profile::solveImpulses )
+		.field( "integratePositions", &b3Profile::integratePositions )
+		.field( "relaxImpulses", &b3Profile::relaxImpulses )
+		.field( "applyRestitution", &b3Profile::applyRestitution )
+		.field( "storeImpulses", &b3Profile::storeImpulses )
+		.field( "splitIslands", &b3Profile::splitIslands )
+		.field( "transforms", &b3Profile::transforms )
+		.field( "sensorHits", &b3Profile::sensorHits )
+		.field( "jointEvents", &b3Profile::jointEvents )
+		.field( "hitEvents", &b3Profile::hitEvents )
+		.field( "refit", &b3Profile::refit )
+		.field( "bullets", &b3Profile::bullets )
+		.field( "sleepIslands", &b3Profile::sleepIslands )
+		.field( "sensors", &b3Profile::sensors );
+	function( "b3World_GetProfile", &b3World_GetProfile );
+
 	// Explosion (radial impulse).
 	value_object<b3ExplosionDef>( "b3ExplosionDef" )
 		.field( "maskBits", &b3ExplosionDef::maskBits )

@@ -308,6 +308,32 @@ export type b3TOIOutput = {
   usedFallback: boolean
 };
 
+export type b3Profile = {
+  step: number,
+  pairs: number,
+  collide: number,
+  solve: number,
+  solverSetup: number,
+  constraints: number,
+  prepareConstraints: number,
+  integrateVelocities: number,
+  warmStart: number,
+  solveImpulses: number,
+  integratePositions: number,
+  relaxImpulses: number,
+  applyRestitution: number,
+  storeImpulses: number,
+  splitIslands: number,
+  transforms: number,
+  sensorHits: number,
+  jointEvents: number,
+  hitEvents: number,
+  refit: number,
+  bullets: number,
+  sleepIslands: number,
+  sensors: number
+};
+
 export type b3ExplosionDef = {
   maskBits: bigint,
   position: b3Vec3,
@@ -699,6 +725,7 @@ interface EmbindModule {
   b3CreateCylinder(_0: number, _1: number, _2: number, _3: number): b3HullData | null;
   b3CreateCone(_0: number, _1: number, _2: number, _3: number): b3HullData | null;
   b3CreateRock(_0: number): b3HullData | null;
+  b3World_GetProfile(_0: b3WorldId): b3Profile;
   b3DefaultExplosionDef(): b3ExplosionDef;
   b3World_Explode(_0: b3WorldId, _1: b3ExplosionDef): void;
   b3Body_SetTargetTransform(_0: b3BodyId, _1: b3Transform, _2: number, _3: boolean): void;
