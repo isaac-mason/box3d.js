@@ -19,6 +19,11 @@
     "description": "spheres, boxes & capsules launched across a floor, friction 0 → 1",
     "tags": ["world", "physics", "friction", "material", "sliding"]
   },
+  "example-ccd": {
+    "title": "Continuous Collision Detection",
+    "description": "a heavy bullet sphere smashes through box walls without tunneling",
+    "tags": ["world", "physics", "ccd", "continuous", "bullet", "dynamics"]
+  },
   "example-sensor": {
     "title": "Sensor",
     "description": "a kinematic sensor sweeps past bodies · hit / no-hit",
