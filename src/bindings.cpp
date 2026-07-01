@@ -475,6 +475,28 @@ EMSCRIPTEN_BINDINGS( box3d )
 		+[]( b3BodyId bodyId, b3ShapeDef def, b3CompoundData* compound ) { return b3CreateCompoundShape( bodyId, &def, compound ); },
 		allow_raw_pointers() );
 
+	// Height fields (terrain; static bodies only). `heights` is a countX*countZ
+	// Float32Array of grid y-values; `scale` spaces the grid out in world units.
+	class_<b3HeightFieldData>( "b3HeightFieldData" );
+	function( "b3CreateHeightField", +[]( val heights, int countX, int countZ, b3Vec3 scale ) -> b3HeightFieldData*
+	{
+		std::vector<float> h = convertJSArrayToNumberVector<float>( heights );
+		float mn = h.empty() ? 0.0f : h[0], mx = mn;
+		for ( float v : h ) { mn = v < mn ? v : mn; mx = v > mx ? v : mx; }
+		b3HeightFieldDef def = {};
+		def.heights = h.data();
+		def.scale = scale;
+		def.countX = countX;
+		def.countZ = countZ;
+		def.globalMinimumHeight = mn;
+		def.globalMaximumHeight = mx;
+		return b3CreateHeightField( &def );
+	}, allow_raw_pointers() );
+	function( "b3DestroyHeightField", &b3DestroyHeightField, allow_raw_pointers() );
+	function( "b3CreateHeightFieldShape",
+		+[]( b3BodyId bodyId, b3ShapeDef def, b3HeightFieldData* hf ) { return b3CreateHeightFieldShape( bodyId, &def, hf ); },
+		allow_raw_pointers() );
+
 	// Explosion (radial impulse).
 	value_object<b3ExplosionDef>( "b3ExplosionDef" )
 		.field( "maskBits", &b3ExplosionDef::maskBits )
