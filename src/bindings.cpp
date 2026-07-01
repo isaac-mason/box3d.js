@@ -652,6 +652,14 @@ EMSCRIPTEN_BINDINGS( box3d )
 			return b3TimeOfImpact( &input );
 		} );
 
+	// Compute mass-data / AABB of a primitive shape without attaching it to a body.
+	function( "b3ComputeSphereMass", +[]( b3Sphere s, float density ) { return b3ComputeSphereMass( &s, density ); } );
+	function( "b3ComputeCapsuleMass", +[]( b3Capsule c, float density ) { return b3ComputeCapsuleMass( &c, density ); } );
+	function( "b3ComputeHullMass", +[]( b3HullData* h, float density ) { return b3ComputeHullMass( h, density ); }, allow_raw_pointers() );
+	function( "b3ComputeSphereAABB", +[]( b3Sphere s, b3Transform t ) { return b3ComputeSphereAABB( &s, t ); } );
+	function( "b3ComputeCapsuleAABB", +[]( b3Capsule c, b3Transform t ) { return b3ComputeCapsuleAABB( &c, t ); } );
+	function( "b3ComputeHullAABB", +[]( b3HullData* h, b3Transform t ) { return b3ComputeHullAABB( h, t ); }, allow_raw_pointers() );
+
 	// Explosion (radial impulse).
 	value_object<b3ExplosionDef>( "b3ExplosionDef" )
 		.field( "maskBits", &b3ExplosionDef::maskBits )

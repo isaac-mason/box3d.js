@@ -652,6 +652,7 @@ interface EmbindModule {
   b3Cross(_0: b3Vec3, _1: b3Vec3): b3Vec3;
   b3Body_GetTransform(_0: b3BodyId): b3Transform;
   b3CloneAndTransformHull(_0: b3HullData | null, _1: b3Transform, _2: b3Vec3): b3HullData | null;
+  b3ComputeHullAABB(_0: b3HullData | null, _1: b3Transform): b3AABB;
   b3Joint_SetLocalFrameA(_0: b3JointId, _1: b3Transform): void;
   b3Joint_GetLocalFrameA(_0: b3JointId): b3Transform;
   b3Joint_SetLocalFrameB(_0: b3JointId, _1: b3Transform): void;
@@ -664,8 +665,10 @@ interface EmbindModule {
   b3SphericalJoint_GetTargetRotation(_0: b3JointId): b3Quat;
   b3RotateVector(_0: b3Quat, _1: b3Vec3): b3Vec3;
   b3InvRotateVector(_0: b3Quat, _1: b3Vec3): b3Vec3;
+  b3ComputeSphereAABB(_0: b3Sphere, _1: b3Transform): b3AABB;
   b3Shape_GetSphere(_0: b3ShapeId): b3Sphere;
   b3Shape_SetSphere(_0: b3ShapeId, _1: b3Sphere): void;
+  b3ComputeCapsuleAABB(_0: b3Capsule, _1: b3Transform): b3AABB;
   b3Shape_GetCapsule(_0: b3ShapeId): b3Capsule;
   b3Shape_SetCapsule(_0: b3ShapeId, _1: b3Capsule): void;
   b3DefaultSurfaceMaterial(): b3SurfaceMaterial;
@@ -857,6 +860,9 @@ interface EmbindModule {
   b3WheelJoint_GetTargetSteeringAngle(_0: b3JointId): number;
   b3WheelJoint_GetSteeringAngle(_0: b3JointId): number;
   b3WheelJoint_GetSteeringTorque(_0: b3JointId): number;
+  b3ComputeSphereMass(_0: b3Sphere, _1: number): b3MassData;
+  b3ComputeCapsuleMass(_0: b3Capsule, _1: number): b3MassData;
+  b3ComputeHullMass(_0: b3HullData | null, _1: number): b3MassData;
   b3Body_GetMassData(_0: b3BodyId): b3MassData;
   b3Body_SetMassData(_0: b3BodyId, _1: b3MassData): void;
   b3Shape_ComputeMassData(_0: b3ShapeId): b3MassData;
