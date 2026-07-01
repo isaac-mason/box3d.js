@@ -780,6 +780,56 @@ EMSCRIPTEN_BINDINGS( box3d )
 	// =====================================================================
 
 	// =====================================================================
+	// Section 5f — query / mass structs + the non-callback functions using them
+	// =====================================================================
+	value_object<b3Matrix3>( "b3Matrix3" )
+		.field( "cx", &b3Matrix3::cx )
+		.field( "cy", &b3Matrix3::cy )
+		.field( "cz", &b3Matrix3::cz );
+
+	value_object<b3MassData>( "b3MassData" )
+		.field( "mass", &b3MassData::mass )
+		.field( "center", &b3MassData::center )
+		.field( "inertia", &b3MassData::inertia );
+
+	value_object<b3QueryFilter>( "b3QueryFilter" )
+		.field( "categoryBits", &b3QueryFilter::categoryBits )
+		.field( "maskBits", &b3QueryFilter::maskBits )
+		.field( "id", &b3QueryFilter::id );
+
+	value_object<b3RayResult>( "b3RayResult" )
+		.field( "shapeId", &b3RayResult::shapeId )
+		.field( "point", &b3RayResult::point )
+		.field( "normal", &b3RayResult::normal )
+		.field( "userMaterialId", &b3RayResult::userMaterialId )
+		.field( "fraction", &b3RayResult::fraction )
+		.field( "triangleIndex", &b3RayResult::triangleIndex )
+		.field( "childIndex", &b3RayResult::childIndex )
+		.field( "nodeVisits", &b3RayResult::nodeVisits )
+		.field( "leafVisits", &b3RayResult::leafVisits )
+		.field( "hit", &b3RayResult::hit );
+
+	value_object<b3WorldCastOutput>( "b3WorldCastOutput" )
+		.field( "normal", &b3WorldCastOutput::normal )
+		.field( "point", &b3WorldCastOutput::point )
+		.field( "fraction", &b3WorldCastOutput::fraction )
+		.field( "iterations", &b3WorldCastOutput::iterations )
+		.field( "triangleIndex", &b3WorldCastOutput::triangleIndex )
+		.field( "childIndex", &b3WorldCastOutput::childIndex )
+		.field( "materialIndex", &b3WorldCastOutput::materialIndex )
+		.field( "hit", &b3WorldCastOutput::hit );
+
+	function( "b3DefaultQueryFilter", &b3DefaultQueryFilter );
+
+	function( "b3World_CastRayClosest", &b3World_CastRayClosest );
+	function( "b3Body_GetMassData", &b3Body_GetMassData );
+	function( "b3Body_SetMassData", &b3Body_SetMassData );
+	function( "b3Body_GetLocalRotationalInertia", &b3Body_GetLocalRotationalInertia );
+	function( "b3Body_GetWorldInverseRotationalInertia", &b3Body_GetWorldInverseRotationalInertia );
+	function( "b3Shape_ComputeMassData", &b3Shape_ComputeMassData );
+	function( "b3Shape_RayCast", &b3Shape_RayCast );
+
+	// =====================================================================
 	// Section 8 — events. Leaf event structs as value_objects (void* userData
 	// omitted); the four world getters return native JS arrays mirroring the C
 	// container structs.
