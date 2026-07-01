@@ -154,6 +154,17 @@
       "terrain"
     ]
   },
+  "example-cast-ray": {
+    "title": "Cast Ray",
+    "description": "a shell of rays fires at a spinning torus-knot mesh; hits light up",
+    "tags": [
+      "world",
+      "physics",
+      "raycast",
+      "query",
+      "mesh"
+    ]
+  },
   "example-sensor": {
     "title": "Sensor",
     "description": "a kinematic sensor sweeps past bodies \u00b7 hit / no-hit",
