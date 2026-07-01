@@ -1,62 +1,146 @@
 {
   "example-shapes": {
     "title": "Shapes",
-    "description": "spawn spheres, boxes & capsules · drag to orbit",
-    "tags": ["world", "physics", "shapes", "primitives", "dynamics"]
+    "description": "spawn spheres, boxes & capsules \u00b7 drag to orbit",
+    "tags": [
+      "world",
+      "physics",
+      "shapes",
+      "primitives",
+      "dynamics"
+    ]
   },
   "example-cube-heap": {
     "title": "Cube Heap",
     "description": "a churning pile of cubes under strong gravity",
-    "tags": ["world", "physics", "cube-heap"]
+    "tags": [
+      "world",
+      "physics",
+      "cube-heap"
+    ]
   },
   "example-restitution": {
     "title": "Restitution",
-    "description": "a row of balls, restitution 0 → 1 · press drop",
-    "tags": ["world", "physics", "restitution", "bounce", "material"]
+    "description": "a row of balls, restitution 0 \u2192 1 \u00b7 press drop",
+    "tags": [
+      "world",
+      "physics",
+      "restitution",
+      "bounce",
+      "material"
+    ]
   },
   "example-friction": {
     "title": "Friction",
-    "description": "spheres, boxes & capsules launched across a floor, friction 0 → 1",
-    "tags": ["world", "physics", "friction", "material", "sliding"]
+    "description": "spheres, boxes & capsules launched across a floor, friction 0 \u2192 1",
+    "tags": [
+      "world",
+      "physics",
+      "friction",
+      "material",
+      "sliding"
+    ]
   },
   "example-conveyor-belt": {
     "title": "Conveyor Belt",
-    "description": "belts carry cargo via surface tangent velocity, friction 0 → 1",
-    "tags": ["world", "physics", "conveyor", "tangent-velocity", "friction"]
+    "description": "belts carry cargo via surface tangent velocity, friction 0 \u2192 1",
+    "tags": [
+      "world",
+      "physics",
+      "conveyor",
+      "tangent-velocity",
+      "friction"
+    ]
   },
   "example-ccd": {
     "title": "Continuous Collision Detection",
     "description": "a heavy bullet sphere smashes through box walls without tunneling",
-    "tags": ["world", "physics", "ccd", "continuous", "bullet", "dynamics"]
+    "tags": [
+      "world",
+      "physics",
+      "ccd",
+      "continuous",
+      "bullet",
+      "dynamics"
+    ]
   },
   "example-gravity-factor": {
     "title": "Gravity Factor",
-    "description": "a row of boxes with per-body gravity scale 0 → 2 · press R",
-    "tags": ["world", "physics", "gravity", "gravity-scale", "dynamics"]
+    "description": "a row of boxes with per-body gravity scale 0 \u2192 2 \u00b7 press R",
+    "tags": [
+      "world",
+      "physics",
+      "gravity",
+      "gravity-scale",
+      "dynamics"
+    ]
   },
   "example-linear-damping": {
     "title": "Linear Damping",
-    "description": "boxes launched at one speed, damping 0 → 0.9 · press R",
-    "tags": ["world", "physics", "damping", "velocity", "dynamics"]
+    "description": "boxes launched at one speed, damping 0 \u2192 0.9 \u00b7 press R",
+    "tags": [
+      "world",
+      "physics",
+      "damping",
+      "velocity",
+      "dynamics"
+    ]
   },
   "example-angular-damping": {
     "title": "Angular Damping",
-    "description": "zero-gravity boxes spun equally, angular damping 0 → 0.9 · press R",
-    "tags": ["world", "physics", "damping", "rotation", "angular"]
+    "description": "zero-gravity boxes spun equally, angular damping 0 \u2192 0.9 \u00b7 press R",
+    "tags": [
+      "world",
+      "physics",
+      "damping",
+      "rotation",
+      "angular"
+    ]
   },
   "example-add-impulse-at-position": {
     "title": "Add Impulse at Position",
     "description": "click a body to apply an impulse at the hit point (off-centre = spin)",
-    "tags": ["world", "physics", "impulse", "raycast", "interactive"]
+    "tags": [
+      "world",
+      "physics",
+      "impulse",
+      "raycast",
+      "interactive"
+    ]
+  },
+  "example-collision-filtering": {
+    "title": "Collision Filtering",
+    "description": "two platforms each accept only one group of cubes via filter bits",
+    "tags": [
+      "world",
+      "physics",
+      "filtering",
+      "collision-groups",
+      "categories"
+    ]
   },
   "example-sensor": {
     "title": "Sensor",
-    "description": "a kinematic sensor sweeps past bodies · hit / no-hit",
-    "tags": ["world", "physics", "sensor", "events", "kinematic"]
+    "description": "a kinematic sensor sweeps past bodies \u00b7 hit / no-hit",
+    "tags": [
+      "world",
+      "physics",
+      "sensor",
+      "events",
+      "kinematic"
+    ]
   },
   "example-multithreading": {
     "title": "Multithreading",
     "description": "a cube-heap stress test spread across worker threads",
-    "tags": ["world", "physics", "multithreading", "pthreads", "workers", "stress-test", "performance"]
+    "tags": [
+      "world",
+      "physics",
+      "multithreading",
+      "pthreads",
+      "workers",
+      "stress-test",
+      "performance"
+    ]
   }
 }
