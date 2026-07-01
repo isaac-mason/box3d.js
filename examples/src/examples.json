@@ -1,6 +1,14 @@
 {
-  "example-falling-shapes": {
-    "title": "Falling Shapes",
-    "tags": ["dynamics", "shapes", "spheres", "boxes", "capsules", "stacking"]
+  "example-shapes": {
+    "title": "Shapes",
+    "tags": ["dynamics", "shapes", "spheres", "boxes", "capsules"]
+  },
+  "example-stacking": {
+    "title": "Stacking",
+    "tags": ["stacking", "boxes", "contacts", "solver"]
+  },
+  "example-restitution": {
+    "title": "Restitution",
+    "tags": ["restitution", "bounce", "material", "spheres"]
   }
 }

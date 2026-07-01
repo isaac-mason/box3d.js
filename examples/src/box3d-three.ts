@@ -1,141 +1,111 @@
-// Thin three.js glue for box3d. Examples render shapes as solid THREE meshes
-// (map shape -> mesh once, then copy body transforms each frame). box3d's own
-// debug draw is exposed separately (b3World_Draw) as a toggleable overlay, not
-// the render path. This will be promoted to a published `box3d.js/three` subpath.
+// Generic world renderer: introspects a box3d world each frame and draws every
+// shape with three.js. Examples never track meshes themselves — they build the
+// world with the box3d API and hand it here. Geometry is derived by reading the
+// shape back out of box3d (b3Shape_GetType / GetSphere / GetCapsule /
+// GetHullVertices), so nothing has to be registered up front.
+//
+// One mesh per shape (cached by shape id). Simple and robust; a THREE.BatchedMesh
+// variant is a drop-in optimization if a scene ever needs one draw call.
 
 import * as THREE from 'three';
-import type { Box3DModule, b3BodyId, b3ShapeDef, b3Vec3, b3WorldId } from 'box3d.js';
+import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
+import type { Box3DModule, b3ShapeId, b3WorldId } from 'box3d.js';
 
-/** Copy a box3d body's world transform onto a three.js object. */
-export function syncMesh( b3: Box3DModule, bodyId: b3BodyId, object: THREE.Object3D ): void
-{
-	const p = b3.b3Body_GetPosition( bodyId );
-	const q = b3.b3Body_GetRotation( bodyId ); // b3Quat = { v: {x,y,z}, s }
-	object.position.set( p.x, p.y, p.z );
-	object.quaternion.set( q.v.x, q.v.y, q.v.z, q.s );
-}
-
-/** Tracks {body, mesh} pairs and syncs them all each frame. */
-export class BodyMeshMap
-{
-	private pairs: Array<{ bodyId: b3BodyId; mesh: THREE.Object3D }> = [];
-
-	constructor( private b3: Box3DModule ) {}
-
-	add( bodyId: b3BodyId, mesh: THREE.Object3D ): void
-	{
-		this.pairs.push( { bodyId, mesh } );
-	}
-
-	sync(): void
-	{
-		for ( const { bodyId, mesh } of this.pairs ) syncMesh( this.b3, bodyId, mesh );
-	}
-}
-
+const HUGE_BOUNDS = { lowerBound: { x: -1e9, y: -1e9, z: -1e9 }, upperBound: { x: 1e9, y: 1e9, z: 1e9 } };
 const PALETTE = [0xff6b6b, 0xffd93d, 0x6bcb77, 0x4d96ff, 0xc78bff, 0xff9f45, 0x22d3ee];
-let colorIdx = 0;
-export function nextColor(): number
+
+const shapeKey = ( s: b3ShapeId ): string => `${s.index1}:${s.world0}:${s.generation}`;
+
+export interface WorldRenderer
 {
-	return PALETTE[colorIdx++ % PALETTE.length];
+	/** Add this to your THREE scene. */
+	readonly object3d: THREE.Object3D;
+	/** Call once per frame after stepping the world. */
+	update(): void;
 }
 
-function standardMaterial( color?: number ): THREE.MeshStandardMaterial
+export function createWorldRenderer( b3: Box3DModule, world: b3WorldId ): WorldRenderer
 {
-	return new THREE.MeshStandardMaterial( { color: color ?? nextColor(), roughness: 0.45, metalness: 0.1 } );
-}
+	const group = new THREE.Group();
+	const meshes = new Map<string, THREE.Mesh>();
+	const filter = b3.b3DefaultQueryFilter();
+	const seen = new Set<string>();
+	let colorIdx = 0;
 
-export type Vec = { x: number; y: number; z: number };
-export interface SpawnOpts
-{
-	color?: number;
-	density?: number;
-	restitution?: number;
-	friction?: number;
-}
-
-export type Handle = { bodyId: b3BodyId; mesh: THREE.Mesh };
-
-/** Spawns box3d bodies paired with solid THREE meshes and tracks them for per-frame sync. */
-export class Spawner
-{
-	readonly bodies: BodyMeshMap;
-
-	constructor(
-		private b3: Box3DModule,
-		private world: b3WorldId,
-		private scene: THREE.Object3D,
-	)
+	// Build a shape-local three.js geometry by reading the shape back from box3d.
+	function geometryFor( shapeId: b3ShapeId ): THREE.BufferGeometry
 	{
-		this.bodies = new BodyMeshMap( b3 );
+		const type = b3.b3Shape_GetType( shapeId ).value;
+
+		if ( type === b3.b3ShapeType.b3_sphereShape.value )
+		{
+			const s = b3.b3Shape_GetSphere( shapeId );
+			const g = new THREE.SphereGeometry( s.radius, 20, 14 );
+			g.translate( s.center.x, s.center.y, s.center.z );
+			return g;
+		}
+
+		if ( type === b3.b3ShapeType.b3_capsuleShape.value )
+		{
+			const c = b3.b3Shape_GetCapsule( shapeId );
+			const axis = new THREE.Vector3( c.center2.x - c.center1.x, c.center2.y - c.center1.y, c.center2.z - c.center1.z );
+			const g = new THREE.CapsuleGeometry( c.radius, axis.length(), 8, 16 );
+			g.applyQuaternion( new THREE.Quaternion().setFromUnitVectors( new THREE.Vector3( 0, 1, 0 ), axis.clone().normalize() ) );
+			g.translate( ( c.center1.x + c.center2.x ) / 2, ( c.center1.y + c.center2.y ) / 2, ( c.center1.z + c.center2.z ) / 2 );
+			return g;
+		}
+
+		if ( type === b3.b3ShapeType.b3_hullShape.value )
+		{
+			const flat = b3.b3Shape_GetHullVertices( shapeId ); // Float32Array [x,y,z,...]
+			const points: THREE.Vector3[] = [];
+			for ( let i = 0; i < flat.length; i += 3 ) points.push( new THREE.Vector3( flat[i], flat[i + 1], flat[i + 2] ) );
+			return new ConvexGeometry( points );
+		}
+
+		// mesh / heightfield / compound: placeholder until those getters are bound
+		return new THREE.BoxGeometry( 0.25, 0.25, 0.25 );
 	}
 
-	private shapeDef( o?: SpawnOpts ): b3ShapeDef
+	function update(): void
 	{
-		const d = this.b3.b3DefaultShapeDef();
-		if ( o?.density !== undefined ) d.density = o.density;
-		if ( o?.restitution !== undefined ) d.baseMaterial.restitution = o.restitution;
-		if ( o?.friction !== undefined ) d.baseMaterial.friction = o.friction;
-		return d;
-	}
+		seen.clear();
 
-	private makeBody( type: number, position: Vec, rotation?: b3Vec3 ): b3BodyId
-	{
-		const d = this.b3.b3DefaultBodyDef();
-		d.type = type;
-		d.position = position;
-		if ( rotation ) d.rotation = { v: rotation, s: Math.sqrt( Math.max( 0, 1 - ( rotation.x ** 2 + rotation.y ** 2 + rotation.z ** 2 ) ) ) };
-		return this.b3.b3CreateBody( this.world, d );
-	}
+		b3.b3World_OverlapAABB( world, HUGE_BOUNDS, filter, ( shapeId: b3ShapeId ) =>
+		{
+			const key = shapeKey( shapeId );
+			seen.add( key );
 
-	private track( bodyId: b3BodyId, mesh: THREE.Mesh ): Handle
-	{
-		mesh.castShadow = true;
-		mesh.receiveShadow = true;
-		this.scene.add( mesh );
-		this.bodies.add( bodyId, mesh );
-		return { bodyId, mesh };
-	}
+			let mesh = meshes.get( key );
+			if ( mesh === undefined )
+			{
+				const material = new THREE.MeshStandardMaterial( {
+					color: PALETTE[colorIdx++ % PALETTE.length],
+					roughness: 0.5,
+					metalness: 0.05,
+				} );
+				mesh = new THREE.Mesh( geometryFor( shapeId ), material );
+				mesh.castShadow = true;
+				mesh.receiveShadow = true;
+				meshes.set( key, mesh );
+				group.add( mesh );
+			}
 
-	sphere( position: Vec, radius: number, o?: SpawnOpts ): Handle
-	{
-		const body = this.makeBody( this.b3.b3BodyType.b3_dynamicBody.value, position );
-		this.b3.b3CreateSphereShape( body, this.shapeDef( o ), { center: { x: 0, y: 0, z: 0 }, radius } );
-		return this.track( body, new THREE.Mesh( new THREE.SphereGeometry( radius, 24, 16 ), standardMaterial( o?.color ) ) );
-	}
-
-	box( position: Vec, hx: number, hy: number, hz: number, o?: SpawnOpts ): Handle
-	{
-		const body = this.makeBody( this.b3.b3BodyType.b3_dynamicBody.value, position );
-		this.b3.b3CreateBoxShape( body, this.shapeDef( o ), hx, hy, hz );
-		return this.track( body, new THREE.Mesh( new THREE.BoxGeometry( hx * 2, hy * 2, hz * 2 ), standardMaterial( o?.color ) ) );
-	}
-
-	capsule( position: Vec, radius: number, halfHeight: number, o?: SpawnOpts ): Handle
-	{
-		const body = this.makeBody( this.b3.b3BodyType.b3_dynamicBody.value, position );
-		this.b3.b3CreateCapsuleShape( body, this.shapeDef( o ), {
-			center1: { x: 0, y: -halfHeight, z: 0 },
-			center2: { x: 0, y: halfHeight, z: 0 },
-			radius,
+			const body = b3.b3Shape_GetBody( shapeId );
+			const p = b3.b3Body_GetPosition( body );
+			const q = b3.b3Body_GetRotation( body );
+			mesh.position.set( p.x, p.y, p.z );
+			mesh.quaternion.set( q.v.x, q.v.y, q.v.z, q.s );
+			mesh.visible = true;
+			return true; // continue enumeration
 		} );
-		return this.track( body, new THREE.Mesh( new THREE.CapsuleGeometry( radius, halfHeight * 2, 8, 16 ), standardMaterial( o?.color ) ) );
+
+		// hide shapes that were destroyed since last frame
+		for ( const [key, mesh] of meshes )
+		{
+			if ( !seen.has( key ) ) mesh.visible = false;
+		}
 	}
 
-	/** A large static floor box centered so its top surface is at y = 0. */
-	ground( halfExtent = 20, thickness = 0.5, color = 0x2b2b33 ): Handle
-	{
-		const body = this.makeBody( this.b3.b3BodyType.b3_staticBody.value, { x: 0, y: -thickness, z: 0 } );
-		this.b3.b3CreateBoxShape( body, this.b3.b3DefaultShapeDef(), halfExtent, thickness, halfExtent );
-		const mesh = new THREE.Mesh(
-			new THREE.BoxGeometry( halfExtent * 2, thickness * 2, halfExtent * 2 ),
-			new THREE.MeshStandardMaterial( { color, roughness: 0.95 } ),
-		);
-		return this.track( body, mesh );
-	}
-
-	sync(): void
-	{
-		this.bodies.sync();
-	}
+	return { object3d: group, update };
 }
