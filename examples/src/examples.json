@@ -189,6 +189,18 @@
       "revolute"
     ]
   },
+  "example-gjk": {
+    "title": "GJK Distance",
+    "description": "closest points between two convex shapes as one orbits the other",
+    "tags": [
+      "world",
+      "physics",
+      "gjk",
+      "distance",
+      "collision",
+      "query"
+    ]
+  },
   "example-sensor": {
     "title": "Sensor",
     "description": "a kinematic sensor sweeps past bodies \u00b7 hit / no-hit",
