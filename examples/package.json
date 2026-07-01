@@ -8,7 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "box3d": "workspace:*",
+    "box3d.js": "workspace:*",
     "lil-gui": "^0.20.0",
     "three": "^0.183.0"
   },

@@ -8,6 +8,7 @@
 // The file is organized into sections so it stays buildable as coverage grows.
 
 #include <string>
+#include <vector>
 
 #include <emscripten/bind.h>
 
@@ -259,10 +260,291 @@ EMSCRIPTEN_BINDINGS( box3d )
 			return b3CreateHullShape( bodyId, &def, &hull.base );
 		} );
 
+	register_vector<b3ShapeId>( "b3ShapeIdVector" );
+	register_vector<b3JointId>( "b3JointIdVector" );
+
 	// =====================================================================
-	// Section 6 — collision.h              (M3) ... TODO
-	// Section 7 — math helpers             (M3) ... TODO
-	// Section 8 — events (pointer+count)   (M3) ... TODO  (glue.h)
-	// Section 9 — callbacks & debug draw   (M4) ... TODO  (glue.h)
+	// Section 5b — full body API
+	// =====================================================================
+	function( "b3Body_SetType", &b3Body_SetType );
+	function( "b3Body_SetName", +[]( b3BodyId bodyId, std::string name ) { b3Body_SetName( bodyId, name.c_str() ); } );
+	function( "b3Body_GetName", +[]( b3BodyId bodyId ) { const char* n = b3Body_GetName( bodyId ); return std::string( n ? n : "" ); } );
+
+	function( "b3Body_GetLocalPoint", &b3Body_GetLocalPoint );
+	function( "b3Body_GetWorldPoint", &b3Body_GetWorldPoint );
+	function( "b3Body_GetLocalVector", &b3Body_GetLocalVector );
+	function( "b3Body_GetWorldVector", &b3Body_GetWorldVector );
+
+	function( "b3Body_SetLinearVelocity", &b3Body_SetLinearVelocity );
+	function( "b3Body_SetAngularVelocity", &b3Body_SetAngularVelocity );
+	function( "b3Body_SetTargetTransform", &b3Body_SetTargetTransform );
+	function( "b3Body_GetLocalPointVelocity", &b3Body_GetLocalPointVelocity );
+	function( "b3Body_GetWorldPointVelocity", &b3Body_GetWorldPointVelocity );
+
+	function( "b3Body_ApplyForce", &b3Body_ApplyForce );
+	function( "b3Body_ApplyForceToCenter", &b3Body_ApplyForceToCenter );
+	function( "b3Body_ApplyTorque", &b3Body_ApplyTorque );
+	function( "b3Body_ApplyLinearImpulse", &b3Body_ApplyLinearImpulse );
+	function( "b3Body_ApplyLinearImpulseToCenter", &b3Body_ApplyLinearImpulseToCenter );
+	function( "b3Body_ApplyAngularImpulse", &b3Body_ApplyAngularImpulse );
+
+	function( "b3Body_GetMass", &b3Body_GetMass );
+	function( "b3Body_GetInverseMass", &b3Body_GetInverseMass );
+	function( "b3Body_GetLocalCenterOfMass", &b3Body_GetLocalCenterOfMass );
+	function( "b3Body_GetWorldCenterOfMass", &b3Body_GetWorldCenterOfMass );
+	function( "b3Body_ApplyMassFromShapes", &b3Body_ApplyMassFromShapes );
+
+	function( "b3Body_SetLinearDamping", &b3Body_SetLinearDamping );
+	function( "b3Body_GetLinearDamping", &b3Body_GetLinearDamping );
+	function( "b3Body_SetAngularDamping", &b3Body_SetAngularDamping );
+	function( "b3Body_GetAngularDamping", &b3Body_GetAngularDamping );
+	function( "b3Body_SetGravityScale", &b3Body_SetGravityScale );
+	function( "b3Body_GetGravityScale", &b3Body_GetGravityScale );
+
+	function( "b3Body_IsAwake", &b3Body_IsAwake );
+	function( "b3Body_SetAwake", &b3Body_SetAwake );
+	function( "b3Body_EnableSleep", &b3Body_EnableSleep );
+	function( "b3Body_IsSleepEnabled", &b3Body_IsSleepEnabled );
+	function( "b3Body_SetSleepThreshold", &b3Body_SetSleepThreshold );
+	function( "b3Body_GetSleepThreshold", &b3Body_GetSleepThreshold );
+
+	function( "b3Body_IsEnabled", &b3Body_IsEnabled );
+	function( "b3Body_Disable", &b3Body_Disable );
+	function( "b3Body_Enable", &b3Body_Enable );
+	function( "b3Body_SetMotionLocks", &b3Body_SetMotionLocks );
+	function( "b3Body_GetMotionLocks", &b3Body_GetMotionLocks );
+	function( "b3Body_SetBullet", &b3Body_SetBullet );
+	function( "b3Body_IsBullet", &b3Body_IsBullet );
+	function( "b3Body_EnableContactRecycling", &b3Body_EnableContactRecycling );
+	function( "b3Body_IsContactRecyclingEnabled", &b3Body_IsContactRecyclingEnabled );
+	function( "b3Body_EnableHitEvents", &b3Body_EnableHitEvents );
+
+	function( "b3Body_GetWorld", &b3Body_GetWorld );
+	function( "b3Body_GetShapeCount", &b3Body_GetShapeCount );
+	function( "b3Body_GetShapes", +[]( b3BodyId bodyId )
+	{
+		std::vector<b3ShapeId> out( (size_t)b3Body_GetShapeCount( bodyId ) );
+		if ( !out.empty() ) b3Body_GetShapes( bodyId, out.data(), (int)out.size() );
+		return out;
+	} );
+	function( "b3Body_GetJointCount", &b3Body_GetJointCount );
+	function( "b3Body_GetJoints", +[]( b3BodyId bodyId )
+	{
+		std::vector<b3JointId> out( (size_t)b3Body_GetJointCount( bodyId ) );
+		if ( !out.empty() ) b3Body_GetJoints( bodyId, out.data(), (int)out.size() );
+		return out;
+	} );
+	function( "b3Body_ComputeAABB", &b3Body_ComputeAABB );
+
+	// =====================================================================
+	// Section 5c — full shape API
+	// =====================================================================
+	function( "b3Shape_GetType", &b3Shape_GetType );
+	function( "b3Shape_GetBody", &b3Shape_GetBody );
+	function( "b3Shape_GetWorld", &b3Shape_GetWorld );
+	function( "b3Shape_IsSensor", &b3Shape_IsSensor );
+
+	function( "b3Shape_SetDensity", &b3Shape_SetDensity );
+	function( "b3Shape_GetDensity", &b3Shape_GetDensity );
+	function( "b3Shape_SetFriction", &b3Shape_SetFriction );
+	function( "b3Shape_GetFriction", &b3Shape_GetFriction );
+	function( "b3Shape_SetRestitution", &b3Shape_SetRestitution );
+	function( "b3Shape_GetRestitution", &b3Shape_GetRestitution );
+	function( "b3Shape_SetSurfaceMaterial", &b3Shape_SetSurfaceMaterial );
+	function( "b3Shape_GetSurfaceMaterial", &b3Shape_GetSurfaceMaterial );
+	function( "b3Shape_GetFilter", &b3Shape_GetFilter );
+	function( "b3Shape_SetFilter", &b3Shape_SetFilter );
+
+	function( "b3Shape_EnableSensorEvents", &b3Shape_EnableSensorEvents );
+	function( "b3Shape_AreSensorEventsEnabled", &b3Shape_AreSensorEventsEnabled );
+	function( "b3Shape_EnableContactEvents", &b3Shape_EnableContactEvents );
+	function( "b3Shape_AreContactEventsEnabled", &b3Shape_AreContactEventsEnabled );
+	function( "b3Shape_EnablePreSolveEvents", &b3Shape_EnablePreSolveEvents );
+	function( "b3Shape_ArePreSolveEventsEnabled", &b3Shape_ArePreSolveEventsEnabled );
+	function( "b3Shape_EnableHitEvents", &b3Shape_EnableHitEvents );
+	function( "b3Shape_AreHitEventsEnabled", &b3Shape_AreHitEventsEnabled );
+
+	function( "b3Shape_GetSphere", &b3Shape_GetSphere );
+	function( "b3Shape_GetCapsule", &b3Shape_GetCapsule );
+	function( "b3Shape_SetSphere", +[]( b3ShapeId shapeId, b3Sphere sphere ) { b3Shape_SetSphere( shapeId, &sphere ); } );
+	function( "b3Shape_SetCapsule", +[]( b3ShapeId shapeId, b3Capsule capsule ) { b3Shape_SetCapsule( shapeId, &capsule ); } );
+
+	function( "b3Shape_GetAABB", &b3Shape_GetAABB );
+	function( "b3Shape_GetClosestPoint", &b3Shape_GetClosestPoint );
+	function( "b3Shape_ApplyWind", &b3Shape_ApplyWind );
+	function( "b3DestroyShape", &b3DestroyShape );
+
+	// =====================================================================
+	// Section 5d — joints: base + 9 def value_objects, defaults, create,
+	//              and the common b3Joint_* API. Per-joint-type accessors
+	//              (b3RevoluteJoint_*, b3WheelJoint_*, ...) land next.
+	// =====================================================================
+	value_object<b3JointDef>( "b3JointDef" )
+		.field( "bodyIdA", &b3JointDef::bodyIdA )
+		.field( "bodyIdB", &b3JointDef::bodyIdB )
+		.field( "localFrameA", &b3JointDef::localFrameA )
+		.field( "localFrameB", &b3JointDef::localFrameB )
+		.field( "forceThreshold", &b3JointDef::forceThreshold )
+		.field( "torqueThreshold", &b3JointDef::torqueThreshold )
+		.field( "constraintHertz", &b3JointDef::constraintHertz )
+		.field( "constraintDampingRatio", &b3JointDef::constraintDampingRatio )
+		.field( "drawScale", &b3JointDef::drawScale )
+		.field( "collideConnected", &b3JointDef::collideConnected )
+		.field( "internalValue", &b3JointDef::internalValue );
+
+	value_object<b3DistanceJointDef>( "b3DistanceJointDef" )
+		.field( "base", &b3DistanceJointDef::base )
+		.field( "length", &b3DistanceJointDef::length )
+		.field( "enableSpring", &b3DistanceJointDef::enableSpring )
+		.field( "lowerSpringForce", &b3DistanceJointDef::lowerSpringForce )
+		.field( "upperSpringForce", &b3DistanceJointDef::upperSpringForce )
+		.field( "hertz", &b3DistanceJointDef::hertz )
+		.field( "dampingRatio", &b3DistanceJointDef::dampingRatio )
+		.field( "enableLimit", &b3DistanceJointDef::enableLimit )
+		.field( "minLength", &b3DistanceJointDef::minLength )
+		.field( "maxLength", &b3DistanceJointDef::maxLength )
+		.field( "enableMotor", &b3DistanceJointDef::enableMotor )
+		.field( "maxMotorForce", &b3DistanceJointDef::maxMotorForce )
+		.field( "motorSpeed", &b3DistanceJointDef::motorSpeed );
+
+	value_object<b3RevoluteJointDef>( "b3RevoluteJointDef" )
+		.field( "base", &b3RevoluteJointDef::base )
+		.field( "targetAngle", &b3RevoluteJointDef::targetAngle )
+		.field( "enableSpring", &b3RevoluteJointDef::enableSpring )
+		.field( "hertz", &b3RevoluteJointDef::hertz )
+		.field( "dampingRatio", &b3RevoluteJointDef::dampingRatio )
+		.field( "enableLimit", &b3RevoluteJointDef::enableLimit )
+		.field( "lowerAngle", &b3RevoluteJointDef::lowerAngle )
+		.field( "upperAngle", &b3RevoluteJointDef::upperAngle )
+		.field( "enableMotor", &b3RevoluteJointDef::enableMotor )
+		.field( "maxMotorTorque", &b3RevoluteJointDef::maxMotorTorque )
+		.field( "motorSpeed", &b3RevoluteJointDef::motorSpeed );
+
+	value_object<b3PrismaticJointDef>( "b3PrismaticJointDef" )
+		.field( "base", &b3PrismaticJointDef::base )
+		.field( "enableSpring", &b3PrismaticJointDef::enableSpring )
+		.field( "hertz", &b3PrismaticJointDef::hertz )
+		.field( "dampingRatio", &b3PrismaticJointDef::dampingRatio )
+		.field( "targetTranslation", &b3PrismaticJointDef::targetTranslation )
+		.field( "enableLimit", &b3PrismaticJointDef::enableLimit )
+		.field( "lowerTranslation", &b3PrismaticJointDef::lowerTranslation )
+		.field( "upperTranslation", &b3PrismaticJointDef::upperTranslation )
+		.field( "enableMotor", &b3PrismaticJointDef::enableMotor )
+		.field( "maxMotorForce", &b3PrismaticJointDef::maxMotorForce )
+		.field( "motorSpeed", &b3PrismaticJointDef::motorSpeed );
+
+	value_object<b3WheelJointDef>( "b3WheelJointDef" )
+		.field( "base", &b3WheelJointDef::base )
+		.field( "enableSuspensionSpring", &b3WheelJointDef::enableSuspensionSpring )
+		.field( "suspensionHertz", &b3WheelJointDef::suspensionHertz )
+		.field( "suspensionDampingRatio", &b3WheelJointDef::suspensionDampingRatio )
+		.field( "enableSuspensionLimit", &b3WheelJointDef::enableSuspensionLimit )
+		.field( "lowerSuspensionLimit", &b3WheelJointDef::lowerSuspensionLimit )
+		.field( "upperSuspensionLimit", &b3WheelJointDef::upperSuspensionLimit )
+		.field( "enableSpinMotor", &b3WheelJointDef::enableSpinMotor )
+		.field( "maxSpinTorque", &b3WheelJointDef::maxSpinTorque )
+		.field( "spinSpeed", &b3WheelJointDef::spinSpeed )
+		.field( "enableSteering", &b3WheelJointDef::enableSteering )
+		.field( "steeringHertz", &b3WheelJointDef::steeringHertz )
+		.field( "steeringDampingRatio", &b3WheelJointDef::steeringDampingRatio )
+		.field( "targetSteeringAngle", &b3WheelJointDef::targetSteeringAngle )
+		.field( "maxSteeringTorque", &b3WheelJointDef::maxSteeringTorque )
+		.field( "enableSteeringLimit", &b3WheelJointDef::enableSteeringLimit )
+		.field( "lowerSteeringLimit", &b3WheelJointDef::lowerSteeringLimit )
+		.field( "upperSteeringLimit", &b3WheelJointDef::upperSteeringLimit );
+
+	value_object<b3WeldJointDef>( "b3WeldJointDef" )
+		.field( "base", &b3WeldJointDef::base )
+		.field( "linearHertz", &b3WeldJointDef::linearHertz )
+		.field( "angularHertz", &b3WeldJointDef::angularHertz )
+		.field( "linearDampingRatio", &b3WeldJointDef::linearDampingRatio )
+		.field( "angularDampingRatio", &b3WeldJointDef::angularDampingRatio );
+
+	value_object<b3SphericalJointDef>( "b3SphericalJointDef" )
+		.field( "base", &b3SphericalJointDef::base )
+		.field( "enableSpring", &b3SphericalJointDef::enableSpring )
+		.field( "hertz", &b3SphericalJointDef::hertz )
+		.field( "dampingRatio", &b3SphericalJointDef::dampingRatio )
+		.field( "targetRotation", &b3SphericalJointDef::targetRotation )
+		.field( "enableConeLimit", &b3SphericalJointDef::enableConeLimit )
+		.field( "coneAngle", &b3SphericalJointDef::coneAngle )
+		.field( "enableTwistLimit", &b3SphericalJointDef::enableTwistLimit )
+		.field( "lowerTwistAngle", &b3SphericalJointDef::lowerTwistAngle )
+		.field( "upperTwistAngle", &b3SphericalJointDef::upperTwistAngle )
+		.field( "enableMotor", &b3SphericalJointDef::enableMotor )
+		.field( "maxMotorTorque", &b3SphericalJointDef::maxMotorTorque )
+		.field( "motorVelocity", &b3SphericalJointDef::motorVelocity );
+
+	value_object<b3MotorJointDef>( "b3MotorJointDef" )
+		.field( "base", &b3MotorJointDef::base )
+		.field( "linearVelocity", &b3MotorJointDef::linearVelocity )
+		.field( "maxVelocityForce", &b3MotorJointDef::maxVelocityForce )
+		.field( "angularVelocity", &b3MotorJointDef::angularVelocity )
+		.field( "maxVelocityTorque", &b3MotorJointDef::maxVelocityTorque )
+		.field( "linearHertz", &b3MotorJointDef::linearHertz )
+		.field( "linearDampingRatio", &b3MotorJointDef::linearDampingRatio )
+		.field( "maxSpringForce", &b3MotorJointDef::maxSpringForce )
+		.field( "angularHertz", &b3MotorJointDef::angularHertz )
+		.field( "angularDampingRatio", &b3MotorJointDef::angularDampingRatio )
+		.field( "maxSpringTorque", &b3MotorJointDef::maxSpringTorque );
+
+	value_object<b3ParallelJointDef>( "b3ParallelJointDef" )
+		.field( "base", &b3ParallelJointDef::base )
+		.field( "hertz", &b3ParallelJointDef::hertz )
+		.field( "dampingRatio", &b3ParallelJointDef::dampingRatio )
+		.field( "maxTorque", &b3ParallelJointDef::maxTorque );
+
+	value_object<b3FilterJointDef>( "b3FilterJointDef" )
+		.field( "base", &b3FilterJointDef::base );
+
+	function( "b3DefaultDistanceJointDef", &b3DefaultDistanceJointDef );
+	function( "b3DefaultRevoluteJointDef", &b3DefaultRevoluteJointDef );
+	function( "b3DefaultPrismaticJointDef", &b3DefaultPrismaticJointDef );
+	function( "b3DefaultWheelJointDef", &b3DefaultWheelJointDef );
+	function( "b3DefaultWeldJointDef", &b3DefaultWeldJointDef );
+	function( "b3DefaultSphericalJointDef", &b3DefaultSphericalJointDef );
+	function( "b3DefaultMotorJointDef", &b3DefaultMotorJointDef );
+	function( "b3DefaultParallelJointDef", &b3DefaultParallelJointDef );
+	function( "b3DefaultFilterJointDef", &b3DefaultFilterJointDef );
+
+	function( "b3CreateDistanceJoint", +[]( b3WorldId w, b3DistanceJointDef d ) { return b3CreateDistanceJoint( w, &d ); } );
+	function( "b3CreateRevoluteJoint", +[]( b3WorldId w, b3RevoluteJointDef d ) { return b3CreateRevoluteJoint( w, &d ); } );
+	function( "b3CreatePrismaticJoint", +[]( b3WorldId w, b3PrismaticJointDef d ) { return b3CreatePrismaticJoint( w, &d ); } );
+	function( "b3CreateWheelJoint", +[]( b3WorldId w, b3WheelJointDef d ) { return b3CreateWheelJoint( w, &d ); } );
+	function( "b3CreateWeldJoint", +[]( b3WorldId w, b3WeldJointDef d ) { return b3CreateWeldJoint( w, &d ); } );
+	function( "b3CreateSphericalJoint", +[]( b3WorldId w, b3SphericalJointDef d ) { return b3CreateSphericalJoint( w, &d ); } );
+	function( "b3CreateMotorJoint", +[]( b3WorldId w, b3MotorJointDef d ) { return b3CreateMotorJoint( w, &d ); } );
+	function( "b3CreateParallelJoint", +[]( b3WorldId w, b3ParallelJointDef d ) { return b3CreateParallelJoint( w, &d ); } );
+	function( "b3CreateFilterJoint", +[]( b3WorldId w, b3FilterJointDef d ) { return b3CreateFilterJoint( w, &d ); } );
+
+	function( "b3DestroyJoint", &b3DestroyJoint );
+	function( "b3Joint_IsValid", &b3Joint_IsValid );
+	function( "b3Joint_GetType", &b3Joint_GetType );
+	function( "b3Joint_GetBodyA", &b3Joint_GetBodyA );
+	function( "b3Joint_GetBodyB", &b3Joint_GetBodyB );
+	function( "b3Joint_GetWorld", &b3Joint_GetWorld );
+	function( "b3Joint_SetLocalFrameA", &b3Joint_SetLocalFrameA );
+	function( "b3Joint_GetLocalFrameA", &b3Joint_GetLocalFrameA );
+	function( "b3Joint_SetLocalFrameB", &b3Joint_SetLocalFrameB );
+	function( "b3Joint_GetLocalFrameB", &b3Joint_GetLocalFrameB );
+	function( "b3Joint_SetCollideConnected", &b3Joint_SetCollideConnected );
+	function( "b3Joint_GetCollideConnected", &b3Joint_GetCollideConnected );
+	function( "b3Joint_WakeBodies", &b3Joint_WakeBodies );
+	function( "b3Joint_GetConstraintForce", &b3Joint_GetConstraintForce );
+	function( "b3Joint_GetConstraintTorque", &b3Joint_GetConstraintTorque );
+	function( "b3Joint_GetLinearSeparation", &b3Joint_GetLinearSeparation );
+	function( "b3Joint_GetAngularSeparation", &b3Joint_GetAngularSeparation );
+	function( "b3Joint_SetConstraintTuning", &b3Joint_SetConstraintTuning );
+	function( "b3Joint_SetForceThreshold", &b3Joint_SetForceThreshold );
+	function( "b3Joint_GetForceThreshold", &b3Joint_GetForceThreshold );
+	function( "b3Joint_SetTorqueThreshold", &b3Joint_SetTorqueThreshold );
+	function( "b3Joint_GetTorqueThreshold", &b3Joint_GetTorqueThreshold );
+
+	// =====================================================================
+	// Section 5e — per-joint-type accessors  (next) ... TODO
+	// Section 6  — collision.h               (M3) ... TODO
+	// Section 7  — math helpers              (M3) ... TODO
+	// Section 8  — events (pointer+count)    (M3) ... TODO  (glue.h)
+	// Section 9  — callbacks & debug draw    (M4) ... TODO  (glue.h)
 	// =====================================================================
 }

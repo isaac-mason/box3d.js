@@ -18,5 +18,5 @@ export default defineConfig( {
 	server: { open: '/index.html' },
 	// The emscripten module is a large self-contained bundle; let it pass
 	// through rather than having esbuild pre-bundle the inlined wasm.
-	optimizeDeps: { exclude: ['box3d'] },
+	optimizeDeps: { exclude: ['box3d.js'] },
 } );

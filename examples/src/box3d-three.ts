@@ -5,7 +5,7 @@
 // published `box3d.js/three` subpath export.
 
 import * as THREE from 'three';
-import type { MainModule, b3BodyId } from 'box3d';
+import type { MainModule, b3BodyId } from 'box3d.js';
 
 /** Copy a box3d body's world transform onto a three.js object. */
 export function syncMesh( b3: MainModule, bodyId: b3BodyId, object: THREE.Object3D ): void

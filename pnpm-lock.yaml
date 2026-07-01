@@ -10,7 +10,7 @@ importers:
 
   examples:
     dependencies:
-      box3d:
+      box3d.js:
         specifier: workspace:*
         version: link:..
       lil-gui:

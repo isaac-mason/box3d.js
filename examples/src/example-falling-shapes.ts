@@ -2,8 +2,8 @@
 // floor. Demonstrates world/body/shape creation, stepping, and reading body
 // transforms back into three.js meshes each frame.
 
-import Box3D from 'box3d/inline';
-import type { MainModule, b3BodyId, b3ShapeDef } from 'box3d';
+import Box3D from 'box3d.js/inline';
+import type { MainModule, b3BodyId, b3ShapeDef } from 'box3d.js';
 import * as THREE from 'three';
 import { BodyMeshMap } from './box3d-three';
 import { createHarness } from './harness';
