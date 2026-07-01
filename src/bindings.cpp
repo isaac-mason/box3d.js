@@ -430,6 +430,51 @@ EMSCRIPTEN_BINDINGS( box3d )
 		+[]( b3BodyId bodyId, b3ShapeDef def, b3MeshData* mesh, b3Vec3 scale ) { return b3CreateMeshShape( bodyId, &def, mesh, scale ); },
 		allow_raw_pointers() );
 
+	// Compound shapes (opaque handle, freed with b3DestroyCompound). Built from a
+	// JS spec: { spheres:[{sphere,material?}], capsules:[{capsule,material?}],
+	//            hulls:[{hull,transform,material?}] }. Position/orientation lives
+	// in each child's geometry (sphere.center, capsule.center1/2) or hull.transform.
+	class_<b3CompoundData>( "b3CompoundData" );
+	function( "b3CreateCompound", +[]( val spec ) -> b3CompoundData*
+	{
+		const b3SurfaceMaterial defMat = b3DefaultSurfaceMaterial();
+		auto mat = [&]( val child ) -> b3SurfaceMaterial
+		{
+			val m = child["material"];
+			return m.isUndefined() ? defMat : m.as<b3SurfaceMaterial>();
+		};
+		auto arrOf = [&]( const char* key ) -> val
+		{
+			val a = spec[key];
+			return a.isUndefined() ? val::array() : a;
+		};
+
+		std::vector<b3CompoundSphereDef> spheres;
+		val s = arrOf( "spheres" );
+		for ( unsigned i = 0, n = s["length"].as<unsigned>(); i < n; ++i ) { val c = s[i]; spheres.push_back( { c["sphere"].as<b3Sphere>(), mat( c ) } ); }
+
+		std::vector<b3CompoundCapsuleDef> capsules;
+		val cap = arrOf( "capsules" );
+		for ( unsigned i = 0, n = cap["length"].as<unsigned>(); i < n; ++i ) { val c = cap[i]; capsules.push_back( { c["capsule"].as<b3Capsule>(), mat( c ) } ); }
+
+		std::vector<b3CompoundHullDef> hulls;
+		val h = arrOf( "hulls" );
+		for ( unsigned i = 0, n = h["length"].as<unsigned>(); i < n; ++i ) { val c = h[i]; hulls.push_back( { c["hull"].as<b3HullData*>( allow_raw_pointers() ), c["transform"].as<b3Transform>(), mat( c ) } ); }
+
+		b3CompoundDef def = {};
+		def.spheres = spheres.data();
+		def.sphereCount = (int)spheres.size();
+		def.capsules = capsules.data();
+		def.capsuleCount = (int)capsules.size();
+		def.hulls = hulls.data();
+		def.hullCount = (int)hulls.size();
+		return b3CreateCompound( &def );
+	}, allow_raw_pointers() );
+	function( "b3DestroyCompound", &b3DestroyCompound, allow_raw_pointers() );
+	function( "b3CreateCompoundShape",
+		+[]( b3BodyId bodyId, b3ShapeDef def, b3CompoundData* compound ) { return b3CreateCompoundShape( bodyId, &def, compound ); },
+		allow_raw_pointers() );
+
 	// Explosion (radial impulse).
 	value_object<b3ExplosionDef>( "b3ExplosionDef" )
 		.field( "maskBits", &b3ExplosionDef::maskBits )

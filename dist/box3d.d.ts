@@ -33,6 +33,9 @@ export interface b3HullData extends ClassHandle {
 export interface b3MeshData extends ClassHandle {
 }
 
+export interface b3CompoundData extends ClassHandle {
+}
+
 export interface b3ShapeIdVector extends ClassHandle {
   push_back(_0: b3ShapeId): void;
   resize(_0: number, _1: b3ShapeId): void;
@@ -432,6 +435,7 @@ interface EmbindModule {
   b3JointType: {b3_parallelJoint: b3JointTypeValue<0>, b3_distanceJoint: b3JointTypeValue<1>, b3_filterJoint: b3JointTypeValue<2>, b3_motorJoint: b3JointTypeValue<3>, b3_prismaticJoint: b3JointTypeValue<4>, b3_revoluteJoint: b3JointTypeValue<5>, b3_sphericalJoint: b3JointTypeValue<6>, b3_weldJoint: b3JointTypeValue<7>, b3_wheelJoint: b3JointTypeValue<8>};
   b3HullData: {};
   b3MeshData: {};
+  b3CompoundData: {};
   b3ShapeIdVector: {
     new(): b3ShapeIdVector;
   };
@@ -440,6 +444,7 @@ interface EmbindModule {
   };
   b3DestroyHull(_0: b3HullData | null): void;
   b3DestroyMesh(_0: b3MeshData | null): void;
+  b3DestroyCompound(_0: b3CompoundData | null): void;
   b3IsDoublePrecision(): boolean;
   b3DestroyWorld(_0: b3WorldId): void;
   b3World_IsValid(_0: b3WorldId): boolean;
@@ -615,6 +620,7 @@ interface EmbindModule {
   b3CreateCapsuleShape(_0: b3BodyId, _1: b3ShapeDef, _2: b3Capsule): b3ShapeId;
   b3CreateHullShape(_0: b3BodyId, _1: b3ShapeDef, _2: b3HullData | null): b3ShapeId;
   b3CreateMeshShape(_0: b3BodyId, _1: b3ShapeDef, _2: b3MeshData | null, _3: b3Vec3): b3ShapeId;
+  b3CreateCompoundShape(_0: b3BodyId, _1: b3ShapeDef, _2: b3CompoundData | null): b3ShapeId;
   b3World_Step(_0: b3WorldId, _1: number, _2: number): void;
   b3World_SetRestitutionThreshold(_0: b3WorldId, _1: number): void;
   b3World_GetRestitutionThreshold(_0: b3WorldId): number;
@@ -802,6 +808,7 @@ interface EmbindModule {
   b3CreateHull(_0: any): b3HullData | null;
   b3GetHullVertices(_0: b3HullData | null): any;
   b3CreateMesh(_0: any, _1: any): b3MeshData | null;
+  b3CreateCompound(_0: any): b3CompoundData | null;
   b3World_OverlapShape(_0: b3WorldId, _1: b3Vec3, _2: any, _3: number, _4: b3QueryFilter, _5: any): void;
   b3World_CastShape(_0: b3WorldId, _1: b3Vec3, _2: any, _3: number, _4: b3Vec3, _5: b3QueryFilter, _6: any): void;
   b3Shape_GetHullVertices(_0: b3ShapeId): any;
