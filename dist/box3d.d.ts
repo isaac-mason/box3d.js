@@ -838,6 +838,8 @@ interface EmbindModule {
   b3CreateHeightField(_0: any, _1: number, _2: number, _3: b3Vec3): b3HeightFieldData | null;
   b3World_CastMover(_0: b3WorldId, _1: b3Vec3, _2: b3Capsule, _3: b3Vec3, _4: b3QueryFilter, _5: any): number;
   b3World_CollideMover(_0: b3WorldId, _1: b3Vec3, _2: b3Capsule, _3: b3QueryFilter, _4: any): void;
+  b3World_SetCustomFilterCallback(_0: b3WorldId, _1: any): void;
+  b3World_SetPreSolveCallback(_0: b3WorldId, _1: any): void;
   b3World_OverlapShape(_0: b3WorldId, _1: b3Vec3, _2: any, _3: number, _4: b3QueryFilter, _5: any): void;
   b3World_CastShape(_0: b3WorldId, _1: b3Vec3, _2: any, _3: number, _4: b3Vec3, _5: b3QueryFilter, _6: any): void;
   b3Shape_GetHullVertices(_0: b3ShapeId): any;

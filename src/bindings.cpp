@@ -541,6 +541,30 @@ EMSCRIPTEN_BINDINGS( box3d )
 		.field( "staticTreeHeight", &b3Counters::staticTreeHeight );
 	function( "b3World_GetCounters", &b3World_GetCounters );
 
+	// --- persistent world callbacks. These fire during b3World_Step for the
+	// world's lifetime, so the JS function is heap-held (one small leak per set
+	// call, which is once per world in practice). ---
+	// Custom filter: cb(shapeIdA, shapeIdB) -> bool (false disables the pair).
+	// Requires enableCustomFiltering on at least one of the two shapes.
+	function( "b3World_SetCustomFilterCallback", +[]( b3WorldId worldId, val cb )
+	{
+		val* held = new val( cb );
+		b3World_SetCustomFilterCallback( worldId,
+			[]( b3ShapeId a, b3ShapeId b, void* ctx ) -> bool
+			{ val r = ( *static_cast<val*>( ctx ) )( a, b ); return r.isUndefined() ? true : r.as<bool>(); },
+			held );
+	} );
+	// Pre-solve: cb(shapeIdA, shapeIdB, point, normal) -> bool (false drops the
+	// contact this step — e.g. one-way platforms). Runs on worker threads in MT.
+	function( "b3World_SetPreSolveCallback", +[]( b3WorldId worldId, val cb )
+	{
+		val* held = new val( cb );
+		b3World_SetPreSolveCallback( worldId,
+			[]( b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, void* ctx ) -> bool
+			{ val r = ( *static_cast<val*>( ctx ) )( a, b, point, normal ); return r.isUndefined() ? true : r.as<bool>(); },
+			held );
+	} );
+
 	// Explosion (radial impulse).
 	value_object<b3ExplosionDef>( "b3ExplosionDef" )
 		.field( "maskBits", &b3ExplosionDef::maskBits )
