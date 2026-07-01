@@ -132,6 +132,17 @@
       "distance"
     ]
   },
+  "example-static-compound": {
+    "title": "Static Compound",
+    "description": "one static compound shape (a bin) built from many box children; balls rain in",
+    "tags": [
+      "world",
+      "physics",
+      "compound",
+      "static-compound",
+      "shapes"
+    ]
+  },
   "example-sensor": {
     "title": "Sensor",
     "description": "a kinematic sensor sweeps past bodies \u00b7 hit / no-hit",

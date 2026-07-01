@@ -52,7 +52,7 @@ export function createWorldRenderer( b3: Box3DModule, world: b3WorldId ): WorldR
 	let colorIdx = 0;
 
 	// Build a shape-local three.js geometry by reading the shape back from box3d.
-	function geometryFor( shapeId: b3ShapeId ): THREE.BufferGeometry
+	function geometryFor( shapeId: b3ShapeId ): THREE.BufferGeometry | null
 	{
 		const type = b3.b3Shape_GetType( shapeId ).value;
 
@@ -82,8 +82,10 @@ export function createWorldRenderer( b3: Box3DModule, world: b3WorldId ): WorldR
 			return new ConvexGeometry( points );
 		}
 
-		// mesh / heightfield / compound: placeholder until those getters are bound
-		return new THREE.BoxGeometry( 0.25, 0.25, 0.25 );
+		// mesh / heightfield / compound: no generic geometry (can't introspect a
+		// compound shape, and mesh/height data isn't read back) — the example that
+		// created these draws its own meshes.
+		return null;
 	}
 
 	function update(): void
@@ -100,6 +102,8 @@ export function createWorldRenderer( b3: Box3DModule, world: b3WorldId ): WorldR
 			let mesh = meshes.get( key );
 			if ( mesh === undefined )
 			{
+				const geometry = geometryFor( shapeId );
+				if ( geometry === null ) return true; // unsupported shape — example renders it
 				const material = new THREE.MeshStandardMaterial( {
 					color: colorFor( b3, body, colorIdx ),
 					roughness: 0.5,
@@ -107,7 +111,7 @@ export function createWorldRenderer( b3: Box3DModule, world: b3WorldId ): WorldR
 				} );
 				// Only advance the bright palette for dynamic/kinematic bodies.
 				if ( b3.b3Body_GetType( body ).value !== b3.b3BodyType.b3_staticBody.value ) colorIdx++;
-				mesh = new THREE.Mesh( geometryFor( shapeId ), material );
+				mesh = new THREE.Mesh( geometry, material );
 				mesh.castShadow = true;
 				mesh.receiveShadow = true;
 				meshes.set( key, mesh );
