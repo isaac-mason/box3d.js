@@ -16,7 +16,7 @@ worldDef.gravity = { x: 0, y: 0, z: 0 };
 const world = b3.b3CreateWorld( worldDef );
 
 const pointDist = 5;
-const CAST_HALF = 0.3; // half-extent of the box we sweep
+const CAST_HALF = 0.15; // half-extent of the box we sweep
 const boxProxy = [
 	-CAST_HALF, -CAST_HALF, -CAST_HALF, CAST_HALF, -CAST_HALF, -CAST_HALF, CAST_HALF, -CAST_HALF, CAST_HALF, -CAST_HALF, -CAST_HALF, CAST_HALF,
 	-CAST_HALF, CAST_HALF, -CAST_HALF, CAST_HALF, CAST_HALF, -CAST_HALF, CAST_HALF, CAST_HALF, CAST_HALF, -CAST_HALF, CAST_HALF, CAST_HALF,

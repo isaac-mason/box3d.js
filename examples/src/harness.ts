@@ -4,12 +4,14 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { createStats, type Stats } from './stats';
 
 export type Harness = {
 	scene: THREE.Scene;
 	camera: THREE.PerspectiveCamera;
 	renderer: THREE.WebGLRenderer;
 	controls: OrbitControls;
+	stats: Stats;
 	onFrame( cb: ( dt: number ) => void ): void;
 	start(): void;
 };
@@ -18,11 +20,13 @@ export interface HarnessOptions
 {
 	camera?: [number, number, number];
 	target?: [number, number, number];
+	/** Show the stats.js FPS/MS/MB panel (physics + frame time). Defaults to true. */
+	stats?: boolean;
 }
 
 export function createHarness( options: HarnessOptions = {} ): Harness
 {
-	const { camera: cameraPos = [0, 10, 20], target = [0, 3, 0] } = options;
+	const { camera: cameraPos = [0, 10, 20], target = [0, 3, 0], stats: showStats = true } = options;
 
 	const scene = new THREE.Scene();
 	scene.background = new THREE.Color( 0x1a1a1a );
