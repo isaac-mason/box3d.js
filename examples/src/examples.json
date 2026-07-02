@@ -248,6 +248,18 @@
       "kinematic"
     ]
   },
+  "example-events": {
+    "title": "Events",
+    "description": "contact begin/end + hard-impact hit events light shapes up on collision",
+    "tags": [
+      "world",
+      "physics",
+      "events",
+      "contact",
+      "hit-events",
+      "collision"
+    ]
+  },
   "example-multithreading": {
     "title": "Multithreading",
     "description": "a cube-heap stress test spread across worker threads",

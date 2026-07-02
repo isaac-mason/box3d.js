@@ -41,6 +41,8 @@ export type WorldRenderer = {
 	readonly object3d: THREE.Object3D;
 	/** Call once per frame after stepping the world. */
 	update(): void;
+	/** The mesh drawn for a shape, if one exists yet (for per-shape effects). */
+	getMesh( shapeId: b3ShapeId ): THREE.Mesh | undefined;
 }
 
 export function createWorldRenderer( b3: Box3DModule, world: b3WorldId ): WorldRenderer
@@ -133,5 +135,5 @@ export function createWorldRenderer( b3: Box3DModule, world: b3WorldId ): WorldR
 		}
 	}
 
-	return { object3d: group, update };
+	return { object3d: group, update, getMesh: ( shapeId ) => meshes.get( shapeKey( shapeId ) ) };
 }
