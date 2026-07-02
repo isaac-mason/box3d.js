@@ -29,7 +29,13 @@
     "build:debug": "node scripts/build.mjs --debug",
     "test": "node test/smoke.mjs",
     "docs:build": "node docs/build.js",
-    "docs:check": "pnpm --filter @box3d/examples exec tsc --noEmit -p ../docs/tsconfig.json"
+    "docs:check": "pnpm --filter @box3d/examples exec tsc --noEmit -p ../docs/tsconfig.json",
+    "lint": "biome lint examples/src",
+    "format": "biome format examples/src",
+    "check": "biome check examples/src"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.2"
   },
   "keywords": [
     "box3d",
