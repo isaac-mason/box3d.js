@@ -60,6 +60,9 @@ export interface b3JointIdVector extends ClassHandle {
   set(_0: number, _1: b3JointId): boolean;
 }
 
+export interface b3DynamicTree extends ClassHandle {
+}
+
 export type b3MotionLocks = {
   linearX: boolean,
   linearY: boolean,
@@ -132,6 +135,11 @@ export type b3Counters = {
   awakeContactCount: number,
   treeHeight: number,
   staticTreeHeight: number
+};
+
+export type b3TreeStats = {
+  nodeVisits: number,
+  leafVisits: number
 };
 
 export type b3ContactId = {
@@ -526,10 +534,12 @@ interface EmbindModule {
   b3JointIdVector: {
     new(): b3JointIdVector;
   };
+  b3DynamicTree: {};
   b3DestroyHull(_0: b3HullData | null): void;
   b3DestroyMesh(_0: b3MeshData | null): void;
   b3DestroyCompound(_0: b3CompoundData | null): void;
   b3DestroyHeightField(_0: b3HeightFieldData | null): void;
+  b3DestroyDynamicTree(_0: b3DynamicTree | null): void;
   b3IsDoublePrecision(): boolean;
   b3DestroyWorld(_0: b3WorldId): void;
   b3World_IsValid(_0: b3WorldId): boolean;
@@ -634,6 +644,11 @@ interface EmbindModule {
   b3World_GetCounters(_0: b3WorldId): b3Counters;
   b3Body_GetShapeCount(_0: b3BodyId): number;
   b3Body_GetJointCount(_0: b3BodyId): number;
+  b3CreateDynamicTree(_0: number): b3DynamicTree | null;
+  b3DynamicTree_DestroyProxy(_0: b3DynamicTree | null, _1: number): void;
+  b3DynamicTree_Rebuild(_0: b3DynamicTree | null, _1: boolean): number;
+  b3DynamicTree_GetHeight(_0: b3DynamicTree | null): number;
+  b3DynamicTree_GetProxyCount(_0: b3DynamicTree | null): number;
   b3DefaultFilter(): b3Filter;
   b3Shape_GetFilter(_0: b3ShapeId): b3Filter;
   b3Shape_SetFilter(_0: b3ShapeId, _1: b3Filter, _2: boolean): void;
@@ -642,6 +657,10 @@ interface EmbindModule {
   b3Body_ComputeAABB(_0: b3BodyId): b3AABB;
   b3Shape_GetAABB(_0: b3ShapeId): b3AABB;
   b3AABB_Union(_0: b3AABB, _1: b3AABB): b3AABB;
+  b3DynamicTree_CreateProxy(_0: b3DynamicTree | null, _1: b3AABB, _2: number, _3: number): number;
+  b3DynamicTree_MoveProxy(_0: b3DynamicTree | null, _1: number, _2: b3AABB): void;
+  b3DynamicTree_EnlargeProxy(_0: b3DynamicTree | null, _1: number, _2: b3AABB): void;
+  b3DynamicTree_GetRootBounds(_0: b3DynamicTree | null): b3AABB;
   b3World_SetGravity(_0: b3WorldId, _1: b3Vec3): void;
   b3World_GetGravity(_0: b3WorldId): b3Vec3;
   b3Body_GetPosition(_0: b3BodyId): b3Vec3;
@@ -897,6 +916,7 @@ interface EmbindModule {
   b3Shape_RayCast(_0: b3ShapeId, _1: b3Vec3, _2: b3Vec3): b3WorldCastOutput;
   b3Distance(_0: b3Vec3, _1: b3Vec3): number;
   b3DistanceSquared(_0: b3Vec3, _1: b3Vec3): number;
+  b3DynamicTree_GetAreaRatio(_0: b3DynamicTree | null): number;
   b3Body_SetName(_0: b3BodyId, _1: EmbindString): void;
   b3Body_GetName(_0: b3BodyId): string;
   b3CreateHull(_0: any): b3HullData | null;
@@ -920,10 +940,12 @@ interface EmbindModule {
   b3DistanceJoint_GetSpringForceRange(_0: b3JointId): any;
   b3World_OverlapAABB(_0: b3WorldId, _1: b3AABB, _2: b3QueryFilter, _3: any): void;
   b3World_CastRay(_0: b3WorldId, _1: b3Vec3, _2: b3Vec3, _3: b3QueryFilter, _4: any): void;
-  b3World_GetBodyEvents(_0: b3WorldId): any;
-  b3World_GetSensorEvents(_0: b3WorldId): any;
-  b3World_GetContactEvents(_0: b3WorldId): any;
-  b3World_GetJointEvents(_0: b3WorldId): any;
+  b3World_GetBodyEvents(_0: b3WorldId): { moveEvents: b3BodyMoveEvent[] };
+  b3World_GetSensorEvents(_0: b3WorldId): { beginEvents: b3SensorBeginTouchEvent[], endEvents: b3SensorEndTouchEvent[] };
+  b3World_GetContactEvents(_0: b3WorldId): { beginEvents: b3ContactBeginTouchEvent[], endEvents: b3ContactEndTouchEvent[], hitEvents: b3ContactHitEvent[] };
+  b3World_GetJointEvents(_0: b3WorldId): { jointEvents: b3JointEvent[] };
+  b3DynamicTree_Query(_0: b3DynamicTree | null, _1: b3AABB, _2: number, _3: any): b3TreeStats;
+  b3DynamicTree_RayCast(_0: b3DynamicTree | null, _1: b3Vec3, _2: b3Vec3, _3: number, _4: number, _5: any): b3TreeStats;
   b3World_Draw(_0: b3WorldId, _1: any): void;
 }
 

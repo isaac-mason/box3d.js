@@ -241,6 +241,18 @@
       "query"
     ]
   },
+  "example-tree": {
+    "title": "Dynamic Tree",
+    "description": "the broadphase AABB tree standalone: moving proxies, sweeping raycast & query box",
+    "tags": [
+      "collision",
+      "broadphase",
+      "dynamic-tree",
+      "aabb",
+      "raycast",
+      "query"
+    ]
+  },
   "example-explosion": {
     "title": "Explosion",
     "description": "click to set off a radial blast that scatters a pyramid of boxes",

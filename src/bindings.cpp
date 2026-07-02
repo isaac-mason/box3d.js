@@ -1433,6 +1433,87 @@ EMSCRIPTEN_BINDINGS( box3d )
 	function( "b3AABB_Union", &b3AABB_Union );
 
 	// =====================================================================
+	// Section 8c — dynamic tree (the broadphase AABB tree). b3DynamicTree owns
+	// heap memory, so it's an opaque handle created/destroyed through wrappers
+	// (never copied to JS by value). Category/mask/userData are exposed as 32-bit
+	// numbers for ergonomics; Query/RayCast take a JS callback like the world
+	// queries do.
+	// =====================================================================
+	class_<b3DynamicTree>( "b3DynamicTree" );
+
+	function( "b3CreateDynamicTree", +[]( int proxyCapacity ) -> b3DynamicTree*
+	{
+		b3DynamicTree* tree = new b3DynamicTree();
+		*tree = b3DynamicTree_Create( proxyCapacity );
+		return tree;
+	}, allow_raw_pointers() );
+
+	function( "b3DestroyDynamicTree", +[]( b3DynamicTree* tree )
+	{
+		b3DynamicTree_Destroy( tree );
+		delete tree;
+	}, allow_raw_pointers() );
+
+	function( "b3DynamicTree_CreateProxy", +[]( b3DynamicTree* tree, b3AABB aabb, unsigned categoryBits, unsigned userData ) -> int
+	{
+		return b3DynamicTree_CreateProxy( tree, aabb, (uint64_t)categoryBits, (uint64_t)userData );
+	}, allow_raw_pointers() );
+
+	function( "b3DynamicTree_DestroyProxy", +[]( b3DynamicTree* tree, int proxyId )
+	{
+		b3DynamicTree_DestroyProxy( tree, proxyId );
+	}, allow_raw_pointers() );
+
+	function( "b3DynamicTree_MoveProxy", +[]( b3DynamicTree* tree, int proxyId, b3AABB aabb )
+	{
+		b3DynamicTree_MoveProxy( tree, proxyId, aabb );
+	}, allow_raw_pointers() );
+
+	function( "b3DynamicTree_EnlargeProxy", +[]( b3DynamicTree* tree, int proxyId, b3AABB aabb )
+	{
+		b3DynamicTree_EnlargeProxy( tree, proxyId, aabb );
+	}, allow_raw_pointers() );
+
+	// Query: cb(proxyId, userData) -> bool (false to stop). Returns nodeVisits/leafVisits.
+	function( "b3DynamicTree_Query", +[]( b3DynamicTree* tree, b3AABB aabb, unsigned maskBits, val cb ) -> b3TreeStats
+	{
+		return b3DynamicTree_Query( tree, aabb, (uint64_t)maskBits, false,
+			[]( int proxyId, uint64_t userData, void* ctx ) -> bool
+			{
+				val r = ( *static_cast<val*>( ctx ) )( proxyId, (unsigned)userData );
+				return r.isUndefined() ? true : r.as<bool>();
+			},
+			&cb );
+	}, allow_raw_pointers() );
+
+	// RayCast: cb(proxyId, userData) -> number (new max fraction; 0 stops). Returns stats.
+	function( "b3DynamicTree_RayCast", +[]( b3DynamicTree* tree, b3Vec3 origin, b3Vec3 translation, float maxFraction, unsigned maskBits, val cb ) -> b3TreeStats
+	{
+		b3RayCastInput input{ origin, translation, maxFraction };
+		return b3DynamicTree_RayCast( tree, &input, (uint64_t)maskBits, false,
+			[]( const b3RayCastInput*, int proxyId, uint64_t userData, void* ctx ) -> float
+			{
+				val r = ( *static_cast<val*>( ctx ) )( proxyId, (unsigned)userData );
+				return r.isUndefined() ? 1.0f : r.as<float>();
+			},
+			&cb );
+	}, allow_raw_pointers() );
+
+	function( "b3DynamicTree_Rebuild", +[]( b3DynamicTree* tree, bool fullBuild ) -> int
+	{
+		return b3DynamicTree_Rebuild( tree, fullBuild );
+	}, allow_raw_pointers() );
+
+	function( "b3DynamicTree_GetHeight", +[]( b3DynamicTree* tree ) -> int { return b3DynamicTree_GetHeight( tree ); }, allow_raw_pointers() );
+	function( "b3DynamicTree_GetAreaRatio", +[]( b3DynamicTree* tree ) -> float { return b3DynamicTree_GetAreaRatio( tree ); }, allow_raw_pointers() );
+	function( "b3DynamicTree_GetProxyCount", +[]( b3DynamicTree* tree ) -> int { return b3DynamicTree_GetProxyCount( tree ); }, allow_raw_pointers() );
+	function( "b3DynamicTree_GetRootBounds", +[]( b3DynamicTree* tree ) -> b3AABB { return b3DynamicTree_GetRootBounds( tree ); }, allow_raw_pointers() );
+
+	value_object<b3TreeStats>( "b3TreeStats" )
+		.field( "nodeVisits", &b3TreeStats::nodeVisits )
+		.field( "leafVisits", &b3TreeStats::leafVisits );
+
+	// =====================================================================
 	// Section 9 — debug draw (faithful). b3World_Draw takes a JS handler object
 	// whose methods receive primitives: drawSegment(p1,p2,color),
 	// drawPoint(p,size,color), drawSphere(p,radius,color,alpha),
