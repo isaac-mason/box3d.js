@@ -368,10 +368,10 @@ EMSCRIPTEN_BINDINGS( box3d )
 	// =====================================================================
 
 	// world
-	function( "b3CreateWorld", +[]( b3WorldDef def ) { return b3CreateWorld( &def ); } );
-	function( "b3DestroyWorld", &b3DestroyWorld );
-	function( "b3World_IsValid", &b3World_IsValid );
-	function( "b3World_Step", &b3World_Step );
+	function( "b3CreateWorld(worldDef)", +[]( b3WorldDef def ) { return b3CreateWorld( &def ); } );
+	function( "b3DestroyWorld(worldId)", &b3DestroyWorld );
+	function( "b3World_IsValid(worldId)", &b3World_IsValid );
+	function( "b3World_Step(worldId, timeStep, subStepCount)", &b3World_Step );
 	function( "b3World_SetGravity", &b3World_SetGravity );
 	function( "b3World_GetGravity", &b3World_GetGravity );
 
@@ -1654,6 +1654,40 @@ EMSCRIPTEN_BINDINGS( box3d )
 	value_object<b3TreeStats>( "b3TreeStats" )
 		.field( "nodeVisits", &b3TreeStats::nodeVisits )
 		.field( "leafVisits", &b3TreeStats::leafVisits );
+
+	// =====================================================================
+	// Section 8f — recording & replay. Record a world's simulation into a
+	// b3Recording, then create a b3RecPlayer from it to scrub/step through frames.
+	// b3Recording / b3RecPlayer are opaque (incomplete) types, so they're passed
+	// to JS as numeric pointer handles. The player exposes a b3WorldId reflecting
+	// the current frame, so it renders with the same world renderer. File I/O is
+	// omitted (FILESYSTEM=0).
+	// =====================================================================
+	function( "b3CreateRecording", +[]( int byteCapacity ) -> uintptr_t
+	{ return reinterpret_cast<uintptr_t>( b3CreateRecording( byteCapacity ) ); } );
+	function( "b3DestroyRecording", +[]( uintptr_t rec )
+	{ b3DestroyRecording( reinterpret_cast<b3Recording*>( rec ) ); } );
+	function( "b3World_StartRecording", +[]( b3WorldId worldId, uintptr_t rec )
+	{ b3World_StartRecording( worldId, reinterpret_cast<b3Recording*>( rec ) ); } );
+	function( "b3World_StopRecording", &b3World_StopRecording );
+	function( "b3Recording_GetSize", +[]( uintptr_t rec )
+	{ return b3Recording_GetSize( reinterpret_cast<b3Recording*>( rec ) ); } );
+
+	// Build a player straight from a recording (avoids marshalling the byte buffer).
+	function( "b3RecPlayer_CreateFromRecording", +[]( uintptr_t rec, int workerCount ) -> uintptr_t
+	{
+		b3Recording* r = reinterpret_cast<b3Recording*>( rec );
+		return reinterpret_cast<uintptr_t>( b3RecPlayer_Create( b3Recording_GetData( r ), b3Recording_GetSize( r ), workerCount ) );
+	} );
+	function( "b3RecPlayer_Destroy", +[]( uintptr_t p ) { b3RecPlayer_Destroy( reinterpret_cast<b3RecPlayer*>( p ) ); } );
+	function( "b3RecPlayer_StepFrame", +[]( uintptr_t p ) { return b3RecPlayer_StepFrame( reinterpret_cast<b3RecPlayer*>( p ) ); } );
+	function( "b3RecPlayer_Restart", +[]( uintptr_t p ) { b3RecPlayer_Restart( reinterpret_cast<b3RecPlayer*>( p ) ); } );
+	function( "b3RecPlayer_SeekFrame", +[]( uintptr_t p, int frame ) { b3RecPlayer_SeekFrame( reinterpret_cast<b3RecPlayer*>( p ), frame ); } );
+	function( "b3RecPlayer_GetWorldId", +[]( uintptr_t p ) { return b3RecPlayer_GetWorldId( reinterpret_cast<b3RecPlayer*>( p ) ); } );
+	function( "b3RecPlayer_GetFrame", +[]( uintptr_t p ) { return b3RecPlayer_GetFrame( reinterpret_cast<b3RecPlayer*>( p ) ); } );
+	function( "b3RecPlayer_GetFrameCount", +[]( uintptr_t p ) { return b3RecPlayer_GetFrameCount( reinterpret_cast<b3RecPlayer*>( p ) ); } );
+	function( "b3RecPlayer_IsAtEnd", +[]( uintptr_t p ) { return b3RecPlayer_IsAtEnd( reinterpret_cast<b3RecPlayer*>( p ) ); } );
+	function( "b3RecPlayer_GetBodyCount", +[]( uintptr_t p ) { return b3RecPlayer_GetBodyCount( reinterpret_cast<b3RecPlayer*>( p ) ); } );
 
 	// =====================================================================
 	// Section 9 — debug draw (faithful). b3World_Draw takes a JS handler object

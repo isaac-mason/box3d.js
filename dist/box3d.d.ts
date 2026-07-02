@@ -553,8 +553,8 @@ interface EmbindModule {
   b3DestroyHeightField(_0: b3HeightFieldData | null): void;
   b3DestroyDynamicTree(_0: b3DynamicTree | null): void;
   b3IsDoublePrecision(): boolean;
-  b3DestroyWorld(_0: b3WorldId): void;
-  b3World_IsValid(_0: b3WorldId): boolean;
+  b3DestroyWorld(worldId: b3WorldId): void;
+  b3World_IsValid(worldId: b3WorldId): boolean;
   b3World_EnableSleeping(_0: b3WorldId, _1: boolean): void;
   b3World_IsSleepingEnabled(_0: b3WorldId): boolean;
   b3World_EnableContinuous(_0: b3WorldId, _1: boolean): void;
@@ -564,6 +564,7 @@ interface EmbindModule {
   b3World_RebuildStaticTree(_0: b3WorldId): void;
   b3World_EnableSpeculative(_0: b3WorldId, _1: boolean): void;
   b3World_DumpShapeBounds(_0: b3WorldId, _1: b3BodyType): void;
+  b3World_StopRecording(_0: b3WorldId): void;
   b3GetVersion(): Version;
   b3GetByteCount(): number;
   b3DestroyBody(_0: b3BodyId): void;
@@ -661,6 +662,20 @@ interface EmbindModule {
   b3DynamicTree_Rebuild(_0: b3DynamicTree | null, _1: boolean): number;
   b3DynamicTree_GetHeight(_0: b3DynamicTree | null): number;
   b3DynamicTree_GetProxyCount(_0: b3DynamicTree | null): number;
+  b3CreateRecording(_0: number): number;
+  b3DestroyRecording(_0: number): void;
+  b3World_StartRecording(_0: b3WorldId, _1: number): void;
+  b3Recording_GetSize(_0: number): number;
+  b3RecPlayer_CreateFromRecording(_0: number, _1: number): number;
+  b3RecPlayer_Destroy(_0: number): void;
+  b3RecPlayer_StepFrame(_0: number): boolean;
+  b3RecPlayer_Restart(_0: number): void;
+  b3RecPlayer_SeekFrame(_0: number, _1: number): void;
+  b3RecPlayer_GetWorldId(_0: number): b3WorldId;
+  b3RecPlayer_GetFrame(_0: number): number;
+  b3RecPlayer_GetFrameCount(_0: number): number;
+  b3RecPlayer_IsAtEnd(_0: number): boolean;
+  b3RecPlayer_GetBodyCount(_0: number): number;
   b3DefaultFilter(): b3Filter;
   b3Shape_GetFilter(_0: b3ShapeId): b3Filter;
   b3Shape_SetFilter(_0: b3ShapeId, _1: b3Filter, _2: boolean): void;
@@ -736,7 +751,7 @@ interface EmbindModule {
   b3Shape_SetSurfaceMaterial(_0: b3ShapeId, _1: b3SurfaceMaterial): void;
   b3Shape_GetSurfaceMaterial(_0: b3ShapeId): b3SurfaceMaterial;
   b3DefaultWorldDef(): b3WorldDef;
-  b3CreateWorld(_0: b3WorldDef): b3WorldId;
+  b3CreateWorld(worldDef: b3WorldDef): b3WorldId;
   b3DefaultBodyDef(): b3BodyDef;
   b3CreateBody(_0: b3WorldId, _1: b3BodyDef): b3BodyId;
   b3DefaultShapeDef(): b3ShapeDef;
@@ -746,7 +761,7 @@ interface EmbindModule {
   b3CreateMeshShape(_0: b3BodyId, _1: b3ShapeDef, _2: b3MeshData | null, _3: b3Vec3): b3ShapeId;
   b3CreateCompoundShape(_0: b3BodyId, _1: b3ShapeDef, _2: b3CompoundData | null): b3ShapeId;
   b3CreateHeightFieldShape(_0: b3BodyId, _1: b3ShapeDef, _2: b3HeightFieldData | null): b3ShapeId;
-  b3World_Step(_0: b3WorldId, _1: number, _2: number): void;
+  b3World_Step(worldId: b3WorldId, timeStep: number, subStepCount: number): void;
   b3World_SetRestitutionThreshold(_0: b3WorldId, _1: number): void;
   b3World_GetRestitutionThreshold(_0: b3WorldId): number;
   b3World_SetHitEventThreshold(_0: b3WorldId, _1: number): void;

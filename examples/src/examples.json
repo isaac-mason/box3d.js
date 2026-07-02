@@ -347,5 +347,16 @@
       "stress-test",
       "performance"
     ]
+  },
+  "example-replay": {
+    "title": "Replay",
+    "description": "record a simulation to a buffer, then scrub & play it back deterministically (b3RecPlayer)",
+    "tags": [
+      "recording",
+      "replay",
+      "determinism",
+      "playback",
+      "serialization"
+    ]
   }
 }
