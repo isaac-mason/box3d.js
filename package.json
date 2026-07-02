@@ -1,6 +1,6 @@
 {
   "name": "box3d.js",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "WebAssembly bindings for box3d, Erin Catto's 3D physics engine",
   "type": "module",
   "exports": {
