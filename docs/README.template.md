@@ -2,19 +2,7 @@
 
 WebAssembly bindings for [box3d](https://github.com/erincatto/box3d) - Erin Catto's 3D rigid body physics engine - compiled with Emscripten and exposed as an ES module with full TypeScript definitions.
 
-The API mirrors the box3d C API 1:1 (`b3CreateWorld`, `b3World_Step`, …) so the upstream docs and samples translate directly.
-
-**Features**
-
-- 🎯 rigid body simulation (static, dynamic, kinematic)
-- 📦 sphere, capsule, box, convex hull, cylinder, cone, triangle mesh, compound, heightfield shapes
-- 🔗 9 joint types: revolute, prismatic, spherical, weld, distance, wheel, motor, parallel, filter
-- ⚡ continuous collision detection (bullet mode)
-- 🎭 bigint category/mask collision filtering
-- 🔔 contact and sensor events
-- 🌍 radial explosion impulse (`b3World_Explode`)
-- 🧵 multithreaded solver via Emscripten pthreads (`box3d.js/mt-inline`)
-- 🔌 framework-agnostic - works with three.js, babylon.js, or any renderer
+The API mirrors the box3d C API 1:1 (`b3CreateWorld`, `b3World_Step`, …) so the upstream docs and samples translate relatively directly.
 
 **Builds**
 
@@ -37,9 +25,13 @@ The API mirrors the box3d C API 1:1 (`b3CreateWorld`, `b3World_Step`, …) so th
 
 Initialize the WASM module once with `await Box3D()`, then call the physics API through the returned module object.
 
-For **browsers**, import `box3d.js/inline` (single file, no separate `.wasm` to host). For **Node.js**, import `box3d.js`.
-
 <Snippet source="./quick-start.ts" />
+
+## How Does This Compare to Jolt / Rapier / Others?
+
+box3d is Erin Catto's 3D rigid body engine — the 3D sibling of Box2D, from the author of Box2D itself.
+
+For comparisons across engines (box3d.js, Jolt, Rapier, and others), see the **[JS physics benchmarks](https://isaac-mason.github.io/js-physics-benchmarks/)**.
 
 ## Physics World
 
@@ -67,12 +59,30 @@ Call `b3World_Step` in your game loop. `subStepCount` controls solver accuracy -
 
 <Snippet source="./world.ts" select="destroy" />
 
+### Memory Management
+
+box3d.js wraps a WASM module, so some objects are allocated on the WASM heap and must be freed explicitly.
+
+**Hull data is copied** into the world's internal database on shape creation, so `b3HullData` handles can be destroyed immediately after - or reused across multiple shapes before being destroyed.
+
+**Mesh, compound, and heightfield data are not copied** - the world stores a raw pointer. `b3MeshData`, `b3CompoundData`, and `b3HeightFieldData` must be kept alive for as long as the shape (or world) exists, and destroyed only after.
+
+<Snippet source="./memory.ts" select="geometry-lifetime" />
+
+**Destroying a world** frees all bodies, shapes, and joints inside it automatically - no need to clean them up individually first.
+
+<Snippet source="./memory.ts" select="world-cleanup" />
+
+**Removing objects during simulation** - use the individual destroy functions. Destroying a body also removes all its shapes and any joints attached to it.
+
+<Snippet source="./memory.ts" select="runtime-removal" />
+
 ### Units and Scale
 
 box3d uses SI units and a right-handed coordinate system (+Y up by default):
 
 - **Length**: metres (m)
-- **Mass**: kilograms (kg) - note: default shape density is **1000 kg/m³**, so bodies are heavier than you might expect
+- **Mass**: kilograms (kg) - note: default shape density is **1000 kg/m³**
 - **Time**: seconds (s)
 - **Triangle winding**: counter-clockwise (CCW) is the front face
 
@@ -333,14 +343,17 @@ The simulation API is identical to the single-threaded build - only the import p
 
 ### Prerequisites
 
-- [Emscripten SDK](https://emscripten.org/docs/getting_started/downloads.html) - `emcmake` and `em++` must be on `PATH`
+- [Emscripten SDK](https://emscripten.org/docs/getting_started/downloads.html) - `emcmake` and `em++` must be on `PATH`. The published builds are produced with **emsdk 6.0.2** (emcc/clang 6.0.2); other recent versions should work.
 - [CMake](https://cmake.org/) ≥ 3.22
 - Node.js ≥ 18
 - pnpm
 
 ```bash
-# Install Emscripten and activate environment
-source /path/to/emsdk/emsdk_env.sh
+# Install the pinned Emscripten version and activate the environment
+cd /path/to/emsdk
+./emsdk install 6.0.2
+./emsdk activate 6.0.2
+source ./emsdk_env.sh
 ```
 
 ### Build

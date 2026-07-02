@@ -14,8 +14,9 @@ import path from 'node:path';
 const docsDir = path.dirname(new URL(import.meta.url).pathname);
 const projectRoot = path.join(docsDir, '..');
 
-// Change this once the examples site is deployed.
-const EXAMPLES_BASE_URL = 'https://box3d.js.dev/examples';
+// Examples gallery (GitHub Pages). The gallery deep-links each example via a
+// `#<key>` hash, so links are `${EXAMPLES_BASE_URL}#<key>`.
+const EXAMPLES_BASE_URL = 'https://isaac-mason.github.io/box3d.js/';
 
 const templatePath = path.join(docsDir, 'README.template.md');
 const outPath = path.join(projectRoot, 'README.md');
