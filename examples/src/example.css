@@ -1,27 +1,27 @@
 body {
-    margin: 0;
-    padding: 0;
-    background: #222;
-    font-family:
-        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    overflow: hidden;
+	margin: 0;
+	padding: 0;
+	background: #222;
+	font-family:
+		-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	overflow: hidden;
 }
 
 #root {
-    width: 100vw;
-    height: 100vh;
+	width: 100vw;
+	height: 100vh;
 }
 
 .overlay {
-    position: fixed;
-    left: 12px;
-    top: 12px;
-    padding: 8px 10px;
-    border-radius: 6px;
-    background: rgba(0, 0, 0, 0.55);
-    color: #eee;
-    font-size: 13px;
-    line-height: 1.5;
-    pointer-events: none;
-    user-select: none;
+	position: fixed;
+	left: 12px;
+	top: 12px;
+	padding: 8px 10px;
+	border-radius: 6px;
+	background: rgba(0, 0, 0, 0.55);
+	color: #eee;
+	font-size: 13px;
+	line-height: 1.5;
+	pointer-events: none;
+	user-select: none;
 }

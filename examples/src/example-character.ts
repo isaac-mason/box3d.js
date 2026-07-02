@@ -1,6 +1,6 @@
 // Character — a capsule character-controller driven by box3d's mover API
 // (b3World_CollideMover → b3SolvePlanes → b3World_CastMover), a faithful port of
-// box3d's CharacterMover. The obstacle course is reproduced from crashcat's KCC
+// box3d's CharacterMover. The obstacle course is reproduced from the JoltPhysics KCC
 // example: floor + walls, stairs, angled ramps, pushable props, spinning /
 // sliding / diagonal kinematic platforms, a triangle-mesh terrain, a bumpy
 // sphere field, doubling stepping boxes, and a spring-suspended platform.
@@ -18,7 +18,7 @@ const b3: Box3DModule = await Box3D();
 const app = createHarness({ camera: [0, 10, 20], target: [0, 10, 0] });
 
 const worldDef = b3.b3DefaultWorldDef();
-worldDef.gravity = { x: 0, y: -25, z: 0 }; // crashcat KCC gravity
+worldDef.gravity = { x: 0, y: -25, z: 0 };
 const world = b3.b3CreateWorld(worldDef);
 
 // ---------------------------------------------------------------------------
