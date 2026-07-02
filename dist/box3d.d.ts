@@ -184,6 +184,11 @@ export type b3AABB = {
   upperBound: b3Vec3
 };
 
+export type b3PlaneSolverResult = {
+  delta: b3Vec3,
+  iterationCount: number
+};
+
 export type b3Matrix3 = {
   cx: b3Vec3,
   cy: b3Vec3,
@@ -293,6 +298,13 @@ export type b3ShapeDef = {
   invokeContactCreation: boolean,
   updateBodyMass: boolean,
   internalValue: number
+};
+
+export type b3CollisionPlane = {
+  plane: b3Plane,
+  pushLimit: number,
+  push: number,
+  clipVelocity: boolean
 };
 
 export type b3DistanceOutput = {
@@ -710,6 +722,7 @@ interface EmbindModule {
   b3SphericalJoint_GetTargetRotation(_0: b3JointId): b3Quat;
   b3RotateVector(_0: b3Quat, _1: b3Vec3): b3Vec3;
   b3InvRotateVector(_0: b3Quat, _1: b3Vec3): b3Vec3;
+  b3ComputeQuatBetweenUnitVectors(_0: b3Vec3, _1: b3Vec3): b3Quat;
   b3ComputeSphereAABB(_0: b3Sphere, _1: b3Transform): b3AABB;
   b3Shape_GetSphere(_0: b3ShapeId): b3Sphere;
   b3Shape_SetSphere(_0: b3ShapeId, _1: b3Sphere): void;
@@ -916,6 +929,7 @@ interface EmbindModule {
   b3Shape_RayCast(_0: b3ShapeId, _1: b3Vec3, _2: b3Vec3): b3WorldCastOutput;
   b3Distance(_0: b3Vec3, _1: b3Vec3): number;
   b3DistanceSquared(_0: b3Vec3, _1: b3Vec3): number;
+  b3MakeQuatFromAxisAngle(_0: b3Vec3, _1: number): b3Quat;
   b3DynamicTree_GetAreaRatio(_0: b3DynamicTree | null): number;
   b3Body_SetName(_0: b3BodyId, _1: EmbindString): void;
   b3Body_GetName(_0: b3BodyId): string;
@@ -926,6 +940,8 @@ interface EmbindModule {
   b3CreateHeightField(_0: any, _1: number, _2: number, _3: b3Vec3): b3HeightFieldData | null;
   b3World_CastMover(_0: b3WorldId, _1: b3Vec3, _2: b3Capsule, _3: b3Vec3, _4: b3QueryFilter, _5: any): number;
   b3World_CollideMover(_0: b3WorldId, _1: b3Vec3, _2: b3Capsule, _3: b3QueryFilter, _4: any): void;
+  b3SolvePlanes(_0: b3Vec3, _1: any): b3PlaneSolverResult;
+  b3ClipVector(_0: b3Vec3, _1: any): b3Vec3;
   b3World_SetCustomFilterCallback(_0: b3WorldId, _1: any): void;
   b3World_SetPreSolveCallback(_0: b3WorldId, _1: any): void;
   b3ShapeDistance(_0: any, _1: number, _2: any, _3: number, _4: b3Transform, _5: boolean): b3DistanceOutput;

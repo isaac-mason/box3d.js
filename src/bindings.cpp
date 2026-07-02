@@ -559,6 +559,37 @@ EMSCRIPTEN_BINDINGS( box3d )
 			&cb );
 	} );
 
+	// --- plane solver: turn the planes gathered by b3World_CollideMover into a
+	// resolved motion delta (collide-and-slide for character movers). ---
+	value_object<b3CollisionPlane>( "b3CollisionPlane" )
+		.field( "plane", &b3CollisionPlane::plane )
+		.field( "pushLimit", &b3CollisionPlane::pushLimit )
+		.field( "push", &b3CollisionPlane::push )
+		.field( "clipVelocity", &b3CollisionPlane::clipVelocity );
+	value_object<b3PlaneSolverResult>( "b3PlaneSolverResult" )
+		.field( "delta", &b3PlaneSolverResult::delta )
+		.field( "iterationCount", &b3PlaneSolverResult::iterationCount );
+
+	// b3SolvePlanes(targetDelta, [b3CollisionPlane]) -> { delta, iterationCount }.
+	function( "b3SolvePlanes", +[]( b3Vec3 targetDelta, val jsPlanes ) -> b3PlaneSolverResult
+	{
+		int n = jsPlanes["length"].as<int>();
+		std::vector<b3CollisionPlane> planes;
+		planes.reserve( n );
+		for ( int i = 0; i < n; ++i ) planes.push_back( jsPlanes[i].as<b3CollisionPlane>() );
+		return b3SolvePlanes( targetDelta, planes.data(), n );
+	} );
+
+	// b3ClipVector(vector, [b3CollisionPlane]) -> clipped vector (post-solve).
+	function( "b3ClipVector", +[]( b3Vec3 vector, val jsPlanes ) -> b3Vec3
+	{
+		int n = jsPlanes["length"].as<int>();
+		std::vector<b3CollisionPlane> planes;
+		planes.reserve( n );
+		for ( int i = 0; i < n; ++i ) planes.push_back( jsPlanes[i].as<b3CollisionPlane>() );
+		return b3ClipVector( vector, planes.data(), n );
+	} );
+
 	// --- world statistics (counters). Fixed-array fields (colorCounts/
 	// manifoldCounts) are omitted; the scalar counts are what tooling wants. ---
 	value_object<b3Counters>( "b3Counters" )
@@ -1431,6 +1462,8 @@ EMSCRIPTEN_BINDINGS( box3d )
 	function( "b3TransformPoint", &b3TransformPoint );
 	function( "b3MulTransforms", &b3MulTransforms );
 	function( "b3AABB_Union", &b3AABB_Union );
+	function( "b3MakeQuatFromAxisAngle", &b3MakeQuatFromAxisAngle );
+	function( "b3ComputeQuatBetweenUnitVectors", &b3ComputeQuatBetweenUnitVectors );
 
 	// =====================================================================
 	// Section 8c — dynamic tree (the broadphase AABB tree). b3DynamicTree owns

@@ -97,7 +97,10 @@ const commonFlags = [
 	'-sWASM_BIGINT=1',
 	'-sFILESYSTEM=0',
 	'-sENVIRONMENT=web,worker,node',
-	...( debug ? [ '-O0', '-g', '-sASSERTIONS=2' ] : [ '-O3' ] ),
+	// NDEBUG in release matches how libbox3d.a is built, so box3d's asserting
+	// inline header functions (e.g. b3MakeQuatFromAxisAngle) don't pull in the
+	// b3InternalAssert symbol the release lib omits.
+	...( debug ? [ '-O0', '-g', '-sASSERTIONS=2' ] : [ '-O3', '-DNDEBUG' ] ),
 ];
 
 // Multithreaded delta (from the JoltPhysics.js MT build).

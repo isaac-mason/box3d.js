@@ -172,6 +172,18 @@
       "human"
     ]
   },
+  "example-character": {
+    "title": "Character",
+    "description": "a capsule character-controller (collide-and-slide + pogo + jump) on an obstacle course",
+    "tags": [
+      "character",
+      "mover",
+      "controller",
+      "collide-slide",
+      "kcc",
+      "interactive"
+    ]
+  },
   "example-static-compound": {
     "title": "Static Compound",
     "description": "one static compound shape (a bin) built from many box children; balls rain in",
