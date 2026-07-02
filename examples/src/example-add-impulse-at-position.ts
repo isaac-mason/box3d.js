@@ -38,9 +38,9 @@ b3.b3CreateSphereShape( sphereBody, b3.b3DefaultShapeDef(), { center: { x: 0, y:
 const renderer = createWorldRenderer( b3, world );
 app.scene.add( renderer.object3d );
 
-const settings = { impulseStrength: 20 };
+const settings = { impulseStrength: 10 };
 const gui = new GUI();
-gui.add( settings, 'impulseStrength', 1, 100, 1 ).name( 'Impulse Strength' );
+gui.add( settings, 'impulseStrength', 1, 30, 1 ).name( 'kick speed (m/s)' );
 
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
@@ -65,7 +65,10 @@ app.renderer.domElement.addEventListener( 'pointerdown', ( e ) =>
 	const body = b3.b3Shape_GetBody( result.shapeId );
 	if ( b3.b3Body_GetType( body ).value !== b3.b3BodyType.b3_dynamicBody.value ) return;
 
-	const s = settings.impulseStrength;
+	// box3d's default density is 1000 kg/m³, so bodies are heavy — scale the
+	// impulse by mass so `impulseStrength` acts as a velocity kick (m/s),
+	// giving a visible reaction regardless of object size.
+	const s = settings.impulseStrength * b3.b3Body_GetMass( body );
 	b3.b3Body_ApplyLinearImpulse( body, { x: d.x * s, y: d.y * s, z: d.z * s }, result.point, true );
 } );
 

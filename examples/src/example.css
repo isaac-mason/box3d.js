@@ -11,3 +11,17 @@ body {
     width: 100vw;
     height: 100vh;
 }
+
+.overlay {
+    position: fixed;
+    left: 12px;
+    top: 12px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.55);
+    color: #eee;
+    font-size: 13px;
+    line-height: 1.5;
+    pointer-events: none;
+    user-select: none;
+}
