@@ -513,6 +513,15 @@ EMSCRIPTEN_BINDINGS( box3d )
 		val view = val( typed_memory_view( (size_t)( n * 3 ), reinterpret_cast<const int32_t*>( t ) ) );
 		return val::global( "Uint32Array" ).new_( view );
 	}, allow_raw_pointers() );
+	// per-triangle material indices as Uint8Array (empty if the mesh has none)
+	function( "b3GetMeshMaterialIndices", +[]( b3MeshData* mesh ) -> val
+	{
+		const uint8_t* mi = b3GetMeshMaterialIndices( mesh );
+		int n = mesh->triangleCount;
+		if ( mi == nullptr ) return val::global( "Uint8Array" ).new_( 0 );
+		val view = val( typed_memory_view( (size_t)n, mi ) );
+		return view.call<val>( "slice" );
+	}, allow_raw_pointers() );
 
 	// Compound shapes (opaque handle, freed with b3DestroyCompound). Built from a
 	// JS spec: { spheres:[{sphere,material?}], capsules:[{capsule,material?}],
@@ -1650,6 +1659,20 @@ EMSCRIPTEN_BINDINGS( box3d )
 	function( "b3DynamicTree_GetAreaRatio", +[]( b3DynamicTree* tree ) -> float { return b3DynamicTree_GetAreaRatio( tree ); }, allow_raw_pointers() );
 	function( "b3DynamicTree_GetProxyCount", +[]( b3DynamicTree* tree ) -> int { return b3DynamicTree_GetProxyCount( tree ); }, allow_raw_pointers() );
 	function( "b3DynamicTree_GetRootBounds", +[]( b3DynamicTree* tree ) -> b3AABB { return b3DynamicTree_GetRootBounds( tree ); }, allow_raw_pointers() );
+	function( "b3DynamicTree_GetByteCount", +[]( b3DynamicTree* tree ) -> int { return b3DynamicTree_GetByteCount( tree ); }, allow_raw_pointers() );
+	function( "b3DynamicTree_Validate", +[]( b3DynamicTree* tree ) { b3DynamicTree_Validate( tree ); }, allow_raw_pointers() );
+	// QueryClosest: cb(distanceSqrMin, proxyId, userData) -> number (new max dist²).
+	function( "b3DynamicTree_QueryClosest", +[]( b3DynamicTree* tree, b3Vec3 point, unsigned maskBits, val cb ) -> b3TreeStats
+	{
+		float minDistanceSqr = 3.4e38f;
+		return b3DynamicTree_QueryClosest( tree, point, (uint64_t)maskBits, false,
+			[]( float distanceSqrMin, int proxyId, uint64_t userData, void* ctx ) -> float
+			{
+				val r = ( *static_cast<val*>( ctx ) )( distanceSqrMin, proxyId, (unsigned)userData );
+				return r.isUndefined() ? distanceSqrMin : r.as<float>();
+			},
+			&cb, &minDistanceSqr );
+	}, allow_raw_pointers() );
 
 	value_object<b3TreeStats>( "b3TreeStats" )
 		.field( "nodeVisits", &b3TreeStats::nodeVisits )
@@ -1688,6 +1711,10 @@ EMSCRIPTEN_BINDINGS( box3d )
 	function( "b3RecPlayer_GetFrameCount", +[]( uintptr_t p ) { return b3RecPlayer_GetFrameCount( reinterpret_cast<b3RecPlayer*>( p ) ); } );
 	function( "b3RecPlayer_IsAtEnd", +[]( uintptr_t p ) { return b3RecPlayer_IsAtEnd( reinterpret_cast<b3RecPlayer*>( p ) ); } );
 	function( "b3RecPlayer_GetBodyCount", +[]( uintptr_t p ) { return b3RecPlayer_GetBodyCount( reinterpret_cast<b3RecPlayer*>( p ) ); } );
+	function( "b3RecPlayer_GetBodyId", +[]( uintptr_t p, int index ) { return b3RecPlayer_GetBodyId( reinterpret_cast<b3RecPlayer*>( p ), index ); } );
+	function( "b3RecPlayer_HasDiverged", +[]( uintptr_t p ) { return b3RecPlayer_HasDiverged( reinterpret_cast<b3RecPlayer*>( p ) ); } );
+	function( "b3RecPlayer_GetDivergeFrame", +[]( uintptr_t p ) { return b3RecPlayer_GetDivergeFrame( reinterpret_cast<b3RecPlayer*>( p ) ); } );
+	function( "b3RecPlayer_SetWorkerCount", +[]( uintptr_t p, int count ) { b3RecPlayer_SetWorkerCount( reinterpret_cast<b3RecPlayer*>( p ), count ); } );
 
 	// =====================================================================
 	// Section 9 — debug draw (faithful). b3World_Draw takes a JS handler object

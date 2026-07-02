@@ -552,6 +552,7 @@ interface EmbindModule {
   b3DestroyCompound(_0: b3CompoundData | null): void;
   b3DestroyHeightField(_0: b3HeightFieldData | null): void;
   b3DestroyDynamicTree(_0: b3DynamicTree | null): void;
+  b3DynamicTree_Validate(_0: b3DynamicTree | null): void;
   b3IsDoublePrecision(): boolean;
   b3DestroyWorld(worldId: b3WorldId): void;
   b3World_IsValid(worldId: b3WorldId): boolean;
@@ -662,6 +663,7 @@ interface EmbindModule {
   b3DynamicTree_Rebuild(_0: b3DynamicTree | null, _1: boolean): number;
   b3DynamicTree_GetHeight(_0: b3DynamicTree | null): number;
   b3DynamicTree_GetProxyCount(_0: b3DynamicTree | null): number;
+  b3DynamicTree_GetByteCount(_0: b3DynamicTree | null): number;
   b3CreateRecording(_0: number): number;
   b3DestroyRecording(_0: number): void;
   b3World_StartRecording(_0: b3WorldId, _1: number): void;
@@ -676,6 +678,10 @@ interface EmbindModule {
   b3RecPlayer_GetFrameCount(_0: number): number;
   b3RecPlayer_IsAtEnd(_0: number): boolean;
   b3RecPlayer_GetBodyCount(_0: number): number;
+  b3RecPlayer_GetBodyId(_0: number, _1: number): b3BodyId;
+  b3RecPlayer_HasDiverged(_0: number): boolean;
+  b3RecPlayer_GetDivergeFrame(_0: number): number;
+  b3RecPlayer_SetWorkerCount(_0: number, _1: number): void;
   b3DefaultFilter(): b3Filter;
   b3Shape_GetFilter(_0: b3ShapeId): b3Filter;
   b3Shape_SetFilter(_0: b3ShapeId, _1: b3Filter, _2: boolean): void;
@@ -960,6 +966,7 @@ interface EmbindModule {
   b3CreateMesh(_0: any, _1: any): b3MeshData | null;
   b3GetMeshVertices(_0: b3MeshData | null): any;
   b3GetMeshIndices(_0: b3MeshData | null): any;
+  b3GetMeshMaterialIndices(_0: b3MeshData | null): any;
   b3CreateCompound(_0: any): b3CompoundData | null;
   b3CreateHeightField(_0: any, _1: number, _2: number, _3: b3Vec3): b3HeightFieldData | null;
   b3World_CastMover(_0: b3WorldId, _1: b3Vec3, _2: b3Capsule, _3: b3Vec3, _4: b3QueryFilter, _5: any): number;
@@ -995,6 +1002,7 @@ interface EmbindModule {
   b3World_GetJointEvents(_0: b3WorldId): { jointEvents: b3JointEvent[] };
   b3DynamicTree_Query(_0: b3DynamicTree | null, _1: b3AABB, _2: number, _3: any): b3TreeStats;
   b3DynamicTree_RayCast(_0: b3DynamicTree | null, _1: b3Vec3, _2: b3Vec3, _3: number, _4: number, _5: any): b3TreeStats;
+  b3DynamicTree_QueryClosest(_0: b3DynamicTree | null, _1: b3Vec3, _2: number, _3: any): b3TreeStats;
   b3World_Draw(_0: b3WorldId, _1: any): void;
 }
 
