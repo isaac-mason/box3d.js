@@ -72,6 +72,24 @@ inline val contactsToArray( const b3ContactData* data, int count )
 	return arr;
 }
 
+// Convert a b3LocalManifold (produced by the b3Collide* functions) to a JS
+// object { normal, points: [{ point, separation }] } in shape A's local frame.
+inline val localManifoldToVal( const b3LocalManifold& m )
+{
+	val o = val::object();
+	o.set( "normal", val( m.normal ) );
+	val pts = val::array();
+	for ( int i = 0; i < m.pointCount; ++i )
+	{
+		val p = val::object();
+		p.set( "point", val( m.points[i].point ) );
+		p.set( "separation", m.points[i].separation );
+		pts.call<void>( "push", p );
+	}
+	o.set( "points", pts );
+	return o;
+}
+
 // Faithful debug-draw binding. b3World_Draw takes a b3DebugDraw struct of C
 // function pointers; we bridge each to a method on a JS handler object carried
 // through the context pointer. This crosses into JS per primitive, so it is for
@@ -716,6 +734,65 @@ EMSCRIPTEN_BINDINGS( box3d )
 			input.maxFraction = maxFraction;
 			return b3TimeOfImpact( &input );
 		} );
+
+	// --- manifold generation (b3Collide*). Collide two shapes, with shape B
+	// given relative to A via transformBtoA, returning { normal, points:[{point,
+	// separation}] } in shape A's local frame. Up to 4 points. ---
+	function( "b3InvMulTransforms", &b3InvMulTransforms );
+	function( "b3CollideSpheres", +[]( b3Sphere a, b3Sphere b, b3Transform xf ) -> val
+	{
+		b3LocalManifoldPoint pts[4] = {}; b3LocalManifold m = {}; m.points = pts;
+		b3CollideSpheres( &m, 4, &a, &b, xf );
+		return localManifoldToVal( m );
+	} );
+	function( "b3CollideCapsuleAndSphere", +[]( b3Capsule a, b3Sphere b, b3Transform xf ) -> val
+	{
+		b3LocalManifoldPoint pts[4] = {}; b3LocalManifold m = {}; m.points = pts;
+		b3CollideCapsuleAndSphere( &m, 4, &a, &b, xf );
+		return localManifoldToVal( m );
+	} );
+	function( "b3CollideHullAndSphere", +[]( b3HullData* a, b3Sphere b, b3Transform xf ) -> val
+	{
+		b3SimplexCache cache = {}; b3LocalManifoldPoint pts[4] = {}; b3LocalManifold m = {}; m.points = pts;
+		b3CollideHullAndSphere( &m, 4, a, &b, xf, &cache );
+		return localManifoldToVal( m );
+	}, allow_raw_pointers() );
+	function( "b3CollideCapsules", +[]( b3Capsule a, b3Capsule b, b3Transform xf ) -> val
+	{
+		b3LocalManifoldPoint pts[4] = {}; b3LocalManifold m = {}; m.points = pts;
+		b3CollideCapsules( &m, 4, &a, &b, xf );
+		return localManifoldToVal( m );
+	} );
+	function( "b3CollideHullAndCapsule", +[]( b3HullData* a, b3Capsule b, b3Transform xf ) -> val
+	{
+		b3SimplexCache cache = {}; b3LocalManifoldPoint pts[4] = {}; b3LocalManifold m = {}; m.points = pts;
+		b3CollideHullAndCapsule( &m, 4, a, &b, xf, &cache );
+		return localManifoldToVal( m );
+	}, allow_raw_pointers() );
+	function( "b3CollideHulls", +[]( b3HullData* a, b3HullData* b, b3Transform xf ) -> val
+	{
+		b3SATCache cache = {}; b3LocalManifoldPoint pts[4] = {}; b3LocalManifold m = {}; m.points = pts;
+		b3CollideHulls( &m, 4, a, b, xf, &cache );
+		return localManifoldToVal( m );
+	}, allow_raw_pointers() );
+	function( "b3CollideCapsuleAndTriangle", +[]( b3Capsule a, b3Vec3 v1, b3Vec3 v2, b3Vec3 v3 ) -> val
+	{
+		b3Vec3 tri[3] = { v1, v2, v3 }; b3SimplexCache cache = {}; b3LocalManifoldPoint pts[4] = {}; b3LocalManifold m = {}; m.points = pts;
+		b3CollideCapsuleAndTriangle( &m, 4, &a, tri, &cache );
+		return localManifoldToVal( m );
+	} );
+	function( "b3CollideHullAndTriangle", +[]( b3HullData* a, b3Vec3 v1, b3Vec3 v2, b3Vec3 v3, int triangleFlags ) -> val
+	{
+		b3SATCache cache = {}; b3LocalManifoldPoint pts[4] = {}; b3LocalManifold m = {}; m.points = pts;
+		b3CollideHullAndTriangle( &m, 4, a, v1, v2, v3, triangleFlags, &cache );
+		return localManifoldToVal( m );
+	}, allow_raw_pointers() );
+	function( "b3CollideSphereAndTriangle", +[]( b3Sphere a, b3Vec3 v1, b3Vec3 v2, b3Vec3 v3 ) -> val
+	{
+		b3Vec3 tri[3] = { v1, v2, v3 }; b3LocalManifoldPoint pts[4] = {}; b3LocalManifold m = {}; m.points = pts;
+		b3CollideSphereAndTriangle( &m, 4, &a, tri );
+		return localManifoldToVal( m );
+	} );
 
 	// Compute mass-data / AABB of a primitive shape without attaching it to a body.
 	function( "b3ComputeSphereMass", +[]( b3Sphere s, float density ) { return b3ComputeSphereMass( &s, density ); } );

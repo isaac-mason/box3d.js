@@ -709,6 +709,7 @@ interface EmbindModule {
   b3Cross(_0: b3Vec3, _1: b3Vec3): b3Vec3;
   b3Body_GetTransform(_0: b3BodyId): b3Transform;
   b3CloneAndTransformHull(_0: b3HullData | null, _1: b3Transform, _2: b3Vec3): b3HullData | null;
+  b3InvMulTransforms(_0: b3Transform, _1: b3Transform): b3Transform;
   b3ComputeHullAABB(_0: b3HullData | null, _1: b3Transform): b3AABB;
   b3Joint_SetLocalFrameA(_0: b3JointId, _1: b3Transform): void;
   b3Joint_GetLocalFrameA(_0: b3JointId): b3Transform;
@@ -947,6 +948,15 @@ interface EmbindModule {
   b3ShapeDistance(_0: any, _1: number, _2: any, _3: number, _4: b3Transform, _5: boolean): b3DistanceOutput;
   b3ShapeCast(_0: any, _1: number, _2: any, _3: number, _4: b3Transform, _5: b3Vec3, _6: number, _7: boolean): b3WorldCastOutput;
   b3TimeOfImpact(_0: any, _1: number, _2: any, _3: number, _4: b3Sweep, _5: b3Sweep, _6: number): b3TOIOutput;
+  b3CollideSpheres(_0: b3Sphere, _1: b3Sphere, _2: b3Transform): any;
+  b3CollideCapsuleAndSphere(_0: b3Capsule, _1: b3Sphere, _2: b3Transform): any;
+  b3CollideHullAndSphere(_0: b3HullData | null, _1: b3Sphere, _2: b3Transform): any;
+  b3CollideCapsules(_0: b3Capsule, _1: b3Capsule, _2: b3Transform): any;
+  b3CollideHullAndCapsule(_0: b3HullData | null, _1: b3Capsule, _2: b3Transform): any;
+  b3CollideHulls(_0: b3HullData | null, _1: b3HullData | null, _2: b3Transform): any;
+  b3CollideCapsuleAndTriangle(_0: b3Capsule, _1: b3Vec3, _2: b3Vec3, _3: b3Vec3): any;
+  b3CollideHullAndTriangle(_0: b3HullData | null, _1: b3Vec3, _2: b3Vec3, _3: b3Vec3, _4: number): any;
+  b3CollideSphereAndTriangle(_0: b3Sphere, _1: b3Vec3, _2: b3Vec3, _3: b3Vec3): any;
   b3Body_GetContactData(_0: b3BodyId): any;
   b3Shape_GetContactData(_0: b3ShapeId): any;
   b3Shape_GetSensorData(_0: b3ShapeId): any;

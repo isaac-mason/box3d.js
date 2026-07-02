@@ -253,6 +253,18 @@
       "query"
     ]
   },
+  "example-manifold": {
+    "title": "Manifold",
+    "description": "low-level contact generation (b3Collide*): live contact points & normals between two convex shapes",
+    "tags": [
+      "collision",
+      "manifold",
+      "contact",
+      "narrowphase",
+      "gjk",
+      "sat"
+    ]
+  },
   "example-tree": {
     "title": "Dynamic Tree",
     "description": "the broadphase AABB tree standalone: moving proxies, sweeping raycast & query box",
