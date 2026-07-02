@@ -482,6 +482,38 @@ EMSCRIPTEN_BINDINGS( box3d )
 		+[]( b3BodyId bodyId, b3ShapeDef def, b3MeshData* mesh, b3Vec3 scale ) { return b3CreateMeshShape( bodyId, &def, mesh, scale ); },
 		allow_raw_pointers() );
 
+	// Procedural mesh generators — all return an opaque b3MeshData* (freed with
+	// b3DestroyMesh). Read geometry back with b3GetMeshVertices / b3GetMeshIndices.
+	function( "b3CreateGridMesh", +[]( int xCount, int zCount, float cellWidth, int materialCount, bool identifyEdges )
+		{ return b3CreateGridMesh( xCount, zCount, cellWidth, materialCount, identifyEdges ); }, allow_raw_pointers() );
+	function( "b3CreateWaveMesh", +[]( int xCount, int zCount, float cellWidth, float amplitude, float rowFrequency, float columnFrequency )
+		{ return b3CreateWaveMesh( xCount, zCount, cellWidth, amplitude, rowFrequency, columnFrequency ); }, allow_raw_pointers() );
+	function( "b3CreateTorusMesh", +[]( int radialResolution, int tubularResolution, float radius, float thickness )
+		{ return b3CreateTorusMesh( radialResolution, tubularResolution, radius, thickness ); }, allow_raw_pointers() );
+	function( "b3CreateBoxMesh", +[]( b3Vec3 center, b3Vec3 extent, bool identifyEdges )
+		{ return b3CreateBoxMesh( center, extent, identifyEdges ); }, allow_raw_pointers() );
+	function( "b3CreateHollowBoxMesh", +[]( b3Vec3 center, b3Vec3 extent )
+		{ return b3CreateHollowBoxMesh( center, extent ); }, allow_raw_pointers() );
+	function( "b3CreatePlatformMesh", +[]( b3Vec3 center, float height, float topWidth, float bottomWidth )
+		{ return b3CreatePlatformMesh( center, height, topWidth, bottomWidth ); }, allow_raw_pointers() );
+
+	// Mesh introspection: vertices as Float32Array [x,y,z,...], triangle indices
+	// as Uint32Array [i0,i1,i2,...]. Both are copies owned by JS.
+	function( "b3GetMeshVertices", +[]( b3MeshData* mesh ) -> val
+	{
+		const b3Vec3* v = b3GetMeshVertices( mesh );
+		int n = mesh->vertexCount;
+		val view = val( typed_memory_view( (size_t)( n * 3 ), reinterpret_cast<const float*>( v ) ) );
+		return view.call<val>( "slice" );
+	}, allow_raw_pointers() );
+	function( "b3GetMeshIndices", +[]( b3MeshData* mesh ) -> val
+	{
+		const b3MeshTriangle* t = b3GetMeshTriangles( mesh );
+		int n = mesh->triangleCount;
+		val view = val( typed_memory_view( (size_t)( n * 3 ), reinterpret_cast<const int32_t*>( t ) ) );
+		return val::global( "Uint32Array" ).new_( view );
+	}, allow_raw_pointers() );
+
 	// Compound shapes (opaque handle, freed with b3DestroyCompound). Built from a
 	// JS spec: { spheres:[{sphere,material?}], capsules:[{capsule,material?}],
 	//            hulls:[{hull,transform,material?}] }. Position/orientation lives

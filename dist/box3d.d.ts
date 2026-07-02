@@ -678,6 +678,8 @@ interface EmbindModule {
   b3Body_GetPosition(_0: b3BodyId): b3Vec3;
   b3Body_GetLinearVelocity(_0: b3BodyId): b3Vec3;
   b3Body_GetAngularVelocity(_0: b3BodyId): b3Vec3;
+  b3CreateBoxMesh(_0: b3Vec3, _1: b3Vec3, _2: boolean): b3MeshData | null;
+  b3CreateHollowBoxMesh(_0: b3Vec3, _1: b3Vec3): b3MeshData | null;
   b3Body_GetLocalPoint(_0: b3BodyId, _1: b3Vec3): b3Vec3;
   b3Body_GetWorldPoint(_0: b3BodyId, _1: b3Vec3): b3Vec3;
   b3Body_GetLocalVector(_0: b3BodyId, _1: b3Vec3): b3Vec3;
@@ -758,6 +760,10 @@ interface EmbindModule {
   b3CreateCylinder(_0: number, _1: number, _2: number, _3: number): b3HullData | null;
   b3CreateCone(_0: number, _1: number, _2: number, _3: number): b3HullData | null;
   b3CreateRock(_0: number): b3HullData | null;
+  b3CreateGridMesh(_0: number, _1: number, _2: number, _3: number, _4: boolean): b3MeshData | null;
+  b3CreateWaveMesh(_0: number, _1: number, _2: number, _3: number, _4: number, _5: number): b3MeshData | null;
+  b3CreateTorusMesh(_0: number, _1: number, _2: number, _3: number): b3MeshData | null;
+  b3CreatePlatformMesh(_0: b3Vec3, _1: number, _2: number, _3: number): b3MeshData | null;
   b3World_GetProfile(_0: b3WorldId): b3Profile;
   b3DefaultExplosionDef(): b3ExplosionDef;
   b3World_Explode(_0: b3WorldId, _1: b3ExplosionDef): void;
@@ -937,6 +943,8 @@ interface EmbindModule {
   b3CreateHull(_0: any): b3HullData | null;
   b3GetHullVertices(_0: b3HullData | null): any;
   b3CreateMesh(_0: any, _1: any): b3MeshData | null;
+  b3GetMeshVertices(_0: b3MeshData | null): any;
+  b3GetMeshIndices(_0: b3MeshData | null): any;
   b3CreateCompound(_0: any): b3CompoundData | null;
   b3CreateHeightField(_0: any, _1: number, _2: number, _3: b3Vec3): b3HeightFieldData | null;
   b3World_CastMover(_0: b3WorldId, _1: b3Vec3, _2: b3Capsule, _3: b3Vec3, _4: b3QueryFilter, _5: any): number;
