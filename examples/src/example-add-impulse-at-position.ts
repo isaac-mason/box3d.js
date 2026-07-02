@@ -1,4 +1,4 @@
-// Add Impulse at Position — ported from the crashcat demo. Click a body to cast
+// Add Impulse at Position — click a body to cast
 // a ray from the camera and apply an impulse at the exact hit point (so off-centre
 // hits impart spin). Impulse strength is adjustable.
 

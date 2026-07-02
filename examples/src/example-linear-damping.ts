@@ -1,4 +1,4 @@
-// Linear Damping — ported from the crashcat linear-damping demo. A row of boxes
+// Linear Damping — a row of boxes
 // launched at the same speed (+z) with linear damping 0.0 → 0.9; higher damping
 // bleeds off velocity faster, so they travel shorter distances. Press R to reset.
 

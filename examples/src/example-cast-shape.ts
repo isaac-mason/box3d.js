@@ -1,4 +1,4 @@
-// Cast Shape — the shapecast companion to cast-ray, matching the crashcat viz: a
+// Cast Shape — the shapecast companion to cast-ray: a
 // shell of shape-casters drifts around a central torus-knot mesh. Each caster
 // shows the cast box at its origin (radius `pointDist`) and a second box at the
 // closest hit found by sweeping the box inward (b3World_CastShape).

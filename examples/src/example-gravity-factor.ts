@@ -1,4 +1,4 @@
-// Gravity Factor — ported from the crashcat gravity-factor demo. A row of boxes
+// Gravity Factor — a row of boxes
 // with per-body gravity scale 0.0 → 2.0; they fall at different rates (0 floats,
 // 2 falls twice as fast). Press R to reset.
 

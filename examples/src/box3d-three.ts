@@ -16,7 +16,7 @@ const PALETTE = [0xff6b6b, 0xffd93d, 0x6bcb77, 0x4d96ff, 0xc78bff, 0xff9f45, 0x2
 
 const shapeKey = ( s: b3ShapeId ): string => `${s.index1}:${s.world0}:${s.generation}`;
 
-// Per-shape color, following crashcat's "instance" scheme: static bodies get
+// Per-shape color using an "instance" scheme: static bodies get
 // dark greys (slight per-body variance), dynamic/kinematic bodies cycle the
 // bright palette so the sim stays readable.
 function colorFor( b3: Box3DModule, body: b3BodyId, dynamicIdx: number ): THREE.Color

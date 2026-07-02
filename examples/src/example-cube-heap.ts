@@ -1,4 +1,4 @@
-// Cube Heap — ported from the crashcat cube-heap demo. A pile of small cubes
+// Cube Heap — a pile of small cubes
 // under strong gravity; one random cube is teleported back to the top each frame
 // to keep the heap churning. Number-of-Cubes slider drives the count.
 

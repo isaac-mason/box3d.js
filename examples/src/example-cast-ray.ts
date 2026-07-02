@@ -1,4 +1,4 @@
-// Cast Ray — ported to match the crashcat cast-ray visualization: a shell of
+// Cast Ray — a shell of
 // raycasters slowly drifts around a central torus-knot mesh. Each caster is a
 // rotating rootObject with an origin sphere at radius `pointDist`, a faint
 // cylinder for the ray, and a hit sphere placed where the ray strikes.

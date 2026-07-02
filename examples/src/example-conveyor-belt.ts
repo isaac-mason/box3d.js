@@ -1,8 +1,8 @@
-// Conveyor Belt — ported from the crashcat conveyor demo. Where Jolt needs a
+// Conveyor Belt — where an engine like Jolt needs a
 // contact listener to set a per-contact surface velocity, box3d has it natively:
 // b3SurfaceMaterial.tangentVelocity (local to the shape, projected onto the
 // contact). Four tilted belts in a cross circulate cargo; boxes have a friction
-// gradient so grip varies. (box3d's tangentVelocity is linear-only, so crashcat's
+// gradient so grip varies. (box3d's tangentVelocity is linear-only, so an
 // angular "lazy susan" belt is omitted.)
 
 import Box3D from 'box3d.js/inline';

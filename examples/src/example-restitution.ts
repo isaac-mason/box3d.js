@@ -1,4 +1,4 @@
-// Restitution — ported from the crashcat restitution demo. Six spheres dropped
+// Restitution — six spheres dropped
 // from the same height with restitution 0.0 → 1.0; the bounce heights fan out.
 // Press R to reset.
 

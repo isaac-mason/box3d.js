@@ -1,4 +1,4 @@
-// Shapes — a rain of assorted convex shapes, matching the crashcat shapes demo:
+// Shapes — a rain of assorted convex shapes:
 // a shapeConfigs table, a Number-of-Bodies slider, and continuous round-robin
 // respawning. Convex hulls are computed once and instanced into many bodies.
 

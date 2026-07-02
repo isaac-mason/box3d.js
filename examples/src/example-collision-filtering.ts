@@ -1,4 +1,4 @@
-// Collision Filtering — ported from the crashcat collision-filtering demo, using
+// Collision Filtering — using
 // box3d's b3Filter category/mask bits. Two platforms each accept only one group
 // of cubes; group-A cubes fall through the upper platform onto the lower one, and
 // group-B cubes do the reverse. Everything lands on the ground.

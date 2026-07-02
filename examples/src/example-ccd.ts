@@ -1,8 +1,8 @@
-// Continuous Collision Detection — ported from the crashcat ccd demo. A heavy,
+// Continuous Collision Detection — a heavy,
 // fast "bullet" sphere is fired through triangular stacks of boxes; without CCD
 // it would tunnel straight through. box3d's bullet flag enables continuous
-// collision. (box3d clamps linear speed via maximumLinearSpeed, which crashcat
-// does not, so we raise that cap rather than use crashcat's extreme impulse.)
+// collision. (box3d clamps linear speed via maximumLinearSpeed, which we raise
+// so the bullet can move fast.)
 
 import Box3D from 'box3d.js/inline';
 import type { Box3DModule } from 'box3d.js';

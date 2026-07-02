@@ -1,8 +1,8 @@
-// Constraints — ported from the crashcat constraints demo. Chains of boxes hang
+// Constraints — chains of boxes hang
 // from a static anchor, linked by joints, and get an impulse on the last link so
-// the chains swing. This ports the three chains whose joint frames are
+// the chains swing. It shows the three chains whose joint frames are
 // orientation-independent — Fixed (weld), Point (spherical/ball), and Distance —
-// which map exactly. crashcat's Hinge/Slider/Cone chains need box3d's axis-frame
+// which map exactly. Hinge/Slider/Cone chains need box3d's axis-frame
 // convention and are a follow-up.
 
 import Box3D from 'box3d.js/inline';

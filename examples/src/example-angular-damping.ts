@@ -1,4 +1,4 @@
-// Angular Damping — ported from the crashcat angular-damping demo. Zero gravity;
+// Angular Damping — zero gravity;
 // a row of boxes all spun at the same rate with angular damping 0.0 → 0.9. Higher
 // damping stops the spin sooner. Press R to reset.
 

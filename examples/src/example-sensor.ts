@@ -1,4 +1,4 @@
-// Sensor — ported from the crashcat sensor demo. A kinematic sensor box sweeps
+// Sensor — a kinematic sensor box sweeps
 // side to side past a dynamic and a static box; a label above it reads hit/no-hit
 // driven by box3d sensor events (begin/end touch).
 

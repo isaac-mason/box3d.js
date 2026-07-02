@@ -1,4 +1,4 @@
-// Friction — ported from the crashcat friction demo. A flat high-friction floor
+// Friction — a flat high-friction floor
 // with three rows (spheres, rotation-locked boxes, side-lying capsules); each row
 // is a friction gradient 0→1. Everything is launched forward (+z) with the same
 // velocity, so friction alone decides how far each slides. Press R to reset.
