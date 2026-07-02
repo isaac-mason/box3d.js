@@ -57,7 +57,7 @@ function box(x: number, y: number, half: number, density: number): void {
 
 // pyramids with an ultra-dense capstone (b3d sample "HighMassRatio1")
 function highMassRatio(): void {
-	newWorld(makeGround(30));
+	newWorld(makeGround(40));
 	const extent = 1.0;
 	for (let j = 0; j < 3; j++) {
 		const offset = -20 * extent + 2 * (10 + 1) * extent * j;
