@@ -4,6 +4,10 @@ WebAssembly bindings for [box3d](https://github.com/erincatto/box3d) - Erin Catt
 
 The API mirrors the box3d C API 1:1 (`b3CreateWorld`, `b3World_Step`, …) so the upstream docs and samples translate relatively directly.
 
+```bash
+npm install box3d.js
+```
+
 **Builds**
 
 | Import | Use case |
