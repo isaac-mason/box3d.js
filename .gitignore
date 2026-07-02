@@ -3,3 +3,7 @@ build/
 examples/dist/
 *.log
 .DS_Store
+bindings.bc
+bindings.ii
+bindings.o
+bindings.s
