@@ -155,7 +155,4 @@ app.onFrame(() => {
 	hud.points = points;
 });
 
-// The buffer owns wasm memory; free it if the world is ever torn down.
-window.addEventListener('beforeunload', () => b3.destroyContactsBuffer(cb));
-
 app.start();
