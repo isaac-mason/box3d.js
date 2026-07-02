@@ -213,6 +213,18 @@
       "interactive"
     ]
   },
+  "example-geometry": {
+    "title": "Geometry",
+    "description": "convex-hull generators: box, cylinder, cone, rock, and hulls from point sets",
+    "tags": [
+      "world",
+      "physics",
+      "geometry",
+      "hull",
+      "convex",
+      "shapes"
+    ]
+  },
   "example-sensor": {
     "title": "Sensor",
     "description": "a kinematic sensor sweeps past bodies \u00b7 hit / no-hit",
