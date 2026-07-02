@@ -1,7 +1,7 @@
 {
   "example-shapes": {
     "title": "Shapes",
-    "description": "spawn spheres, boxes & capsules \u00b7 drag to orbit",
+    "description": "spawn spheres, boxes & capsules · drag to orbit",
     "tags": [
       "world",
       "physics",
@@ -19,9 +19,21 @@
       "cube-heap"
     ]
   },
+  "example-stacking": {
+    "title": "Stacking",
+    "description": "a tall box pyramid and a slender tower settle and stay standing",
+    "tags": [
+      "world",
+      "physics",
+      "stacking",
+      "stability",
+      "solver",
+      "boxes"
+    ]
+  },
   "example-restitution": {
     "title": "Restitution",
-    "description": "a row of balls, restitution 0 \u2192 1 \u00b7 press drop",
+    "description": "a row of balls, restitution 0 → 1 · press drop",
     "tags": [
       "world",
       "physics",
@@ -32,7 +44,7 @@
   },
   "example-friction": {
     "title": "Friction",
-    "description": "spheres, boxes & capsules launched across a floor, friction 0 \u2192 1",
+    "description": "spheres, boxes & capsules launched across a floor, friction 0 → 1",
     "tags": [
       "world",
       "physics",
@@ -43,7 +55,7 @@
   },
   "example-conveyor-belt": {
     "title": "Conveyor Belt",
-    "description": "belts carry cargo via surface tangent velocity, friction 0 \u2192 1",
+    "description": "belts carry cargo via surface tangent velocity, friction 0 → 1",
     "tags": [
       "world",
       "physics",
@@ -66,7 +78,7 @@
   },
   "example-gravity-factor": {
     "title": "Gravity Factor",
-    "description": "a row of boxes with per-body gravity scale 0 \u2192 2 \u00b7 press R",
+    "description": "a row of boxes with per-body gravity scale 0 → 2 · press R",
     "tags": [
       "world",
       "physics",
@@ -77,7 +89,7 @@
   },
   "example-linear-damping": {
     "title": "Linear Damping",
-    "description": "boxes launched at one speed, damping 0 \u2192 0.9 \u00b7 press R",
+    "description": "boxes launched at one speed, damping 0 → 0.9 · press R",
     "tags": [
       "world",
       "physics",
@@ -88,7 +100,7 @@
   },
   "example-angular-damping": {
     "title": "Angular Damping",
-    "description": "zero-gravity boxes spun equally, angular damping 0 \u2192 0.9 \u00b7 press R",
+    "description": "zero-gravity boxes spun equally, angular damping 0 → 0.9 · press R",
     "tags": [
       "world",
       "physics",
@@ -227,7 +239,7 @@
   },
   "example-sensor": {
     "title": "Sensor",
-    "description": "a kinematic sensor sweeps past bodies \u00b7 hit / no-hit",
+    "description": "a kinematic sensor sweeps past bodies · hit / no-hit",
     "tags": [
       "world",
       "physics",
