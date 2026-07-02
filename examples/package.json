@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "screenshot": "node scripts/screenshot.js",
+    "screenshot:build": "pnpm run build && node scripts/screenshot.js"
   },
   "dependencies": {
     "box3d.js": "workspace:*",
@@ -13,6 +15,7 @@
     "three": "^0.183.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.50.0",
     "@types/node": "^22.0.0",
     "@types/three": "^0.183.0",
     "typescript": "^5.6.0",

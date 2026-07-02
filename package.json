@@ -27,7 +27,9 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "build:debug": "node scripts/build.mjs --debug",
-    "test": "node test/smoke.mjs"
+    "test": "node test/smoke.mjs",
+    "docs:build": "node docs/build.js",
+    "docs:check": "pnpm --filter @box3d/examples exec tsc --noEmit -p ../docs/tsconfig.json"
   },
   "keywords": [
     "box3d",

@@ -114,10 +114,28 @@ run( 'em++', [ 'src/bindings.cpp', stLib, ...commonFlags, '--emit-tsd', 'box3d.d
 
 // emscripten hardcodes MainModule / MainModuleFactory in --emit-tsd output.
 // Rename them to friendlier box3d names.
+// Also fix the Get*Events return types: the lambdas return val::object() which
+// --emit-tsd can only see as `any`, but the runtime shape is well-defined.
 const tsdPath = join( root, 'dist', 'box3d.d.ts' );
 const tsd = readFileSync( tsdPath, 'utf8' )
 	.replaceAll( 'MainModuleFactory', 'Box3DFactory' )
-	.replaceAll( 'MainModule', 'Box3DModule' );
+	.replaceAll( 'MainModule', 'Box3DModule' )
+	.replace(
+		'b3World_GetBodyEvents(_0: b3WorldId): any;',
+		'b3World_GetBodyEvents(_0: b3WorldId): { moveEvents: b3BodyMoveEvent[] };',
+	)
+	.replace(
+		'b3World_GetSensorEvents(_0: b3WorldId): any;',
+		'b3World_GetSensorEvents(_0: b3WorldId): { beginEvents: b3SensorBeginTouchEvent[], endEvents: b3SensorEndTouchEvent[] };',
+	)
+	.replace(
+		'b3World_GetContactEvents(_0: b3WorldId): any;',
+		'b3World_GetContactEvents(_0: b3WorldId): { beginEvents: b3ContactBeginTouchEvent[], endEvents: b3ContactEndTouchEvent[], hitEvents: b3ContactHitEvent[] };',
+	)
+	.replace(
+		'b3World_GetJointEvents(_0: b3WorldId): any;',
+		'b3World_GetJointEvents(_0: b3WorldId): { jointEvents: b3JointEvent[] };',
+	);
 writeFileSync( tsdPath, tsd );
 
 // Inlined single-file build (wasm base64-embedded).

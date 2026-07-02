@@ -1,0 +1,8 @@
+{
+    "name": "@box3d/docs",
+    "private": true,
+    "type": "module",
+    "dependencies": {
+        "box3d.js": "workspace:*"
+    }
+}

@@ -154,6 +154,18 @@
             color: #90a4ae;
         }
 
+        .example-thumbnail {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            object-fit: cover;
+            display: block;
+            background: #1a1a1a;
+        }
+
+        .example-thumbnail.hidden {
+            display: none;
+        }
+
         .content {
             width: 100%;
             display: flex;
@@ -307,6 +319,12 @@
                 <li>
                     <div class="example-item" data-example="${key}">
                     <div class="example-preview">
+                        <img
+                            class="example-thumbnail"
+                            src="./screenshots/${key}.png"
+                            alt="${example.title}"
+                            onerror="this.classList.add('hidden')"
+                        />
                         <div class="example-info">
                         <h3 class="example-title">${example.title}</h3>
                         <p class="example-description">${example.description ?? ""}</p>
