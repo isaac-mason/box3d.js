@@ -45,7 +45,12 @@
     "emscripten",
     "embind"
   ],
-  "author": "",
+  "repository": "github:isaac-mason/box3d.js",
+  "homepage": "https://github.com/isaac-mason/box3d.js",
+  "bugs": {
+    "url": "https://github.com/isaac-mason/box3d.js/issues"
+  },
+  "author": "Isaac Mason",
   "license": "MIT",
   "packageManager": "pnpm@10.32.1"
 }
