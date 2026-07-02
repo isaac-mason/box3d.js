@@ -201,6 +201,17 @@
       "query"
     ]
   },
+  "example-explosion": {
+    "title": "Explosion",
+    "description": "click to set off a radial blast that scatters a pyramid of boxes",
+    "tags": [
+      "world",
+      "physics",
+      "explosion",
+      "impulse",
+      "interactive"
+    ]
+  },
   "example-sensor": {
     "title": "Sensor",
     "description": "a kinematic sensor sweeps past bodies \u00b7 hit / no-hit",
