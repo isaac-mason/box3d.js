@@ -145,6 +145,20 @@
       "motor"
     ]
   },
+  "example-ragdoll": {
+    "title": "Ragdoll",
+    "description": "box3d's 14-bone humanoid: capsules linked by spherical & revolute joints with limits",
+    "tags": [
+      "world",
+      "physics",
+      "ragdoll",
+      "joints",
+      "spherical",
+      "revolute",
+      "limits",
+      "human"
+    ]
+  },
   "example-static-compound": {
     "title": "Static Compound",
     "description": "one static compound shape (a bin) built from many box children; balls rain in",
