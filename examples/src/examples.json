@@ -31,6 +31,19 @@
       "boxes"
     ]
   },
+  "example-robustness": {
+    "title": "Robustness",
+    "description": "solver stress tests: high mass ratio, deep-overlap recovery, tiny-box pyramid",
+    "tags": [
+      "world",
+      "physics",
+      "robustness",
+      "stability",
+      "mass-ratio",
+      "overlap",
+      "solver"
+    ]
+  },
   "example-restitution": {
     "title": "Restitution",
     "description": "a row of balls, restitution 0 → 1 · press drop",
