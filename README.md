@@ -254,7 +254,7 @@ Initialize the WASM module once with `await Box3D()`, then call the physics API 
 import Box3D from 'box3d.js';
 import type { Box3DModule } from 'box3d.js';
 
-// Initialize the WASM module. In the browser, prefer box3d.js/inline (no separate .wasm to serve).
+// Initialize the WASM module. Use box3d.js/inline if your environment can't serve a separate .wasm file.
 const b3: Box3DModule = await Box3D();
 
 // Create a world with downward gravity
