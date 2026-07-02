@@ -44,6 +44,17 @@ export interface b3TOIStateValue<T extends number> {
 }
 export type b3TOIState = b3TOIStateValue<0>|b3TOIStateValue<1>|b3TOIStateValue<2>|b3TOIStateValue<3>|b3TOIStateValue<4>;
 
+export interface ContactsBufferImpl extends ClassHandle {
+  loadFromBody(_0: b3BodyId): void;
+  loadFromShape(_0: b3ShapeId): void;
+  count(): number;
+  contactsPtr(): number;
+  manifoldsF32Ptr(): number;
+  manifoldsI32Ptr(): number;
+  pointsF32Ptr(): number;
+  pointsI32Ptr(): number;
+}
+
 export interface b3ShapeIdVector extends ClassHandle, Iterable<b3ShapeId> {
   push_back(_0: b3ShapeId): void;
   resize(_0: number, _1: b3ShapeId): void;
@@ -58,6 +69,26 @@ export interface b3JointIdVector extends ClassHandle, Iterable<b3JointId> {
   size(): number;
   get(_0: number): b3JointId | undefined;
   set(_0: number, _1: b3JointId): boolean;
+}
+
+export interface EventsBufferImpl extends ClassHandle {
+  loadFrom(_0: b3WorldId): void;
+  contactBeginCount(): number;
+  contactEndCount(): number;
+  contactHitCount(): number;
+  bodyMoveCount(): number;
+  sensorBeginCount(): number;
+  sensorEndCount(): number;
+  jointCount(): number;
+  contactBeginPtr(): number;
+  contactEndPtr(): number;
+  contactHitI32Ptr(): number;
+  contactHitF64Ptr(): number;
+  bodyMoveI32Ptr(): number;
+  bodyMoveF64Ptr(): number;
+  sensorBeginPtr(): number;
+  sensorEndPtr(): number;
+  jointPtr(): number;
 }
 
 export interface b3DynamicTree extends ClassHandle {
@@ -555,11 +586,17 @@ interface EmbindModule {
   b3CompoundData: {};
   b3HeightFieldData: {};
   b3TOIState: {b3_toiStateUnknown: b3TOIStateValue<0>, b3_toiStateFailed: b3TOIStateValue<1>, b3_toiStateOverlapped: b3TOIStateValue<2>, b3_toiStateHit: b3TOIStateValue<3>, b3_toiStateSeparated: b3TOIStateValue<4>};
+  ContactsBufferImpl: {
+    new(): ContactsBufferImpl;
+  };
   b3ShapeIdVector: {
     new(): b3ShapeIdVector;
   };
   b3JointIdVector: {
     new(): b3JointIdVector;
+  };
+  EventsBufferImpl: {
+    new(): EventsBufferImpl;
   };
   b3DynamicTree: {};
   b3DestroyHull(hull: b3HullData | null): void;
@@ -1016,9 +1053,7 @@ interface EmbindModule {
   b3CollideCapsuleAndTriangle(capsuleA: b3Capsule, v1: b3Vec3, v2: b3Vec3, v3: b3Vec3): any;
   b3CollideHullAndTriangle(hullA: b3HullData | null, v1: b3Vec3, v2: b3Vec3, v3: b3Vec3, triangleFlags: number): any;
   b3CollideSphereAndTriangle(sphereA: b3Sphere, v1: b3Vec3, v2: b3Vec3, v3: b3Vec3): any;
-  b3Body_GetContactData(bodyId: b3BodyId): any;
-  b3Shape_GetContactData(shapeId: b3ShapeId): any;
-  b3Shape_GetSensorData(shapeId: b3ShapeId): any;
+  b3Shape_GetSensorData(shapeId: b3ShapeId): ShapeIdBuffer;
   b3World_OverlapShape(worldId: b3WorldId, origin: b3Vec3, points: any, radius: number, filter: b3QueryFilter, callback: any): void;
   b3World_CastShape(worldId: b3WorldId, origin: b3Vec3, points: any, radius: number, translation: b3Vec3, filter: b3QueryFilter, callback: any): void;
   b3Body_CastShape(bodyId: b3BodyId, origin: b3Vec3, points: any, radius: number, translation: b3Vec3, filter: b3QueryFilter, maxFraction: number, canEncroach: boolean, bodyTransform: b3Transform): b3BodyCastResult;
@@ -1027,10 +1062,6 @@ interface EmbindModule {
   b3DistanceJoint_GetSpringForceRange(jointId: b3JointId): any;
   b3World_OverlapAABB(worldId: b3WorldId, aabb: b3AABB, filter: b3QueryFilter, callback: any): void;
   b3World_CastRay(worldId: b3WorldId, origin: b3Vec3, translation: b3Vec3, filter: b3QueryFilter, callback: any): void;
-  b3World_GetBodyEvents(worldId: b3WorldId): any;
-  b3World_GetSensorEvents(worldId: b3WorldId): any;
-  b3World_GetContactEvents(worldId: b3WorldId): any;
-  b3World_GetJointEvents(worldId: b3WorldId): any;
   b3GetLengthAndNormalize(v: b3Vec3): any;
   b3GetAxisAngle(q: b3Quat): any;
   b3DynamicTree_Query(tree: b3DynamicTree | null, aabb: b3AABB, maskBits: number, callback: any): b3TreeStats;
@@ -1039,5 +1070,113 @@ interface EmbindModule {
   b3World_Draw(worldId: b3WorldId, handler: any): void;
 }
 
-export type MainModule = WasmModule & EmbindModule;
-export default function MainModuleFactory (options?: unknown): Promise<MainModule>;
+export interface ShapeIdBuffer { count: number; data: Int32Array; }
+export interface ContactBuffer {
+  count: number;
+  contactsI32: Int32Array;
+  manifoldsF32: Float32Array;
+  manifoldsI32: Int32Array;
+  pointsF32: Float32Array;
+  pointsI32: Int32Array;
+  readonly contactsBase?: number;
+  readonly manifoldsF32Base?: number;
+  readonly manifoldsI32Base?: number;
+  readonly pointsF32Base?: number;
+  readonly pointsI32Base?: number;
+}
+/** Reusable, wasm-backed contact buffer. Refilling allocates nothing on the JS
+ * side; free it with destroyContactsBuffer when done. */
+export interface ContactsBuffer extends ContactBuffer {}
+/** Reusable, wasm-backed per-step events buffer. Fill with getEvents after each
+ * b3World_Step, read with the get*EventAt helpers; free with destroyEventsBuffer. */
+export interface EventsBuffer { readonly _brand?: 'EventsBuffer'; }
+export interface ContactTouchEvent { shapeIdA: b3ShapeId; shapeIdB: b3ShapeId; contactId: b3ContactId; }
+export interface ContactHitEvent {
+  shapeIdA: b3ShapeId;
+  shapeIdB: b3ShapeId;
+  contactId: b3ContactId;
+  point: b3Vec3;
+  normal: b3Vec3;
+  approachSpeed: number;
+  userMaterialIdA: bigint;
+  userMaterialIdB: bigint;
+}
+export interface BodyMoveEvent {
+  bodyId: b3BodyId;
+  position: b3Vec3;
+  rotation: { x: number; y: number; z: number; w: number };
+  fellAsleep: boolean;
+}
+export interface SensorTouchEvent { sensorShapeId: b3ShapeId; visitorShapeId: b3ShapeId; }
+export interface JointEvent { jointId: b3JointId; }
+/** Packed plane buffer passed to the b3World_CollideMover callback. */
+export interface PlaneResultBuffer { count: number; data: Float32Array; }
+export interface PlaneResult { plane: { normal: b3Vec3; offset: number }; point: b3Vec3; }
+export interface Contact {
+  shapeIdA: b3ShapeId;
+  shapeIdB: b3ShapeId;
+  contactId: b3ContactId;
+  manifoldCount: number;
+}
+export interface ManifoldPoint {
+  anchorA: b3Vec3;
+  anchorB: b3Vec3;
+  separation: number;
+  baseSeparation: number;
+  normalImpulse: number;
+  totalNormalImpulse: number;
+  normalVelocity: number;
+  featureId: number;
+  triangleIndex: number;
+  persisted: boolean;
+}
+export interface Manifold {
+  normal: b3Vec3;
+  twistImpulse: number;
+  frictionImpulse: b3Vec3;
+  rollingImpulse: b3Vec3;
+  pointCount: number;
+  points: ManifoldPoint[];
+}
+export interface Box3DFacade {
+  getNumShapeIds(buf: ShapeIdBuffer): number;
+  createShapeId(): b3ShapeId;
+  getShapeIdAt(out: b3ShapeId, buf: ShapeIdBuffer, i: number): b3ShapeId;
+  getNumContacts(buf: ContactBuffer): number;
+  createContact(): Contact;
+  getContactAt(out: Contact, buf: ContactBuffer, i: number): Contact;
+  createPoint(): ManifoldPoint;
+  createManifold(): Manifold;
+  getManifoldAt(out: Manifold, contact: Contact, m: number): Manifold;
+  createContactsBuffer(): ContactsBuffer;
+  getShapeContactData(buf: ContactsBuffer, shapeId: b3ShapeId): ContactsBuffer;
+  getBodyContactData(buf: ContactsBuffer, bodyId: b3BodyId): ContactsBuffer;
+  destroyContactsBuffer(buf: ContactsBuffer): void;
+  createEventsBuffer(): EventsBuffer;
+  getEvents(eb: EventsBuffer, worldId: b3WorldId): EventsBuffer;
+  destroyEventsBuffer(eb: EventsBuffer): void;
+  getNumContactBeginEvents(eb: EventsBuffer): number;
+  getNumContactEndEvents(eb: EventsBuffer): number;
+  getNumContactHitEvents(eb: EventsBuffer): number;
+  getNumBodyMoveEvents(eb: EventsBuffer): number;
+  getNumSensorBeginEvents(eb: EventsBuffer): number;
+  getNumSensorEndEvents(eb: EventsBuffer): number;
+  getNumJointEvents(eb: EventsBuffer): number;
+  createContactTouchEvent(): ContactTouchEvent;
+  getContactBeginEventAt(out: ContactTouchEvent, eb: EventsBuffer, i: number): ContactTouchEvent;
+  getContactEndEventAt(out: ContactTouchEvent, eb: EventsBuffer, i: number): ContactTouchEvent;
+  createContactHitEvent(): ContactHitEvent;
+  getContactHitEventAt(out: ContactHitEvent, eb: EventsBuffer, i: number): ContactHitEvent;
+  createBodyMoveEvent(): BodyMoveEvent;
+  getBodyMoveEventAt(out: BodyMoveEvent, eb: EventsBuffer, i: number): BodyMoveEvent;
+  createSensorTouchEvent(): SensorTouchEvent;
+  getSensorBeginEventAt(out: SensorTouchEvent, eb: EventsBuffer, i: number): SensorTouchEvent;
+  getSensorEndEventAt(out: SensorTouchEvent, eb: EventsBuffer, i: number): SensorTouchEvent;
+  createJointEvent(): JointEvent;
+  getJointEventAt(out: JointEvent, eb: EventsBuffer, i: number): JointEvent;
+  getNumPlaneResults(buf: PlaneResultBuffer): number;
+  createPlaneResult(): PlaneResult;
+  getPlaneResultAt(out: PlaneResult, buf: PlaneResultBuffer, i: number): PlaneResult;
+}
+export type Box3DModule = WasmModule & EmbindModule & Box3DFacade;
+export default function Box3DFactory (options?: unknown): Promise<Box3DModule>;

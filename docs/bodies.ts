@@ -177,14 +177,19 @@ const visitorShapeDef = b3.b3DefaultShapeDef();
 visitorShapeDef.enableSensorEvents = true;
 b3.b3CreateBoxShape(visitor, visitorShapeDef, 0.5, 0.5, 0.5);
 
-// Read begin/end events each frame after b3World_Step
+// Read begin/end events each frame through a reusable, wasm-backed events buffer
+// (allocate the buffer + scratch once; refilling with getEvents allocates nothing).
+const eventsBuffer = b3.createEventsBuffer();
+const sensorTouch = b3.createSensorTouchEvent();
 b3.b3World_Step(world, 1 / 60, 4);
-const sensorEvents = b3.b3World_GetSensorEvents(world);
-for (const e of sensorEvents.beginEvents) {
-    console.log('entered sensor:', e.visitorShapeId);
+b3.getEvents(eventsBuffer, world);
+for (let i = 0, n = b3.getNumSensorBeginEvents(eventsBuffer); i < n; i++) {
+    b3.getSensorBeginEventAt(sensorTouch, eventsBuffer, i);
+    console.log('entered sensor:', sensorTouch.visitorShapeId);
 }
-for (const e of sensorEvents.endEvents) {
-    console.log('left sensor:', e.visitorShapeId);
+for (let i = 0, n = b3.getNumSensorEndEvents(eventsBuffer); i < n; i++) {
+    b3.getSensorEndEventAt(sensorTouch, eventsBuffer, i);
+    console.log('left sensor:', sensorTouch.visitorShapeId);
 }
 /* SNIPPET_END: sensor */
 

@@ -23,54 +23,221 @@ using namespace emscripten;
 // embind's function() wants. Wrappers below adapt pointer-taking C functions to
 // by-value value_object arguments.
 
-// Convert a C (pointer, count) event array into a native JS array of the
-// (registered) value_object element type.
 namespace
 {
-template <class T>
-val eventsToArray( const T* data, int count )
+// Copy a POD std::vector into a JS-owned typed array. typed_memory_view aliases
+// the wasm heap; the TypedArray constructor copies out of it, so the result
+// stays valid after `v` (a local) is freed. One boundary crossing per tier.
+inline val toI32( const std::vector<int32_t>& v )
 {
-	val arr = val::array();
-	for ( int i = 0; i < count; ++i )
-	{
-		arr.call<void>( "push", val( data[i] ) );
-	}
-	return arr;
+	return val::global( "Int32Array" ).new_( typed_memory_view( v.size(), v.data() ) );
+}
+inline val toF32( const std::vector<float>& v )
+{
+	return val::global( "Float32Array" ).new_( typed_memory_view( v.size(), v.data() ) );
 }
 
-// Marshal b3ContactData[] into a JS array of { shapeIdA, shapeIdB, manifolds:
-// [{ normal, points: [{ anchorA, anchorB, separation }] }] }.
-inline val contactsToArray( const b3ContactData* data, int count )
+// Fill flat typed-array tiers from b3ContactData[] (CSR: contacts -> manifolds
+// -> points). The vectors are cleared but keep their capacity, so a reused
+// buffer grows to its high-water mark and then allocates nothing on refill.
+// STRIDES BELOW MUST STAY IN SYNC with the constants in src/facade.js:
+//   contactsI32  stride 12: idA(3) idB(3) contactId(4) manifoldStart manifoldCount
+//   manifoldsF32 stride 10: normal(3) twistImpulse frictionImpulse(3) rollingImpulse(3)
+//   manifoldsI32 stride  2: pointStart pointCount
+//   pointsF32    stride 11: anchorA(3) anchorB(3) separation baseSeparation normalImpulse totalNormalImpulse normalVelocity
+//   pointsI32    stride  3: featureId triangleIndex persisted
+inline void packContactsInto( const b3ContactData* data, int count,
+	std::vector<int32_t>& contactsI32, std::vector<float>& manifoldsF32,
+	std::vector<int32_t>& manifoldsI32, std::vector<float>& pointsF32, std::vector<int32_t>& pointsI32 )
 {
-	val arr = val::array();
+	contactsI32.clear();
+	manifoldsF32.clear();
+	manifoldsI32.clear();
+	pointsF32.clear();
+	pointsI32.clear();
+	contactsI32.reserve( (size_t)count * 12 );
+
 	for ( int i = 0; i < count; ++i )
 	{
-		val c = val::object();
-		c.set( "shapeIdA", val( data[i].shapeIdA ) );
-		c.set( "shapeIdB", val( data[i].shapeIdB ) );
-		val manifolds = val::array();
-		for ( int m = 0; m < data[i].manifoldCount; ++m )
+		const b3ContactData& c = data[i];
+		int manifoldStart = (int)( manifoldsI32.size() / 2 );
+		contactsI32.insert( contactsI32.end(), {
+			c.shapeIdA.index1, c.shapeIdA.world0, c.shapeIdA.generation,
+			c.shapeIdB.index1, c.shapeIdB.world0, c.shapeIdB.generation,
+			c.contactId.index1, c.contactId.world0, c.contactId.padding, (int32_t)c.contactId.generation,
+			manifoldStart, c.manifoldCount } );
+
+		for ( int m = 0; m < c.manifoldCount; ++m )
 		{
-			const b3Manifold& man = data[i].manifolds[m];
-			val mo = val::object();
-			mo.set( "normal", val( man.normal ) );
-			val pts = val::array();
+			const b3Manifold& man = c.manifolds[m];
+			int pointStart = (int)( pointsI32.size() / 3 );
+			manifoldsF32.insert( manifoldsF32.end(), {
+				man.normal.x, man.normal.y, man.normal.z, man.twistImpulse,
+				man.frictionImpulse.x, man.frictionImpulse.y, man.frictionImpulse.z,
+				man.rollingImpulse.x, man.rollingImpulse.y, man.rollingImpulse.z } );
+			manifoldsI32.insert( manifoldsI32.end(), { pointStart, man.pointCount } );
+
 			for ( int p = 0; p < man.pointCount; ++p )
 			{
-				val po = val::object();
-				po.set( "anchorA", val( man.points[p].anchorA ) );
-				po.set( "anchorB", val( man.points[p].anchorB ) );
-				po.set( "separation", man.points[p].separation );
-				pts.call<void>( "push", po );
+				const b3ManifoldPoint& pt = man.points[p];
+				pointsF32.insert( pointsF32.end(), {
+					pt.anchorA.x, pt.anchorA.y, pt.anchorA.z,
+					pt.anchorB.x, pt.anchorB.y, pt.anchorB.z,
+					pt.separation, pt.baseSeparation, pt.normalImpulse, pt.totalNormalImpulse, pt.normalVelocity } );
+				pointsI32.insert( pointsI32.end(), {
+					(int32_t)pt.featureId, pt.triangleIndex, pt.persisted ? 1 : 0 } );
 			}
-			mo.set( "points", pts );
-			manifolds.call<void>( "push", mo );
 		}
-		c.set( "manifolds", manifolds );
-		arr.call<void>( "push", c );
 	}
-	return arr;
 }
+
+// A reusable buffer whose storage lives in the wasm heap and
+// grows as needed. JS reads it in place through the module HEAP views (see
+// src/facade.js), so refilling allocates nothing on the JS side. The caller owns
+// its lifetime — createContactsBuffer() / destroyContactsBuffer() (embind
+// .delete()). The *Ptr() accessors return the current wasm byte offset of each
+// tier; JS must re-read them after every fill (a std::vector may reallocate as
+// it grows, and memory growth swaps the HEAP views).
+struct ContactsBuffer
+{
+	std::vector<int32_t> contactsI32, manifoldsI32, pointsI32;
+	std::vector<float> manifoldsF32, pointsF32;
+	int count = 0;
+
+	void loadFromShape( b3ShapeId shapeId )
+	{
+		std::vector<b3ContactData> data( (size_t)b3Shape_GetContactCapacity( shapeId ) );
+		count = data.empty() ? 0 : b3Shape_GetContactData( shapeId, data.data(), (int)data.size() );
+		packContactsInto( data.data(), count, contactsI32, manifoldsF32, manifoldsI32, pointsF32, pointsI32 );
+	}
+	void loadFromBody( b3BodyId bodyId )
+	{
+		std::vector<b3ContactData> data( (size_t)b3Body_GetContactCapacity( bodyId ) );
+		count = data.empty() ? 0 : b3Body_GetContactData( bodyId, data.data(), (int)data.size() );
+		packContactsInto( data.data(), count, contactsI32, manifoldsF32, manifoldsI32, pointsF32, pointsI32 );
+	}
+
+	int getCount() const { return count; }
+	unsigned contactsPtr() const { return (unsigned)(size_t)contactsI32.data(); }
+	unsigned manifoldsF32Ptr() const { return (unsigned)(size_t)manifoldsF32.data(); }
+	unsigned manifoldsI32Ptr() const { return (unsigned)(size_t)manifoldsI32.data(); }
+	unsigned pointsF32Ptr() const { return (unsigned)(size_t)pointsF32.data(); }
+	unsigned pointsI32Ptr() const { return (unsigned)(size_t)pointsI32.data(); }
+};
+
+// Reusable, wasm-backed buffer for per-step physics events. loadFrom(world)
+// pulls box3d's four native event arrays (body move / sensor / contact / joint)
+// into flat tiers in the wasm heap; JS reads them in place through the module
+// HEAP views (see src/facade.js), so polling events each step copies nothing to
+// JS and allocates no typed arrays. Each group has an i32 tier and — where it
+// carries real values — an f64 tier (positions are b3Pos, which may be double;
+// packing to f64 is lossless regardless of the build's precision). STRIDES BELOW
+// MUST STAY IN SYNC with the constants in src/facade.js.
+//   contactBeginI32 / contactEndI32  stride 10: shapeIdA(3) shapeIdB(3) contactId(4)
+//   contactHitI32    stride 14: shapeIdA(3) shapeIdB(3) contactId(4) matA(lo,hi) matB(lo,hi)
+//   contactHitF64    stride  7: point(3) normal(3) approachSpeed
+//   bodyMoveI32      stride  4: bodyId(3) fellAsleep
+//   bodyMoveF64      stride  7: position(3) rotation(x,y,z,w)
+//   sensorBeginI32 / sensorEndI32    stride  6: sensorShapeId(3) visitorShapeId(3)
+//   jointI32         stride  3: jointId(3)
+struct EventsBuffer
+{
+	std::vector<int32_t> contactBeginI32, contactEndI32, contactHitI32, bodyMoveI32, sensorBeginI32, sensorEndI32, jointI32;
+	std::vector<double> contactHitF64, bodyMoveF64;
+	int contactBeginCount = 0, contactEndCount = 0, contactHitCount = 0;
+	int bodyMoveCount = 0, sensorBeginCount = 0, sensorEndCount = 0, jointCount = 0;
+
+	static void pushShapeId( std::vector<int32_t>& v, b3ShapeId id ) { v.insert( v.end(), { id.index1, id.world0, id.generation } ); }
+	static void pushContactId( std::vector<int32_t>& v, b3ContactId id ) { v.insert( v.end(), { id.index1, id.world0, id.padding, (int32_t)id.generation } ); }
+	static void pushU64( std::vector<int32_t>& v, uint64_t x ) { v.insert( v.end(), { (int32_t)( x & 0xffffffffu ), (int32_t)( x >> 32 ) } ); }
+
+	void loadFrom( b3WorldId worldId )
+	{
+		contactBeginI32.clear(); contactEndI32.clear(); contactHitI32.clear(); contactHitF64.clear();
+		bodyMoveI32.clear(); bodyMoveF64.clear();
+		sensorBeginI32.clear(); sensorEndI32.clear(); jointI32.clear();
+
+		b3BodyEvents be = b3World_GetBodyEvents( worldId );
+		bodyMoveCount = be.moveCount;
+		for ( int i = 0; i < be.moveCount; ++i )
+		{
+			const b3BodyMoveEvent& e = be.moveEvents[i];
+			bodyMoveI32.insert( bodyMoveI32.end(), { e.bodyId.index1, e.bodyId.world0, e.bodyId.generation, e.fellAsleep ? 1 : 0 } );
+			bodyMoveF64.insert( bodyMoveF64.end(), {
+				(double)e.transform.p.x, (double)e.transform.p.y, (double)e.transform.p.z,
+				(double)e.transform.q.v.x, (double)e.transform.q.v.y, (double)e.transform.q.v.z, (double)e.transform.q.s } );
+		}
+
+		b3SensorEvents se = b3World_GetSensorEvents( worldId );
+		sensorBeginCount = se.beginCount;
+		for ( int i = 0; i < se.beginCount; ++i )
+		{
+			pushShapeId( sensorBeginI32, se.beginEvents[i].sensorShapeId );
+			pushShapeId( sensorBeginI32, se.beginEvents[i].visitorShapeId );
+		}
+		sensorEndCount = se.endCount;
+		for ( int i = 0; i < se.endCount; ++i )
+		{
+			pushShapeId( sensorEndI32, se.endEvents[i].sensorShapeId );
+			pushShapeId( sensorEndI32, se.endEvents[i].visitorShapeId );
+		}
+
+		b3ContactEvents ce = b3World_GetContactEvents( worldId );
+		contactBeginCount = ce.beginCount;
+		for ( int i = 0; i < ce.beginCount; ++i )
+		{
+			pushShapeId( contactBeginI32, ce.beginEvents[i].shapeIdA );
+			pushShapeId( contactBeginI32, ce.beginEvents[i].shapeIdB );
+			pushContactId( contactBeginI32, ce.beginEvents[i].contactId );
+		}
+		contactEndCount = ce.endCount;
+		for ( int i = 0; i < ce.endCount; ++i )
+		{
+			pushShapeId( contactEndI32, ce.endEvents[i].shapeIdA );
+			pushShapeId( contactEndI32, ce.endEvents[i].shapeIdB );
+			pushContactId( contactEndI32, ce.endEvents[i].contactId );
+		}
+		contactHitCount = ce.hitCount;
+		for ( int i = 0; i < ce.hitCount; ++i )
+		{
+			const b3ContactHitEvent& e = ce.hitEvents[i];
+			pushShapeId( contactHitI32, e.shapeIdA );
+			pushShapeId( contactHitI32, e.shapeIdB );
+			pushContactId( contactHitI32, e.contactId );
+			pushU64( contactHitI32, e.userMaterialIdA );
+			pushU64( contactHitI32, e.userMaterialIdB );
+			contactHitF64.insert( contactHitF64.end(), {
+				(double)e.point.x, (double)e.point.y, (double)e.point.z,
+				(double)e.normal.x, (double)e.normal.y, (double)e.normal.z, (double)e.approachSpeed } );
+		}
+
+		b3JointEvents je = b3World_GetJointEvents( worldId );
+		jointCount = je.count;
+		for ( int i = 0; i < je.count; ++i )
+		{
+			const b3JointId id = je.jointEvents[i].jointId;
+			jointI32.insert( jointI32.end(), { id.index1, id.world0, id.generation } );
+		}
+	}
+
+	int getContactBeginCount() const { return contactBeginCount; }
+	int getContactEndCount() const { return contactEndCount; }
+	int getContactHitCount() const { return contactHitCount; }
+	int getBodyMoveCount() const { return bodyMoveCount; }
+	int getSensorBeginCount() const { return sensorBeginCount; }
+	int getSensorEndCount() const { return sensorEndCount; }
+	int getJointCount() const { return jointCount; }
+
+	unsigned contactBeginPtr() const { return (unsigned)(size_t)contactBeginI32.data(); }
+	unsigned contactEndPtr() const { return (unsigned)(size_t)contactEndI32.data(); }
+	unsigned contactHitI32Ptr() const { return (unsigned)(size_t)contactHitI32.data(); }
+	unsigned contactHitF64Ptr() const { return (unsigned)(size_t)contactHitF64.data(); }
+	unsigned bodyMoveI32Ptr() const { return (unsigned)(size_t)bodyMoveI32.data(); }
+	unsigned bodyMoveF64Ptr() const { return (unsigned)(size_t)bodyMoveF64.data(); }
+	unsigned sensorBeginPtr() const { return (unsigned)(size_t)sensorBeginI32.data(); }
+	unsigned sensorEndPtr() const { return (unsigned)(size_t)sensorEndI32.data(); }
+	unsigned jointPtr() const { return (unsigned)(size_t)jointI32.data(); }
+};
 
 // Convert a b3LocalManifold (produced by the b3Collide* functions) to a JS
 // object { normal, points: [{ point, separation }] } in shape A's local frame.
@@ -558,9 +725,24 @@ EMSCRIPTEN_BINDINGS( box3d )
 		b3World_CollideMover( worldId, origin, &mover, filter,
 			[]( b3ShapeId shapeId, const b3PlaneResult* planes, int planeCount, void* ctx ) -> bool
 			{
-				val arr = val::array();
-				for ( int i = 0; i < planeCount; ++i ) arr.call<void>( "push", val( planes[i] ) );
-				val r = ( *static_cast<val*>( ctx ) )( shapeId, arr );
+				// Pack the planes into one flat Float32Array (7 floats each:
+				// plane.normal(3), plane.offset, point(3)) rather than a JS array of
+				// objects — one copy, no per-plane boundary crossing. Read on the JS
+				// side with createPlaneResult / getPlaneResultAt.
+				static thread_local std::vector<float> packed;
+				packed.clear();
+				packed.reserve( (size_t)planeCount * 7 );
+				for ( int i = 0; i < planeCount; ++i )
+				{
+					const b3PlaneResult& pr = planes[i];
+					packed.insert( packed.end(), {
+						pr.plane.normal.x, pr.plane.normal.y, pr.plane.normal.z, pr.plane.offset,
+						pr.point.x, pr.point.y, pr.point.z } );
+				}
+				val buf = val::object();
+				buf.set( "count", planeCount );
+				buf.set( "data", toF32( packed ) );
+				val r = ( *static_cast<val*>( ctx ) )( shapeId, buf );
 				return r.isUndefined() ? true : r.as<bool>();
 			},
 			&cb );
@@ -805,29 +987,40 @@ EMSCRIPTEN_BINDINGS( box3d )
 	function( "b3World_GetProfile(worldId)", &b3World_GetProfile );
 
 	// --- live contact / sensor data getters ---
-	// Contacts as a JS array: { shapeIdA, shapeIdB, manifolds: [{ normal,
-	// points: [{ anchorA, anchorB, separation }] }] }. Anchors are offsets from
-	// each body's centre of mass, in world orientation.
-	function( "b3Body_GetContactData(bodyId)", +[]( b3BodyId bodyId ) -> val
-	{
-		std::vector<b3ContactData> data( (size_t)b3Body_GetContactCapacity( bodyId ) );
-		int n = data.empty() ? 0 : b3Body_GetContactData( bodyId, data.data(), (int)data.size() );
-		return contactsToArray( data.data(), n );
-	} );
-	function( "b3Shape_GetContactData(shapeId)", +[]( b3ShapeId shapeId ) -> val
-	{
-		std::vector<b3ContactData> data( (size_t)b3Shape_GetContactCapacity( shapeId ) );
-		int n = data.empty() ? 0 : b3Shape_GetContactData( shapeId, data.data(), (int)data.size() );
-		return contactsToArray( data.data(), n );
-	} );
-	// sensor overlaps: JS array of visitor shape ids currently inside this sensor.
+	// Reusable, wasm-backed contact buffer for the per-frame path (see the
+	// ContactsBuffer struct). The JS facade wraps this as createContactsBuffer/
+	// getShapeContactData/getBodyContactData/destroyContactsBuffer.
+	// Reusable, wasm-backed contact buffer. Read it in JS with the facade helpers
+	// createContactsBuffer / getShapeContactData / getBodyContactData /
+	// createContact / getContactAt / createManifold / getManifoldAt. Anchors are
+	// offsets from each body's centre of mass, in world orientation. There is no
+	// array-returning accessor: building JS objects for every contact each frame
+	// is unusably slow, so the reusable zero-alloc buffer is the only path.
+	class_<ContactsBuffer>( "ContactsBufferImpl" )
+		.constructor<>()
+		.function( "loadFromShape", &ContactsBuffer::loadFromShape )
+		.function( "loadFromBody", &ContactsBuffer::loadFromBody )
+		.function( "count", &ContactsBuffer::getCount )
+		.function( "contactsPtr", &ContactsBuffer::contactsPtr )
+		.function( "manifoldsF32Ptr", &ContactsBuffer::manifoldsF32Ptr )
+		.function( "manifoldsI32Ptr", &ContactsBuffer::manifoldsI32Ptr )
+		.function( "pointsF32Ptr", &ContactsBuffer::pointsF32Ptr )
+		.function( "pointsI32Ptr", &ContactsBuffer::pointsI32Ptr );
+
+	// sensor overlaps: packed buffer { count, data } of visitor shape ids (3
+	// int32 per id) currently inside this sensor. Read with getShapeIdAt.
 	function( "b3Shape_GetSensorData(shapeId)", +[]( b3ShapeId shapeId ) -> val
 	{
 		std::vector<b3ShapeId> ids( (size_t)b3Shape_GetSensorCapacity( shapeId ) );
 		int n = ids.empty() ? 0 : b3Shape_GetSensorData( shapeId, ids.data(), (int)ids.size() );
-		val arr = val::array();
-		for ( int i = 0; i < n; ++i ) arr.call<void>( "push", val( ids[i] ) );
-		return arr;
+		std::vector<int32_t> packed;
+		packed.reserve( (size_t)n * 3 );
+		for ( int i = 0; i < n; ++i )
+			packed.insert( packed.end(), { ids[i].index1, ids[i].world0, ids[i].generation } );
+		val out = val::object();
+		out.set( "count", n );
+		out.set( "data", toI32( packed ) );
+		return out;
 	} );
 
 	value_object<b3ExplosionDef>( "b3ExplosionDef" )
@@ -1456,37 +1649,29 @@ EMSCRIPTEN_BINDINGS( box3d )
 	value_object<b3JointEvent>( "b3JointEvent" )
 		.field( "jointId", &b3JointEvent::jointId );
 
-	function( "b3World_GetBodyEvents(worldId)", +[]( b3WorldId worldId )
-	{
-		b3BodyEvents e = b3World_GetBodyEvents( worldId );
-		val o = val::object();
-		o.set( "moveEvents", eventsToArray( e.moveEvents, e.moveCount ) );
-		return o;
-	} );
-	function( "b3World_GetSensorEvents(worldId)", +[]( b3WorldId worldId )
-	{
-		b3SensorEvents e = b3World_GetSensorEvents( worldId );
-		val o = val::object();
-		o.set( "beginEvents", eventsToArray( e.beginEvents, e.beginCount ) );
-		o.set( "endEvents", eventsToArray( e.endEvents, e.endCount ) );
-		return o;
-	} );
-	function( "b3World_GetContactEvents(worldId)", +[]( b3WorldId worldId )
-	{
-		b3ContactEvents e = b3World_GetContactEvents( worldId );
-		val o = val::object();
-		o.set( "beginEvents", eventsToArray( e.beginEvents, e.beginCount ) );
-		o.set( "endEvents", eventsToArray( e.endEvents, e.endCount ) );
-		o.set( "hitEvents", eventsToArray( e.hitEvents, e.hitCount ) );
-		return o;
-	} );
-	function( "b3World_GetJointEvents(worldId)", +[]( b3WorldId worldId )
-	{
-		b3JointEvents e = b3World_GetJointEvents( worldId );
-		val o = val::object();
-		o.set( "jointEvents", eventsToArray( e.jointEvents, e.count ) );
-		return o;
-	} );
+	// Per-step events: read through the reusable, wasm-backed EventsBuffer (see the
+	// facade helpers createEventsBuffer / getEvents / getNum*Events / get*EventAt).
+	// The old array-returning accessors are gone — materialising a JS object per
+	// event every step scales terribly, and the buffer path is zero-alloc.
+	class_<EventsBuffer>( "EventsBufferImpl" )
+		.constructor<>()
+		.function( "loadFrom", &EventsBuffer::loadFrom )
+		.function( "contactBeginCount", &EventsBuffer::getContactBeginCount )
+		.function( "contactEndCount", &EventsBuffer::getContactEndCount )
+		.function( "contactHitCount", &EventsBuffer::getContactHitCount )
+		.function( "bodyMoveCount", &EventsBuffer::getBodyMoveCount )
+		.function( "sensorBeginCount", &EventsBuffer::getSensorBeginCount )
+		.function( "sensorEndCount", &EventsBuffer::getSensorEndCount )
+		.function( "jointCount", &EventsBuffer::getJointCount )
+		.function( "contactBeginPtr", &EventsBuffer::contactBeginPtr )
+		.function( "contactEndPtr", &EventsBuffer::contactEndPtr )
+		.function( "contactHitI32Ptr", &EventsBuffer::contactHitI32Ptr )
+		.function( "contactHitF64Ptr", &EventsBuffer::contactHitF64Ptr )
+		.function( "bodyMoveI32Ptr", &EventsBuffer::bodyMoveI32Ptr )
+		.function( "bodyMoveF64Ptr", &EventsBuffer::bodyMoveF64Ptr )
+		.function( "sensorBeginPtr", &EventsBuffer::sensorBeginPtr )
+		.function( "sensorEndPtr", &EventsBuffer::sensorEndPtr )
+		.function( "jointPtr", &EventsBuffer::jointPtr );
 
 	function( "b3Distance(a, b)", &b3Distance );
 	function( "b3DistanceSquared(a, b)", &b3DistanceSquared );

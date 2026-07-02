@@ -64,7 +64,6 @@ function reset(): void {
 	clearMarkers();
 	for (let i = 0; i < 24; i++) spawn();
 }
-reset();
 
 const params = { spawn: () => spawn(), reset };
 app.gui.add(params, 'spawn').name('drop one more');
@@ -141,20 +140,26 @@ function clearMarkers(): void {
 	markers.length = 0;
 }
 
+// Reusable events buffer + hit-event scratch, allocated once (never per frame).
+const eventsBuffer = b3.createEventsBuffer();
+const hit = b3.createContactHitEvent();
+
 app.onFrame((dt) => {
 	app.step(() => b3.b3World_Step(world, 1 / 60, 4));
 	renderer.update();
 
-	const events = b3.b3World_GetContactEvents(world);
-	for (const e of events.hitEvents) {
+	// Read this step's contact hit events through the zero-alloc buffer.
+	b3.getEvents(eventsBuffer, world);
+	for (let i = 0, n = b3.getNumContactHitEvents(eventsBuffer); i < n; i++) {
+		b3.getContactHitEventAt(hit, eventsBuffer, i);
 		spawnMarker(
-			e.point.x,
-			e.point.y,
-			e.point.z,
-			e.normal.x,
-			e.normal.y,
-			e.normal.z,
-			e.approachSpeed,
+			hit.point.x,
+			hit.point.y,
+			hit.point.z,
+			hit.normal.x,
+			hit.normal.y,
+			hit.normal.z,
+			hit.approachSpeed,
 		);
 	}
 
@@ -171,4 +176,6 @@ app.onFrame((dt) => {
 		}
 	}
 });
+
+reset(); // markers/clearMarkers are defined above by now
 app.start();

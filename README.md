@@ -210,13 +210,19 @@ The API mirrors the box3d C API 1:1 (`b3CreateWorld`, `b3World_Step`, …) so th
       </a>
     </td>
     <td align="center">
+      <a href="https://isaac-mason.github.io/box3d.js/#example-contacts">
+        <img src="./examples/public/screenshots/example-contacts.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Contacts
+      </a>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
       <a href="https://isaac-mason.github.io/box3d.js/#example-multithreading">
         <img src="./examples/public/screenshots/example-multithreading.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Multithreading
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://isaac-mason.github.io/box3d.js/#example-replay">
         <img src="./examples/public/screenshots/example-replay.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -727,14 +733,19 @@ const visitorShapeDef = b3.b3DefaultShapeDef();
 visitorShapeDef.enableSensorEvents = true;
 b3.b3CreateBoxShape(visitor, visitorShapeDef, 0.5, 0.5, 0.5);
 
-// Read begin/end events each frame after b3World_Step
+// Read begin/end events each frame through a reusable, wasm-backed events buffer
+// (allocate the buffer + scratch once; refilling with getEvents allocates nothing).
+const eventsBuffer = b3.createEventsBuffer();
+const sensorTouch = b3.createSensorTouchEvent();
 b3.b3World_Step(world, 1 / 60, 4);
-const sensorEvents = b3.b3World_GetSensorEvents(world);
-for (const e of sensorEvents.beginEvents) {
-    console.log('entered sensor:', e.visitorShapeId);
+b3.getEvents(eventsBuffer, world);
+for (let i = 0, n = b3.getNumSensorBeginEvents(eventsBuffer); i < n; i++) {
+    b3.getSensorBeginEventAt(sensorTouch, eventsBuffer, i);
+    console.log('entered sensor:', sensorTouch.visitorShapeId);
 }
-for (const e of sensorEvents.endEvents) {
-    console.log('left sensor:', e.visitorShapeId);
+for (let i = 0, n = b3.getNumSensorEndEvents(eventsBuffer); i < n; i++) {
+    b3.getSensorEndEventAt(sensorTouch, eventsBuffer, i);
+    console.log('left sensor:', sensorTouch.visitorShapeId);
 }
 ```
 
@@ -1153,7 +1164,7 @@ customFilter.maskBits = 1n; // only hit shapes in category 0x0001
 
 ## Events
 
-box3d surfaces physics events as arrays read after each `b3World_Step`. Events are opt-in per shape.
+box3d surfaces physics events (contacts, sensors, body moves, joints) each `b3World_Step`. Events are opt-in per shape. Rather than allocating a JS object per event every step — which does not scale — box3d.js reads them through a **reusable, wasm-backed events buffer**: allocate the buffer (and small reader scratch objects) once, refill it each step with `getEvents`, and read it back with zero allocation. Free it with `destroyEventsBuffer` when done.
 
 ### Contact Events
 
@@ -1166,21 +1177,92 @@ const shape = b3.b3CreateBoxShape(body, shapeDef, 0.5, 0.5, 0.5);
 // Or enable on an existing shape at runtime
 b3.b3Shape_EnableContactEvents(shape, true);
 
-// After b3World_Step, read the contact event arrays for the frame
-b3.b3World_Step(world, 1 / 60, 4);
-const contactEvents = b3.b3World_GetContactEvents(world);
+// Read events through a reusable, wasm-backed buffer. Allocate the buffer and any
+// event scratch objects ONCE, then refill each step with getEvents -- reading is
+// a zero-allocation loop over the wasm heap, so it scales to thousands of events.
+const eventsBuffer = b3.createEventsBuffer();
+const touch = b3.createContactTouchEvent();
+const hit = b3.createContactHitEvent();
 
-for (const e of contactEvents.beginEvents) {
-    console.log('contact begin:', e.shapeIdA, e.shapeIdB);
+b3.b3World_Step(world, 1 / 60, 4);
+b3.getEvents(eventsBuffer, world);
+
+for (let i = 0, n = b3.getNumContactBeginEvents(eventsBuffer); i < n; i++) {
+    b3.getContactBeginEventAt(touch, eventsBuffer, i); // fills `touch` in place
+    console.log('contact begin:', touch.shapeIdA, touch.shapeIdB);
 }
-for (const e of contactEvents.endEvents) {
-    console.log('contact end:', e.shapeIdA, e.shapeIdB);
+for (let i = 0, n = b3.getNumContactEndEvents(eventsBuffer); i < n; i++) {
+    b3.getContactEndEventAt(touch, eventsBuffer, i);
+    console.log('contact end:', touch.shapeIdA, touch.shapeIdB);
 }
-for (const e of contactEvents.hitEvents) {
+for (let i = 0, n = b3.getNumContactHitEvents(eventsBuffer); i < n; i++) {
     // Impact event -- shapes struck each other above the hit speed threshold
-    console.log('hit:', e.shapeIdA, e.shapeIdB, 'speed:', e.approachSpeed);
+    b3.getContactHitEventAt(hit, eventsBuffer, i);
+    console.log('hit:', hit.shapeIdA, hit.shapeIdB, 'speed:', hit.approachSpeed);
 }
+
+// The buffer owns wasm memory -- free it when you're done with it.
+// b3.destroyEventsBuffer(eventsBuffer);
 ```
+
+<table>
+  <tr>
+  <td align="center">
+    <a href="https://isaac-mason.github.io/box3d.js/#example-events">
+      <img src="./examples/public/screenshots/example-events.png" width="200" height="133" style="object-fit:cover;"/><br/>
+      <strong>Events</strong>
+    </a>
+  </td>
+  </tr>
+</table>
+
+### Reading Contacts Every Frame
+
+Events fire when contacts begin, end, or hit. To instead inspect **every current contact manifold** each frame — for debug drawing, gameplay logic, or custom response — use a reusable, wasm-backed contacts buffer. This is the recommended fast path: its storage lives in the wasm heap and grows on its own, so refilling it each frame copies nothing across the wasm/JS boundary and allocates no typed arrays. You allocate the buffer (and small reader scratch objects) once, fill it in place each frame, and free it when done.
+
+```ts
+// Events tell you when contacts begin/end/hit. To instead inspect *every current
+// contact manifold* each frame, use a reusable, wasm-backed contacts buffer. Its
+// storage lives in the wasm heap and grows on its own, so refilling it copies
+// nothing to JS and allocates no typed arrays -- the fast path for per-frame use.
+
+// Allocate the buffer and the reader scratch objects ONCE (never in the loop).
+const contactsBuffer = b3.createContactsBuffer();
+const contact = b3.createContact();
+const manifold = b3.createManifold();
+
+// Each frame, after stepping, refill the buffer for a body (or getShapeContactData
+// for a single shape), then read it back with zero allocation:
+b3.b3World_Step(world, 1 / 60, 4);
+b3.getBodyContactData(contactsBuffer, body);
+
+for (let i = 0, n = b3.getNumContacts(contactsBuffer); i < n; i++) {
+    b3.getContactAt(contact, contactsBuffer, i); // fills `contact` in place (out-arg first)
+    for (let m = 0; m < contact.manifoldCount; m++) {
+        b3.getManifoldAt(manifold, contact, m); // fills `manifold` and its points in place
+        for (let p = 0; p < manifold.pointCount; p++) {
+            const point = manifold.points[p];
+            // point.anchorA / anchorB: world-space offsets from each body's centre of mass
+            // point.separation: negative when penetrating   point.normalImpulse: contact force
+            console.log(point.separation, point.normalImpulse);
+        }
+    }
+}
+
+// The buffer owns wasm memory -- free it when you're done with it.
+b3.destroyContactsBuffer(contactsBuffer);
+```
+
+<table>
+  <tr>
+  <td align="center">
+    <a href="https://isaac-mason.github.io/box3d.js/#example-contacts">
+      <img src="./examples/public/screenshots/example-contacts.png" width="200" height="133" style="object-fit:cover;"/><br/>
+      <strong>Contacts</strong>
+    </a>
+  </td>
+  </tr>
+</table>
 
 ### Sensor Events
 
@@ -1203,14 +1285,18 @@ const visitorShapeDef = b3.b3DefaultShapeDef();
 visitorShapeDef.enableSensorEvents = true;
 b3.b3CreateBoxShape(visitorBody, visitorShapeDef, 0.5, 0.5, 0.5);
 
+// Read sensor events from the same reusable events buffer (created above).
+const sensorTouch = b3.createSensorTouchEvent();
 b3.b3World_Step(world, 1 / 60, 4);
-const sensorEvents = b3.b3World_GetSensorEvents(world);
+b3.getEvents(eventsBuffer, world);
 
-for (const e of sensorEvents.beginEvents) {
-    console.log('entered sensor:', e.sensorShapeId, 'visitor:', e.visitorShapeId);
+for (let i = 0, n = b3.getNumSensorBeginEvents(eventsBuffer); i < n; i++) {
+    b3.getSensorBeginEventAt(sensorTouch, eventsBuffer, i);
+    console.log('entered sensor:', sensorTouch.sensorShapeId, 'visitor:', sensorTouch.visitorShapeId);
 }
-for (const e of sensorEvents.endEvents) {
-    console.log('left sensor:', e.sensorShapeId, 'visitor:', e.visitorShapeId);
+for (let i = 0, n = b3.getNumSensorEndEvents(eventsBuffer); i < n; i++) {
+    b3.getSensorEndEventAt(sensorTouch, eventsBuffer, i);
+    console.log('left sensor:', sensorTouch.sensorShapeId, 'visitor:', sensorTouch.visitorShapeId);
 }
 ```
 

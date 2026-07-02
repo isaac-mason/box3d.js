@@ -295,11 +295,21 @@ Sweep a sphere proxy through the world and find the closest hit.
 
 ## Events
 
-box3d surfaces physics events as arrays read after each `b3World_Step`. Events are opt-in per shape.
+box3d surfaces physics events (contacts, sensors, body moves, joints) each `b3World_Step`. Events are opt-in per shape. Rather than allocating a JS object per event every step — which does not scale — box3d.js reads them through a **reusable, wasm-backed events buffer**: allocate the buffer (and small reader scratch objects) once, refill it each step with `getEvents`, and read it back with zero allocation. Free it with `destroyEventsBuffer` when done.
 
 ### Contact Events
 
 <Snippet source="./events.ts" select="contact-events" />
+
+<ExamplesTable ids="example-events" />
+
+### Reading Contacts Every Frame
+
+Events fire when contacts begin, end, or hit. To instead inspect **every current contact manifold** each frame — for debug drawing, gameplay logic, or custom response — use a reusable, wasm-backed contacts buffer. This is the recommended fast path: its storage lives in the wasm heap and grows on its own, so refilling it each frame copies nothing across the wasm/JS boundary and allocates no typed arrays. You allocate the buffer (and small reader scratch objects) once, fill it in place each frame, and free it when done.
+
+<Snippet source="./events.ts" select="contacts-buffer" />
+
+<ExamplesTable ids="example-contacts" />
 
 ### Sensor Events
 

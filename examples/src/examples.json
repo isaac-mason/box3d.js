@@ -335,6 +335,18 @@
       "collision"
     ]
   },
+  "example-contacts": {
+    "title": "Contacts",
+    "description": "read every contact manifold each frame through a reusable, zero-alloc wasm buffer",
+    "tags": [
+      "world",
+      "physics",
+      "contact",
+      "manifold",
+      "performance",
+      "buffer"
+    ]
+  },
   "example-multithreading": {
     "title": "Multithreading",
     "description": "a cube-heap stress test spread across worker threads",

@@ -71,6 +71,10 @@ const amplitude = 6.0;
 const frequency = 1.0;
 let time = 0;
 
+// Reusable events buffer + sensor-touch scratch, allocated once.
+const eventsBuffer = b3.createEventsBuffer();
+const touch = b3.createSensorTouchEvent();
+
 app.onFrame((dt) => {
 	time += dt;
 	const x = Math.sin(time * frequency) * amplitude;
@@ -78,9 +82,16 @@ app.onFrame((dt) => {
 
 	app.step(() => b3.b3World_Step(world, 1 / 60, 4));
 
-	const events = b3.b3World_GetSensorEvents(world);
-	for (const e of events.beginEvents) active.add(shapeKey(e.visitorShapeId));
-	for (const e of events.endEvents) active.delete(shapeKey(e.visitorShapeId));
+	// Read this step's sensor begin/end events through the zero-alloc buffer.
+	b3.getEvents(eventsBuffer, world);
+	for (let i = 0, n = b3.getNumSensorBeginEvents(eventsBuffer); i < n; i++) {
+		b3.getSensorBeginEventAt(touch, eventsBuffer, i);
+		active.add(shapeKey(touch.visitorShapeId));
+	}
+	for (let i = 0, n = b3.getNumSensorEndEvents(eventsBuffer); i < n; i++) {
+		b3.getSensorEndEventAt(touch, eventsBuffer, i);
+		active.delete(shapeKey(touch.visitorShapeId));
+	}
 
 	if (active.size > 0) updateLabel('hit', '#4CAF50');
 	else updateLabel('no hit', '#F44336');

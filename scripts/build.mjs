@@ -89,6 +89,9 @@ const commonFlags = [
 	'-I', 'vendor/box3d/include',
 	'-std=c++17',
 	'-lembind',
+	// Ergonomic JS readers for the packed query buffers, appended into the
+	// MODULARIZE factory so they attach to the same module object as embind.
+	'--post-js', 'src/facade.js',
 	'-msimd128',
 	'-sMODULARIZE=1',
 	'-sEXPORT_ES6=1',
@@ -119,26 +122,143 @@ run( 'em++', [ 'src/bindings.cpp', stLib, ...commonFlags, '--emit-tsd', 'box3d.d
 // Rename them to friendlier box3d names.
 // Also fix the Get*Events return types: the lambdas return val::object() which
 // --emit-tsd can only see as `any`, but the runtime shape is well-defined.
+// Types for the packed query buffers and the src/facade.js reader helpers,
+// intersected into Box3DModule below so `b3.getContactAt(...)` etc. are typed.
+const facadeTypes = `export interface ShapeIdBuffer { count: number; data: Int32Array; }
+export interface ContactBuffer {
+  count: number;
+  contactsI32: Int32Array;
+  manifoldsF32: Float32Array;
+  manifoldsI32: Int32Array;
+  pointsF32: Float32Array;
+  pointsI32: Int32Array;
+  readonly contactsBase?: number;
+  readonly manifoldsF32Base?: number;
+  readonly manifoldsI32Base?: number;
+  readonly pointsF32Base?: number;
+  readonly pointsI32Base?: number;
+}
+/** Reusable, wasm-backed contact buffer. Refilling allocates nothing on the JS
+ * side; free it with destroyContactsBuffer when done. */
+export interface ContactsBuffer extends ContactBuffer {}
+/** Reusable, wasm-backed per-step events buffer. Fill with getEvents after each
+ * b3World_Step, read with the get*EventAt helpers; free with destroyEventsBuffer. */
+export interface EventsBuffer { readonly _brand?: 'EventsBuffer'; }
+export interface ContactTouchEvent { shapeIdA: b3ShapeId; shapeIdB: b3ShapeId; contactId: b3ContactId; }
+export interface ContactHitEvent {
+  shapeIdA: b3ShapeId;
+  shapeIdB: b3ShapeId;
+  contactId: b3ContactId;
+  point: b3Vec3;
+  normal: b3Vec3;
+  approachSpeed: number;
+  userMaterialIdA: bigint;
+  userMaterialIdB: bigint;
+}
+export interface BodyMoveEvent {
+  bodyId: b3BodyId;
+  position: b3Vec3;
+  rotation: { x: number; y: number; z: number; w: number };
+  fellAsleep: boolean;
+}
+export interface SensorTouchEvent { sensorShapeId: b3ShapeId; visitorShapeId: b3ShapeId; }
+export interface JointEvent { jointId: b3JointId; }
+/** Packed plane buffer passed to the b3World_CollideMover callback. */
+export interface PlaneResultBuffer { count: number; data: Float32Array; }
+export interface PlaneResult { plane: { normal: b3Vec3; offset: number }; point: b3Vec3; }
+export interface Contact {
+  shapeIdA: b3ShapeId;
+  shapeIdB: b3ShapeId;
+  contactId: b3ContactId;
+  manifoldCount: number;
+}
+export interface ManifoldPoint {
+  anchorA: b3Vec3;
+  anchorB: b3Vec3;
+  separation: number;
+  baseSeparation: number;
+  normalImpulse: number;
+  totalNormalImpulse: number;
+  normalVelocity: number;
+  featureId: number;
+  triangleIndex: number;
+  persisted: boolean;
+}
+export interface Manifold {
+  normal: b3Vec3;
+  twistImpulse: number;
+  frictionImpulse: b3Vec3;
+  rollingImpulse: b3Vec3;
+  pointCount: number;
+  points: ManifoldPoint[];
+}
+export interface Box3DFacade {
+  getNumShapeIds(buf: ShapeIdBuffer): number;
+  createShapeId(): b3ShapeId;
+  getShapeIdAt(out: b3ShapeId, buf: ShapeIdBuffer, i: number): b3ShapeId;
+  getNumContacts(buf: ContactBuffer): number;
+  createContact(): Contact;
+  getContactAt(out: Contact, buf: ContactBuffer, i: number): Contact;
+  createPoint(): ManifoldPoint;
+  createManifold(): Manifold;
+  getManifoldAt(out: Manifold, contact: Contact, m: number): Manifold;
+  createContactsBuffer(): ContactsBuffer;
+  getShapeContactData(buf: ContactsBuffer, shapeId: b3ShapeId): ContactsBuffer;
+  getBodyContactData(buf: ContactsBuffer, bodyId: b3BodyId): ContactsBuffer;
+  destroyContactsBuffer(buf: ContactsBuffer): void;
+  createEventsBuffer(): EventsBuffer;
+  getEvents(eb: EventsBuffer, worldId: b3WorldId): EventsBuffer;
+  destroyEventsBuffer(eb: EventsBuffer): void;
+  getNumContactBeginEvents(eb: EventsBuffer): number;
+  getNumContactEndEvents(eb: EventsBuffer): number;
+  getNumContactHitEvents(eb: EventsBuffer): number;
+  getNumBodyMoveEvents(eb: EventsBuffer): number;
+  getNumSensorBeginEvents(eb: EventsBuffer): number;
+  getNumSensorEndEvents(eb: EventsBuffer): number;
+  getNumJointEvents(eb: EventsBuffer): number;
+  createContactTouchEvent(): ContactTouchEvent;
+  getContactBeginEventAt(out: ContactTouchEvent, eb: EventsBuffer, i: number): ContactTouchEvent;
+  getContactEndEventAt(out: ContactTouchEvent, eb: EventsBuffer, i: number): ContactTouchEvent;
+  createContactHitEvent(): ContactHitEvent;
+  getContactHitEventAt(out: ContactHitEvent, eb: EventsBuffer, i: number): ContactHitEvent;
+  createBodyMoveEvent(): BodyMoveEvent;
+  getBodyMoveEventAt(out: BodyMoveEvent, eb: EventsBuffer, i: number): BodyMoveEvent;
+  createSensorTouchEvent(): SensorTouchEvent;
+  getSensorBeginEventAt(out: SensorTouchEvent, eb: EventsBuffer, i: number): SensorTouchEvent;
+  getSensorEndEventAt(out: SensorTouchEvent, eb: EventsBuffer, i: number): SensorTouchEvent;
+  createJointEvent(): JointEvent;
+  getJointEventAt(out: JointEvent, eb: EventsBuffer, i: number): JointEvent;
+  getNumPlaneResults(buf: PlaneResultBuffer): number;
+  createPlaneResult(): PlaneResult;
+  getPlaneResultAt(out: PlaneResult, buf: PlaneResultBuffer, i: number): PlaneResult;
+}`;
+
+// Functions bound as lambdas returning emscripten::val show up as `any` in
+// --emit-tsd (tsgen can't see a val's runtime shape), so we rewrite each one to
+// its real signature here. Matched by name + `any` return, which is robust to how
+// tsgen names params across emsdk versions (`_0` in 4.x, `worldId` in 6.x).
+const valReturnSignatures = {
+	// packed query buffer, read via the src/facade.js helpers (--post-js). Contact
+	// and event data no longer have array-returning accessors — they are read
+	// through the reusable ContactsBuffer / EventsBuffer instead (see facadeTypes).
+	b3Shape_GetSensorData: '(shapeId: b3ShapeId): ShapeIdBuffer',
+};
+
 const tsdPath = join( root, 'dist', 'box3d.d.ts' );
-const tsd = readFileSync( tsdPath, 'utf8' )
+let tsd = readFileSync( tsdPath, 'utf8' )
 	.replaceAll( 'MainModuleFactory', 'Box3DFactory' )
 	.replaceAll( 'MainModule', 'Box3DModule' )
 	.replace(
-		'b3World_GetBodyEvents(_0: b3WorldId): any;',
-		'b3World_GetBodyEvents(_0: b3WorldId): { moveEvents: b3BodyMoveEvent[] };',
-	)
-	.replace(
-		'b3World_GetSensorEvents(_0: b3WorldId): any;',
-		'b3World_GetSensorEvents(_0: b3WorldId): { beginEvents: b3SensorBeginTouchEvent[], endEvents: b3SensorEndTouchEvent[] };',
-	)
-	.replace(
-		'b3World_GetContactEvents(_0: b3WorldId): any;',
-		'b3World_GetContactEvents(_0: b3WorldId): { beginEvents: b3ContactBeginTouchEvent[], endEvents: b3ContactEndTouchEvent[], hitEvents: b3ContactHitEvent[] };',
-	)
-	.replace(
-		'b3World_GetJointEvents(_0: b3WorldId): any;',
-		'b3World_GetJointEvents(_0: b3WorldId): { jointEvents: b3JointEvent[] };',
+		'export type Box3DModule = WasmModule & EmbindModule;',
+		`${facadeTypes}\nexport type Box3DModule = WasmModule & EmbindModule & Box3DFacade;`,
 	);
+if ( !tsd.includes( '& Box3DFacade' ) ) throw new Error( 'tsd: Box3DModule alias not found — did --emit-tsd output change?' );
+for ( const [ fn, sig ] of Object.entries( valReturnSignatures ) )
+{
+	const re = new RegExp( `${fn}\\([^)]*\\): any;` );
+	if ( !re.test( tsd ) ) throw new Error( `tsd: no \`any\`-returning ${fn} to retype — binding renamed/removed or return type changed?` );
+	tsd = tsd.replace( re, `${fn}${sig};` );
+}
 writeFileSync( tsdPath, tsd );
 
 // Inlined single-file build (wasm base64-embedded).
