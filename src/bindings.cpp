@@ -589,6 +589,14 @@ EMSCRIPTEN_BINDINGS( box3d )
 	function( "b3CreateHeightFieldShape",
 		+[]( b3BodyId bodyId, b3ShapeDef def, b3HeightFieldData* hf ) { return b3CreateHeightFieldShape( bodyId, &def, hf ); },
 		allow_raw_pointers() );
+	// procedural heightfield generators (return b3HeightFieldData*)
+	function( "b3CreateGrid", +[]( int rowCount, int columnCount, b3Vec3 scale, bool makeHoles )
+		{ return b3CreateGrid( rowCount, columnCount, scale, makeHoles ); }, allow_raw_pointers() );
+	function( "b3CreateWave", +[]( int rowCount, int columnCount, b3Vec3 scale, float rowFrequency, float columnFrequency, bool makeHoles )
+		{ return b3CreateWave( rowCount, columnCount, scale, rowFrequency, columnFrequency, makeHoles ); }, allow_raw_pointers() );
+	// hull shape with a baked local transform + scale
+	function( "b3CreateTransformedHullShape", +[]( b3BodyId bodyId, b3ShapeDef def, b3HullData* hull, b3Transform transform, b3Vec3 scale )
+		{ return b3CreateTransformedHullShape( bodyId, &def, hull, transform, scale ); }, allow_raw_pointers() );
 
 	// --- mover queries: sweep/collide a capsule for character controllers ---
 	value_object<b3PlaneResult>( "b3PlaneResult" )
@@ -935,6 +943,30 @@ EMSCRIPTEN_BINDINGS( box3d )
 				},
 				&cb );
 		} );
+
+	// --- per-body queries: cast/overlap against a single body's shapes ---
+	value_object<b3BodyCastResult>( "b3BodyCastResult" )
+		.field( "shapeId", &b3BodyCastResult::shapeId )
+		.field( "point", &b3BodyCastResult::point )
+		.field( "normal", &b3BodyCastResult::normal )
+		.field( "fraction", &b3BodyCastResult::fraction )
+		.field( "triangleIndex", &b3BodyCastResult::triangleIndex )
+		.field( "iterations", &b3BodyCastResult::iterations )
+		.field( "hit", &b3BodyCastResult::hit );
+	function( "b3Body_CastRay", +[]( b3BodyId bodyId, b3Vec3 origin, b3Vec3 translation, b3QueryFilter filter, float maxFraction, b3Transform bodyTransform ) -> b3BodyCastResult
+	{ return b3Body_CastRay( bodyId, origin, translation, filter, maxFraction, bodyTransform ); } );
+	function( "b3Body_CastShape", +[]( b3BodyId bodyId, b3Vec3 origin, val points, float radius, b3Vec3 translation, b3QueryFilter filter, float maxFraction, bool canEncroach, b3Transform bodyTransform ) -> b3BodyCastResult
+	{
+		std::vector<float> f = convertJSArrayToNumberVector<float>( points );
+		b3ShapeProxy proxy{ reinterpret_cast<const b3Vec3*>( f.data() ), (int)( f.size() / 3 ), radius };
+		return b3Body_CastShape( bodyId, origin, &proxy, translation, filter, maxFraction, canEncroach, bodyTransform );
+	} );
+	function( "b3Body_OverlapShape", +[]( b3BodyId bodyId, b3Vec3 origin, val points, float radius, b3QueryFilter filter, b3Transform bodyTransform ) -> bool
+	{
+		std::vector<float> f = convertJSArrayToNumberVector<float>( points );
+		b3ShapeProxy proxy{ reinterpret_cast<const b3Vec3*>( f.data() ), (int)( f.size() / 3 ), radius };
+		return b3Body_OverlapShape( bodyId, origin, &proxy, filter, bodyTransform );
+	} );
 
 	register_vector<b3ShapeId>( "b3ShapeIdVector" );
 	register_vector<b3JointId>( "b3JointIdVector" );
@@ -1582,6 +1614,30 @@ EMSCRIPTEN_BINDINGS( box3d )
 	function( "b3AABB_Union", &b3AABB_Union );
 	function( "b3MakeQuatFromAxisAngle", &b3MakeQuatFromAxisAngle );
 	function( "b3ComputeQuatBetweenUnitVectors", &b3ComputeQuatBetweenUnitVectors );
+	function( "b3InvMulQuat", &b3InvMulQuat );
+	function( "b3OffsetPos", &b3OffsetPos );
+	function( "b3Perp", &b3Perp );
+	function( "b3IsNormalized", &b3IsNormalized );
+	function( "b3IsValidPlane", &b3IsValidPlane );
+	function( "b3AABB_Area", &b3AABB_Area );
+	function( "b3AABB_Center", &b3AABB_Center );
+	function( "b3AABB_Extents", &b3AABB_Extents );
+	function( "b3ClosestPointToAABB", &b3ClosestPointToAABB );
+	value_object<b3CosSin>( "b3CosSin" ).field( "cosine", &b3CosSin::cosine ).field( "sine", &b3CosSin::sine );
+	function( "b3ComputeCosSin", &b3ComputeCosSin );
+	// out-param helpers → return an object
+	function( "b3GetLengthAndNormalize", +[]( b3Vec3 a ) -> val
+	{
+		float length = 0.0f;
+		b3Vec3 n = b3GetLengthAndNormalize( &length, a );
+		val o = val::object(); o.set( "length", length ); o.set( "normalized", val( n ) ); return o;
+	} );
+	function( "b3GetAxisAngle", +[]( b3Quat q ) -> val
+	{
+		float radians = 0.0f;
+		b3Vec3 axis = b3GetAxisAngle( &radians, q );
+		val o = val::object(); o.set( "radians", radians ); o.set( "axis", val( axis ) ); return o;
+	} );
 
 	// =====================================================================
 	// Section 8c — dynamic tree (the broadphase AABB tree). b3DynamicTree owns

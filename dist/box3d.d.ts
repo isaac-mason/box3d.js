@@ -362,6 +362,16 @@ export type b3ExplosionDef = {
   impulsePerArea: number
 };
 
+export type b3BodyCastResult = {
+  shapeId: b3ShapeId,
+  point: b3Vec3,
+  normal: b3Vec3,
+  fraction: number,
+  triangleIndex: number,
+  iterations: number,
+  hit: boolean
+};
+
 export type b3JointDef = {
   bodyIdA: b3BodyId,
   bodyIdB: b3BodyId,
@@ -529,6 +539,11 @@ export type b3ContactHitEvent = {
   approachSpeed: number,
   userMaterialIdA: bigint,
   userMaterialIdB: bigint
+};
+
+export type b3CosSin = {
+  cosine: number,
+  sine: number
 };
 
 interface EmbindModule {
@@ -701,6 +716,7 @@ interface EmbindModule {
   b3Body_GetAngularVelocity(_0: b3BodyId): b3Vec3;
   b3CreateBoxMesh(_0: b3Vec3, _1: b3Vec3, _2: boolean): b3MeshData | null;
   b3CreateHollowBoxMesh(_0: b3Vec3, _1: b3Vec3): b3MeshData | null;
+  b3CreateGrid(_0: number, _1: number, _2: b3Vec3, _3: boolean): b3HeightFieldData | null;
   b3Body_GetLocalPoint(_0: b3BodyId, _1: b3Vec3): b3Vec3;
   b3Body_GetWorldPoint(_0: b3BodyId, _1: b3Vec3): b3Vec3;
   b3Body_GetLocalVector(_0: b3BodyId, _1: b3Vec3): b3Vec3;
@@ -730,6 +746,12 @@ interface EmbindModule {
   b3Body_GetLocalRotationalInertia(_0: b3BodyId): b3Matrix3;
   b3Body_GetWorldInverseRotationalInertia(_0: b3BodyId): b3Matrix3;
   b3Cross(_0: b3Vec3, _1: b3Vec3): b3Vec3;
+  b3OffsetPos(_0: b3Vec3, _1: b3Vec3): b3Vec3;
+  b3Perp(_0: b3Vec3): b3Vec3;
+  b3IsNormalized(_0: b3Vec3): boolean;
+  b3AABB_Center(_0: b3AABB): b3Vec3;
+  b3AABB_Extents(_0: b3AABB): b3Vec3;
+  b3ClosestPointToAABB(_0: b3Vec3, _1: b3AABB): b3Vec3;
   b3Body_GetTransform(_0: b3BodyId): b3Transform;
   b3CloneAndTransformHull(_0: b3HullData | null, _1: b3Transform, _2: b3Vec3): b3HullData | null;
   b3InvMulTransforms(_0: b3Transform, _1: b3Transform): b3Transform;
@@ -747,6 +769,8 @@ interface EmbindModule {
   b3RotateVector(_0: b3Quat, _1: b3Vec3): b3Vec3;
   b3InvRotateVector(_0: b3Quat, _1: b3Vec3): b3Vec3;
   b3ComputeQuatBetweenUnitVectors(_0: b3Vec3, _1: b3Vec3): b3Quat;
+  b3InvMulQuat(_0: b3Quat, _1: b3Quat): b3Quat;
+  b3IsValidPlane(_0: b3Plane): boolean;
   b3ComputeSphereAABB(_0: b3Sphere, _1: b3Transform): b3AABB;
   b3Shape_GetSphere(_0: b3ShapeId): b3Sphere;
   b3Shape_SetSphere(_0: b3ShapeId, _1: b3Sphere): void;
@@ -767,6 +791,7 @@ interface EmbindModule {
   b3CreateMeshShape(_0: b3BodyId, _1: b3ShapeDef, _2: b3MeshData | null, _3: b3Vec3): b3ShapeId;
   b3CreateCompoundShape(_0: b3BodyId, _1: b3ShapeDef, _2: b3CompoundData | null): b3ShapeId;
   b3CreateHeightFieldShape(_0: b3BodyId, _1: b3ShapeDef, _2: b3HeightFieldData | null): b3ShapeId;
+  b3CreateTransformedHullShape(_0: b3BodyId, _1: b3ShapeDef, _2: b3HullData | null, _3: b3Transform, _4: b3Vec3): b3ShapeId;
   b3World_Step(worldId: b3WorldId, timeStep: number, subStepCount: number): void;
   b3World_SetRestitutionThreshold(_0: b3WorldId, _1: number): void;
   b3World_GetRestitutionThreshold(_0: b3WorldId): number;
@@ -785,9 +810,11 @@ interface EmbindModule {
   b3CreateWaveMesh(_0: number, _1: number, _2: number, _3: number, _4: number, _5: number): b3MeshData | null;
   b3CreateTorusMesh(_0: number, _1: number, _2: number, _3: number): b3MeshData | null;
   b3CreatePlatformMesh(_0: b3Vec3, _1: number, _2: number, _3: number): b3MeshData | null;
+  b3CreateWave(_0: number, _1: number, _2: b3Vec3, _3: number, _4: number, _5: boolean): b3HeightFieldData | null;
   b3World_GetProfile(_0: b3WorldId): b3Profile;
   b3DefaultExplosionDef(): b3ExplosionDef;
   b3World_Explode(_0: b3WorldId, _1: b3ExplosionDef): void;
+  b3Body_CastRay(_0: b3BodyId, _1: b3Vec3, _2: b3Vec3, _3: b3QueryFilter, _4: number, _5: b3Transform): b3BodyCastResult;
   b3Body_SetTargetTransform(_0: b3BodyId, _1: b3Transform, _2: number, _3: boolean): void;
   b3Body_GetMass(_0: b3BodyId): number;
   b3Body_GetInverseMass(_0: b3BodyId): number;
@@ -958,6 +985,8 @@ interface EmbindModule {
   b3Distance(_0: b3Vec3, _1: b3Vec3): number;
   b3DistanceSquared(_0: b3Vec3, _1: b3Vec3): number;
   b3MakeQuatFromAxisAngle(_0: b3Vec3, _1: number): b3Quat;
+  b3AABB_Area(_0: b3AABB): number;
+  b3ComputeCosSin(_0: number): b3CosSin;
   b3DynamicTree_GetAreaRatio(_0: b3DynamicTree | null): number;
   b3Body_SetName(_0: b3BodyId, _1: EmbindString): void;
   b3Body_GetName(_0: b3BodyId): string;
@@ -992,6 +1021,8 @@ interface EmbindModule {
   b3Shape_GetSensorData(_0: b3ShapeId): any;
   b3World_OverlapShape(_0: b3WorldId, _1: b3Vec3, _2: any, _3: number, _4: b3QueryFilter, _5: any): void;
   b3World_CastShape(_0: b3WorldId, _1: b3Vec3, _2: any, _3: number, _4: b3Vec3, _5: b3QueryFilter, _6: any): void;
+  b3Body_CastShape(_0: b3BodyId, _1: b3Vec3, _2: any, _3: number, _4: b3Vec3, _5: b3QueryFilter, _6: number, _7: boolean, _8: b3Transform): b3BodyCastResult;
+  b3Body_OverlapShape(_0: b3BodyId, _1: b3Vec3, _2: any, _3: number, _4: b3QueryFilter, _5: b3Transform): boolean;
   b3Shape_GetHullVertices(_0: b3ShapeId): any;
   b3DistanceJoint_GetSpringForceRange(_0: b3JointId): any;
   b3World_OverlapAABB(_0: b3WorldId, _1: b3AABB, _2: b3QueryFilter, _3: any): void;
@@ -1000,6 +1031,8 @@ interface EmbindModule {
   b3World_GetSensorEvents(_0: b3WorldId): { beginEvents: b3SensorBeginTouchEvent[], endEvents: b3SensorEndTouchEvent[] };
   b3World_GetContactEvents(_0: b3WorldId): { beginEvents: b3ContactBeginTouchEvent[], endEvents: b3ContactEndTouchEvent[], hitEvents: b3ContactHitEvent[] };
   b3World_GetJointEvents(_0: b3WorldId): { jointEvents: b3JointEvent[] };
+  b3GetLengthAndNormalize(_0: b3Vec3): any;
+  b3GetAxisAngle(_0: b3Quat): any;
   b3DynamicTree_Query(_0: b3DynamicTree | null, _1: b3AABB, _2: number, _3: any): b3TreeStats;
   b3DynamicTree_RayCast(_0: b3DynamicTree | null, _1: b3Vec3, _2: b3Vec3, _3: number, _4: number, _5: any): b3TreeStats;
   b3DynamicTree_QueryClosest(_0: b3DynamicTree | null, _1: b3Vec3, _2: number, _3: any): b3TreeStats;
