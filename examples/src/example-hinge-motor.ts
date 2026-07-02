@@ -7,7 +7,6 @@
 
 import Box3D from 'box3d.js/inline';
 import type { Box3DModule } from 'box3d.js';
-import GUI from 'lil-gui';
 import { createWorldRenderer } from './box3d-three';
 import { createHarness } from './harness';
 
@@ -64,12 +63,12 @@ const renderer = createWorldRenderer( b3, world );
 app.scene.add( renderer.object3d );
 
 const settings = { motorSpeed: 1.5 };
-const gui = new GUI();
+const gui = app.gui;
 gui.add( settings, 'motorSpeed', -4, 4, 0.1 ).name( 'motor speed (rad/s)' ).onChange( ( v: number ) => b3.b3RevoluteJoint_SetMotorSpeed( joint, v ) );
 
 app.onFrame( () =>
 {
-	b3.b3World_Step( world, 1 / 60, 4 );
+	app.step( () => b3.b3World_Step( world, 1 / 60, 4 ) );
 	renderer.update();
 } );
 app.start();

@@ -72,30 +72,44 @@ app.onFrame( ( dt ) =>
 	const tq = new THREE.Quaternion().setFromAxisAngle( new THREE.Vector3( 0.3, 1, 0.2 ).normalize(), targetAngle );
 	b3.b3Body_SetTransform( targetBody, { x: 0, y: 0, z: 0 }, { v: { x: tq.x, y: tq.y, z: tq.z }, s: tq.w } );
 	targetMesh.quaternion.copy( tq );
-	b3.b3World_Step( world, 1 / 60, 1 );
 
-	for ( const c of casters )
+	// physics: step the world, then fire every ray — timed together for the
+	// stats MS panel (the casts are the bulk of the per-frame physics work).
+	const hitDists = new Array<number>( casters.length );
+	const hits = new Array<boolean>( casters.length );
+	app.step( () =>
 	{
-		_dq.setFromEuler( _e.set( c.spin.x * dt, c.spin.y * dt, c.spin.z * dt ) );
-		c.quat.multiply( _dq );
-		c.root.quaternion.copy( c.quat );
-		c.root.updateMatrixWorld();
+		b3.b3World_Step( world, 1 / 60, 1 );
+		for ( let i = 0; i < casters.length; i++ )
+		{
+			const c = casters[i];
+			_dq.setFromEuler( _e.set( c.spin.x * dt, c.spin.y * dt, c.spin.z * dt ) );
+			c.quat.multiply( _dq );
+			c.root.quaternion.copy( c.quat );
+			c.root.updateMatrixWorld();
 
-		// origin in world; ray fires toward the centre
-		c.root.children[1].getWorldPosition( _o );
-		const dir = _o.clone().multiplyScalar( -1 ).normalize();
-		const res = b3.b3World_CastRayClosest(
-			world,
-			{ x: _o.x, y: _o.y, z: _o.z },
-			{ x: dir.x * pointDist, y: dir.y * pointDist, z: dir.z * pointDist },
-			filter,
-		);
+			// origin in world; ray fires toward the centre
+			c.root.children[1].getWorldPosition( _o );
+			const dir = _o.clone().multiplyScalar( -1 ).normalize();
+			const res = b3.b3World_CastRayClosest(
+				world,
+				{ x: _o.x, y: _o.y, z: _o.z },
+				{ x: dir.x * pointDist, y: dir.y * pointDist, z: dir.z * pointDist },
+				filter,
+			);
+			hits[i] = res.hit;
+			hitDists[i] = res.hit ? res.fraction * pointDist : pointDist;
+		}
+	} );
 
-		// place hit sphere + ray cylinder in the caster's local frame (ray runs
-		// from local +x=pointDist toward the origin)
-		const hitDist = res.hit ? res.fraction * pointDist : pointDist;
+	// place each hit sphere + ray cylinder in the caster's local frame (ray runs
+	// from local +x=pointDist toward the origin) — positioning stays untimed
+	for ( let i = 0; i < casters.length; i++ )
+	{
+		const c = casters[i];
+		const hitDist = hitDists[i];
 		c.hitMesh.position.set( pointDist - hitDist, 0, 0 );
-		c.hitMesh.visible = res.hit;
+		c.hitMesh.visible = hits[i];
 		c.cyl.position.set( pointDist - hitDist / 2, 0, 0 );
 		c.cyl.scale.set( 1, hitDist, 1 );
 	}

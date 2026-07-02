@@ -119,17 +119,18 @@
       "categories"
     ]
   },
-  "example-constraints": {
-    "title": "Constraints",
-    "description": "chains of boxes hung by weld, ball & distance joints, then flicked",
+  "example-joints": {
+    "title": "Joints",
+    "description": "every joint type: revolute, prismatic, spherical, weld, distance, wheel, motor, parallel, filter",
     "tags": [
       "world",
       "physics",
-      "constraints",
       "joints",
-      "weld",
-      "spherical",
-      "distance"
+      "constraints",
+      "revolute",
+      "prismatic",
+      "wheel",
+      "motor"
     ]
   },
   "example-static-compound": {

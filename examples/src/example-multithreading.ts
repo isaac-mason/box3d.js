@@ -6,7 +6,6 @@
 // the example falls back to a single-threaded build when isolation is absent.
 
 import type { Box3DModule } from 'box3d.js';
-import GUI from 'lil-gui';
 import { createWorldRenderer } from './box3d-three';
 import { createHarness } from './harness';
 
@@ -75,7 +74,7 @@ updateCubeCount();
 const renderer = createWorldRenderer( b3, world );
 app.scene.add( renderer.object3d );
 
-const gui = new GUI();
+const gui = app.gui;
 gui.add( settings, 'numberOfCubes', 0, 2000, 1 ).name( 'number of cubes' ).onChange( updateCubeCount );
 const workerCtrl = gui.add( settings, 'workers', 1, maxWorkers, 1 ).name( 'worker threads' ).onChange( ( n: number ) =>
 {
@@ -111,7 +110,7 @@ renderStatus();
 
 app.onFrame( () =>
 {
-	b3.b3World_Step( world, 1 / 60, 4 );
+	app.step( () => b3.b3World_Step( world, 1 / 60, 4 ) );
 
 	// keep the heap churning: fling a few cubes back up each frame
 	for ( let i = 0; i < 3 && cubes.length > 0; i++ )

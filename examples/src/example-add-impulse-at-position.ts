@@ -4,7 +4,6 @@
 
 import Box3D from 'box3d.js/inline';
 import type { Box3DModule } from 'box3d.js';
-import GUI from 'lil-gui';
 import * as THREE from 'three';
 import { createWorldRenderer } from './box3d-three';
 import { createHarness } from './harness';
@@ -39,7 +38,7 @@ const renderer = createWorldRenderer( b3, world );
 app.scene.add( renderer.object3d );
 
 const settings = { impulseStrength: 10 };
-const gui = new GUI();
+const gui = app.gui;
 gui.add( settings, 'impulseStrength', 1, 30, 1 ).name( 'kick speed (m/s)' );
 
 const raycaster = new THREE.Raycaster();
@@ -74,7 +73,7 @@ app.renderer.domElement.addEventListener( 'pointerdown', ( e ) =>
 
 app.onFrame( () =>
 {
-	b3.b3World_Step( world, 1 / 60, 4 );
+	app.step( () => b3.b3World_Step( world, 1 / 60, 4 ) );
 	renderer.update();
 } );
 app.start();

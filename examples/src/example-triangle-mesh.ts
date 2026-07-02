@@ -81,7 +81,7 @@ for ( let i = 0; i < 50; i++ )
 
 app.onFrame( () =>
 {
-	b3.b3World_Step( world, 1 / 60, 4 );
+	app.step( () => b3.b3World_Step( world, 1 / 60, 4 ) );
 	renderer.update();
 } );
 app.start();

@@ -78,7 +78,7 @@ app.onFrame( ( dt ) =>
 	const x = Math.sin( time * frequency ) * amplitude;
 	b3.b3Body_SetTransform( sensorBody, { x, y: 1, z: 0 }, IDENTITY );
 
-	b3.b3World_Step( world, 1 / 60, 4 );
+	app.step( () => b3.b3World_Step( world, 1 / 60, 4 ) );
 
 	const events = b3.b3World_GetSensorEvents( world );
 	for ( const e of events.beginEvents ) active.add( shapeKey( e.visitorShapeId ) );

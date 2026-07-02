@@ -71,32 +71,46 @@ app.onFrame( ( dt ) =>
 	const tq = new THREE.Quaternion().setFromAxisAngle( new THREE.Vector3( 0.3, 1, 0.2 ).normalize(), targetAngle );
 	b3.b3Body_SetTransform( targetBody, { x: 0, y: 0, z: 0 }, { v: { x: tq.x, y: tq.y, z: tq.z }, s: tq.w } );
 	targetMesh.quaternion.copy( tq );
-	b3.b3World_Step( world, 1 / 60, 1 );
 
-	for ( const c of casters )
+	// physics: step the world, then sweep every shape — timed together for the
+	// stats MS panel (the casts are the bulk of the per-frame physics work).
+	const bestFracs = new Array<number>( casters.length );
+	app.step( () =>
 	{
-		_dq.setFromEuler( _e.set( c.spin.x * dt, c.spin.y * dt, c.spin.z * dt ) );
-		c.quat.multiply( _dq );
-		c.root.quaternion.copy( c.quat );
-		c.root.updateMatrixWorld();
+		b3.b3World_Step( world, 1 / 60, 1 );
+		for ( let i = 0; i < casters.length; i++ )
+		{
+			const c = casters[i];
+			_dq.setFromEuler( _e.set( c.spin.x * dt, c.spin.y * dt, c.spin.z * dt ) );
+			c.quat.multiply( _dq );
+			c.root.quaternion.copy( c.quat );
+			c.root.updateMatrixWorld();
 
-		c.root.children[0].getWorldPosition( _o );
-		const dir = _o.clone().multiplyScalar( -1 ).normalize();
+			c.root.children[0].getWorldPosition( _o );
+			const dir = _o.clone().multiplyScalar( -1 ).normalize();
 
-		let bestFrac = Infinity;
-		b3.b3World_CastShape(
-			world,
-			{ x: _o.x, y: _o.y, z: _o.z },
-			boxProxy, 0,
-			{ x: dir.x * pointDist, y: dir.y * pointDist, z: dir.z * pointDist },
-			filter,
-			( _s: b3ShapeId, _p: b3Vec3, _n: b3Vec3, fraction: number ) =>
-			{
-				if ( fraction < bestFrac ) bestFrac = fraction;
-				return fraction;
-			},
-		);
+			let bestFrac = Infinity;
+			b3.b3World_CastShape(
+				world,
+				{ x: _o.x, y: _o.y, z: _o.z },
+				boxProxy, 0,
+				{ x: dir.x * pointDist, y: dir.y * pointDist, z: dir.z * pointDist },
+				filter,
+				( _s: b3ShapeId, _p: b3Vec3, _n: b3Vec3, fraction: number ) =>
+				{
+					if ( fraction < bestFrac ) bestFrac = fraction;
+					return fraction;
+				},
+			);
+			bestFracs[i] = bestFrac;
+		}
+	} );
 
+	// place each hit sphere in the caster's local frame — positioning stays untimed
+	for ( let i = 0; i < casters.length; i++ )
+	{
+		const c = casters[i];
+		const bestFrac = bestFracs[i];
 		const hit = bestFrac < Infinity;
 		c.hitMesh.visible = hit;
 		if ( hit ) c.hitMesh.position.set( pointDist - bestFrac * pointDist, 0, 0 );

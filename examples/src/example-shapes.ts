@@ -4,7 +4,6 @@
 
 import Box3D from 'box3d.js/inline';
 import type { Box3DModule, b3BodyId, b3ShapeDef } from 'box3d.js';
-import GUI from 'lil-gui';
 import * as THREE from 'three';
 import { createWorldRenderer } from './box3d-three';
 import { createHarness } from './harness';
@@ -91,7 +90,7 @@ updateBodyCount();
 const renderer = createWorldRenderer( b3, world );
 app.scene.add( renderer.object3d );
 
-const gui = new GUI();
+const gui = app.gui;
 gui.add( settings, 'numberOfBodies', 0, 300, 1 ).name( 'number of bodies' ).onChange( updateBodyCount );
 gui.add( settings, 'respawnIntervalMs', 100, 1000, 10 ).name( 'respawn interval (ms)' );
 
@@ -100,7 +99,7 @@ let respawnIndex = 0;
 
 app.onFrame( () =>
 {
-	b3.b3World_Step( world, 1 / 60, 4 );
+	app.step( () => b3.b3World_Step( world, 1 / 60, 4 ) );
 
 	// round-robin respawn: recycle one body up top on the interval
 	const now = performance.now();
