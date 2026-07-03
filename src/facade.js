@@ -432,60 +432,54 @@ function getPlaneResultAt( out, buf, i )
 }
 
 // --- out-param math reads (see docs/BINDING_CONVENTIONS.md §2) --------------
-// Each raw `b3X_GetYInto(out, ...)` writes floats to a static wasm scratch; here we
-// install the public `b3X_GetY(out, ...) -> out` copying scratch -> the caller's
-// mathcat array. Zero allocation; HEAPF32 re-read each call (memory-growth safe).
-// Raw embind fns are looked up lazily so post-js/embind init order never matters.
+// Each raw `b3X_GetYInto(out, ...)` writes floats to a static wasm scratch; the
+// public `b3X_GetY(out, ...) -> out` copies scratch -> the caller's mathcat array.
+//
+// Zero-allocation: the readers are specialized per (type × arity), so there is no
+// `arguments`/slice/spread on the hot path — each installed function is a fixed-arity,
+// branch-free, unrolled copy. One wasm crossing per read; HEAPF32 is re-read each call
+// (memory-growth safe). raw fn + scratch pointer are resolved once, lazily (so
+// post-js/embind init order never matters); the static scratch address is stable.
 
-let _scratchPtr = 0;
-const mathScratch = () => _scratchPtr || ( _scratchPtr = Module.b3_getMathScratch() );
+let SCRATCH = 0; // byte pointer to the static float scratch
+let BASE = 0; //    element base (SCRATCH >> 2)
+function ensureScratch() { if ( !SCRATCH ) { SCRATCH = Module.b3_getMathScratch(); BASE = SCRATCH >>> 2; } }
 
-function installOutRead( publicName, size )
-{
-	const rawName = publicName + 'Into';
-	let raw;
-	Module[ publicName ] = function ( out )
-	{
-		if ( !raw ) raw = Module[ rawName ];
-		raw( mathScratch(), ...Array.prototype.slice.call( arguments, 1 ) );
-		const base = mathScratch() >> 2, h = HEAPF32;
-		for ( let i = 0; i < size; i++ ) out[ i ] = h[ base + i ];
-		return out;
-	};
-}
-
-// transform out is { position: Vec3, quaternion: Quat } — split the 7-float scratch
-function installTransformRead( publicName )
-{
-	const rawName = publicName + 'Into';
-	let raw;
-	Module[ publicName ] = function ( out )
-	{
-		if ( !raw ) raw = Module[ rawName ];
-		raw( mathScratch(), ...Array.prototype.slice.call( arguments, 1 ) );
-		const base = mathScratch() >> 2, h = HEAPF32;
-		const p = out.position, q = out.quaternion;
-		p[ 0 ] = h[ base ]; p[ 1 ] = h[ base + 1 ]; p[ 2 ] = h[ base + 2 ];
-		q[ 0 ] = h[ base + 3 ]; q[ 1 ] = h[ base + 4 ]; q[ 2 ] = h[ base + 5 ]; q[ 3 ] = h[ base + 6 ];
-		return out;
-	};
-}
+// Specialization matrix: MAKERS[type][argc]( rawName ) -> the installed reader.
+// type: v3 (Vec3, 3) · q4 (Quat, 4) · v6 (AABB/Box3, 6) · xf (Transform, 7 split).
+// Extend with m9/m16 for Mat3/Mat4 (same shape) when a mat getter is added.
+const MAKERS = {
+	v3: {
+		1: ( r ) => { let raw; return ( out, a ) => { if ( !raw ) { raw = Module[ r ]; ensureScratch(); } raw( SCRATCH, a ); const h = HEAPF32; out[ 0 ] = h[ BASE ]; out[ 1 ] = h[ BASE + 1 ]; out[ 2 ] = h[ BASE + 2 ]; return out; }; },
+		2: ( r ) => { let raw; return ( out, a, b ) => { if ( !raw ) { raw = Module[ r ]; ensureScratch(); } raw( SCRATCH, a, b ); const h = HEAPF32; out[ 0 ] = h[ BASE ]; out[ 1 ] = h[ BASE + 1 ]; out[ 2 ] = h[ BASE + 2 ]; return out; }; },
+	},
+	q4: {
+		1: ( r ) => { let raw; return ( out, a ) => { if ( !raw ) { raw = Module[ r ]; ensureScratch(); } raw( SCRATCH, a ); const h = HEAPF32; out[ 0 ] = h[ BASE ]; out[ 1 ] = h[ BASE + 1 ]; out[ 2 ] = h[ BASE + 2 ]; out[ 3 ] = h[ BASE + 3 ]; return out; }; },
+	},
+	v6: {
+		1: ( r ) => { let raw; return ( out, a ) => { if ( !raw ) { raw = Module[ r ]; ensureScratch(); } raw( SCRATCH, a ); const h = HEAPF32; out[ 0 ] = h[ BASE ]; out[ 1 ] = h[ BASE + 1 ]; out[ 2 ] = h[ BASE + 2 ]; out[ 3 ] = h[ BASE + 3 ]; out[ 4 ] = h[ BASE + 4 ]; out[ 5 ] = h[ BASE + 5 ]; return out; }; },
+	},
+	// transform out is { position: Vec3, quaternion: Quat } — split the 7-float scratch
+	xf: {
+		1: ( r ) => { let raw; return ( out, a ) => { if ( !raw ) { raw = Module[ r ]; ensureScratch(); } raw( SCRATCH, a ); const h = HEAPF32; const p = out.position, q = out.quaternion; p[ 0 ] = h[ BASE ]; p[ 1 ] = h[ BASE + 1 ]; p[ 2 ] = h[ BASE + 2 ]; q[ 0 ] = h[ BASE + 3 ]; q[ 1 ] = h[ BASE + 4 ]; q[ 2 ] = h[ BASE + 5 ]; q[ 3 ] = h[ BASE + 6 ]; return out; }; },
+	},
+};
 
 function createTransform() { return { position: [ 0, 0, 0 ], quaternion: [ 0, 0, 0, 1 ] }; }
 
-for ( const [ name, size ] of [
-	[ 'b3World_GetGravity', 3 ], [ 'b3World_GetBounds', 6 ],
-	[ 'b3Body_GetPosition', 3 ], [ 'b3Body_GetRotation', 4 ],
-	[ 'b3Body_GetLinearVelocity', 3 ], [ 'b3Body_GetAngularVelocity', 3 ],
-	[ 'b3Body_GetLocalPoint', 3 ], [ 'b3Body_GetWorldPoint', 3 ],
-	[ 'b3Body_GetLocalVector', 3 ], [ 'b3Body_GetWorldVector', 3 ],
-	[ 'b3Body_GetLocalPointVelocity', 3 ], [ 'b3Body_GetWorldPointVelocity', 3 ],
-	[ 'b3Body_GetLocalCenterOfMass', 3 ], [ 'b3Body_GetWorldCenterOfMass', 3 ],
-	[ 'b3Body_ComputeAABB', 6 ], [ 'b3Shape_GetAABB', 6 ], [ 'b3Shape_GetClosestPoint', 3 ],
-	[ 'b3Joint_GetConstraintForce', 3 ], [ 'b3Joint_GetConstraintTorque', 3 ],
-] ) installOutRead( name, size );
-for ( const name of [ 'b3Body_GetTransform', 'b3Joint_GetLocalFrameA', 'b3Joint_GetLocalFrameB' ] )
-	installTransformRead( name );
+// [ publicName, type, argCount ]
+for ( const [ name, type, argc ] of [
+	[ 'b3World_GetGravity', 'v3', 1 ], [ 'b3World_GetBounds', 'v6', 1 ],
+	[ 'b3Body_GetPosition', 'v3', 1 ], [ 'b3Body_GetRotation', 'q4', 1 ],
+	[ 'b3Body_GetLinearVelocity', 'v3', 1 ], [ 'b3Body_GetAngularVelocity', 'v3', 1 ],
+	[ 'b3Body_GetLocalPoint', 'v3', 2 ], [ 'b3Body_GetWorldPoint', 'v3', 2 ],
+	[ 'b3Body_GetLocalVector', 'v3', 2 ], [ 'b3Body_GetWorldVector', 'v3', 2 ],
+	[ 'b3Body_GetLocalPointVelocity', 'v3', 2 ], [ 'b3Body_GetWorldPointVelocity', 'v3', 2 ],
+	[ 'b3Body_GetLocalCenterOfMass', 'v3', 1 ], [ 'b3Body_GetWorldCenterOfMass', 'v3', 1 ],
+	[ 'b3Body_ComputeAABB', 'v6', 1 ], [ 'b3Shape_GetAABB', 'v6', 1 ], [ 'b3Shape_GetClosestPoint', 'v3', 2 ],
+	[ 'b3Joint_GetConstraintForce', 'v3', 1 ], [ 'b3Joint_GetConstraintTorque', 'v3', 1 ],
+	[ 'b3Body_GetTransform', 'xf', 1 ], [ 'b3Joint_GetLocalFrameA', 'xf', 1 ], [ 'b3Joint_GetLocalFrameB', 'xf', 1 ],
+] ) Module[ name ] = MAKERS[ type ][ argc ]( name + 'Into' );
 
 // Attach onto the Emscripten module object (in scope here as `Module`).
 Object.assign( Module, {
