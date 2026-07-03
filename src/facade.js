@@ -441,33 +441,37 @@ function getPlaneResultAt( out, buf, i )
 // (memory-growth safe). raw fn + scratch pointer are resolved once, lazily (so
 // post-js/embind init order never matters); the static scratch address is stable.
 
-let SCRATCH = 0; // byte pointer to the static float scratch
-let BASE = 0; //    element base (SCRATCH >> 2)
-function ensureScratch() { if ( !SCRATCH ) { SCRATCH = Module.b3_getMathScratch(); BASE = SCRATCH >>> 2; } }
+// Resolve the static scratch once — the address is stable — and strip the getter
+// from the public module (it's internal plumbing). --post-js runs after embind has
+// registered, so the raw fns are already on Module here.
+const SCRATCH = Module.b3_getMathScratch(); // byte pointer to the static float scratch
+const BASE = SCRATCH >>> 2; //                 element base
+delete Module.b3_getMathScratch;
 
-// Specialization matrix: MAKERS[type][argc]( rawName ) -> the installed reader.
-// type: v3 (Vec3, 3) · q4 (Quat, 4) · v6 (AABB/Box3, 6) · xf (Transform, 7 split).
-// Extend with m9/m16 for Mat3/Mat4 (same shape) when a mat getter is added.
+// Specialization matrix: MAKERS[type][argc]( rawFn ) -> the installed reader.
+// Each reader is monomorphic + fixed-arity with an unrolled copy — no arguments,
+// slice, spread, or per-call branch. type: v3 (Vec3, 3) · q4 (Quat, 4) · v6 (AABB/
+// Box3, 6) · xf (Transform, 7 split). Add m9/m16 for Mat3/Mat4 (same shape) later.
 const MAKERS = {
 	v3: {
-		1: ( r ) => { let raw; return ( out, a ) => { if ( !raw ) { raw = Module[ r ]; ensureScratch(); } raw( SCRATCH, a ); const h = HEAPF32; out[ 0 ] = h[ BASE ]; out[ 1 ] = h[ BASE + 1 ]; out[ 2 ] = h[ BASE + 2 ]; return out; }; },
-		2: ( r ) => { let raw; return ( out, a, b ) => { if ( !raw ) { raw = Module[ r ]; ensureScratch(); } raw( SCRATCH, a, b ); const h = HEAPF32; out[ 0 ] = h[ BASE ]; out[ 1 ] = h[ BASE + 1 ]; out[ 2 ] = h[ BASE + 2 ]; return out; }; },
+		1: ( raw ) => ( out, a ) => { raw( SCRATCH, a ); const h = HEAPF32; out[ 0 ] = h[ BASE ]; out[ 1 ] = h[ BASE + 1 ]; out[ 2 ] = h[ BASE + 2 ]; return out; },
+		2: ( raw ) => ( out, a, b ) => { raw( SCRATCH, a, b ); const h = HEAPF32; out[ 0 ] = h[ BASE ]; out[ 1 ] = h[ BASE + 1 ]; out[ 2 ] = h[ BASE + 2 ]; return out; },
 	},
 	q4: {
-		1: ( r ) => { let raw; return ( out, a ) => { if ( !raw ) { raw = Module[ r ]; ensureScratch(); } raw( SCRATCH, a ); const h = HEAPF32; out[ 0 ] = h[ BASE ]; out[ 1 ] = h[ BASE + 1 ]; out[ 2 ] = h[ BASE + 2 ]; out[ 3 ] = h[ BASE + 3 ]; return out; }; },
+		1: ( raw ) => ( out, a ) => { raw( SCRATCH, a ); const h = HEAPF32; out[ 0 ] = h[ BASE ]; out[ 1 ] = h[ BASE + 1 ]; out[ 2 ] = h[ BASE + 2 ]; out[ 3 ] = h[ BASE + 3 ]; return out; },
 	},
 	v6: {
-		1: ( r ) => { let raw; return ( out, a ) => { if ( !raw ) { raw = Module[ r ]; ensureScratch(); } raw( SCRATCH, a ); const h = HEAPF32; out[ 0 ] = h[ BASE ]; out[ 1 ] = h[ BASE + 1 ]; out[ 2 ] = h[ BASE + 2 ]; out[ 3 ] = h[ BASE + 3 ]; out[ 4 ] = h[ BASE + 4 ]; out[ 5 ] = h[ BASE + 5 ]; return out; }; },
+		1: ( raw ) => ( out, a ) => { raw( SCRATCH, a ); const h = HEAPF32; out[ 0 ] = h[ BASE ]; out[ 1 ] = h[ BASE + 1 ]; out[ 2 ] = h[ BASE + 2 ]; out[ 3 ] = h[ BASE + 3 ]; out[ 4 ] = h[ BASE + 4 ]; out[ 5 ] = h[ BASE + 5 ]; return out; },
 	},
 	// transform out is { position: Vec3, quaternion: Quat } — split the 7-float scratch
 	xf: {
-		1: ( r ) => { let raw; return ( out, a ) => { if ( !raw ) { raw = Module[ r ]; ensureScratch(); } raw( SCRATCH, a ); const h = HEAPF32; const p = out.position, q = out.quaternion; p[ 0 ] = h[ BASE ]; p[ 1 ] = h[ BASE + 1 ]; p[ 2 ] = h[ BASE + 2 ]; q[ 0 ] = h[ BASE + 3 ]; q[ 1 ] = h[ BASE + 4 ]; q[ 2 ] = h[ BASE + 5 ]; q[ 3 ] = h[ BASE + 6 ]; return out; }; },
+		1: ( raw ) => ( out, a ) => { raw( SCRATCH, a ); const h = HEAPF32; const p = out.position, q = out.quaternion; p[ 0 ] = h[ BASE ]; p[ 1 ] = h[ BASE + 1 ]; p[ 2 ] = h[ BASE + 2 ]; q[ 0 ] = h[ BASE + 3 ]; q[ 1 ] = h[ BASE + 4 ]; q[ 2 ] = h[ BASE + 5 ]; q[ 3 ] = h[ BASE + 6 ]; return out; },
 	},
 };
 
 function createTransform() { return { position: [ 0, 0, 0 ], quaternion: [ 0, 0, 0, 1 ] }; }
 
-// [ publicName, type, argCount ]
+// [ publicName, type, argCount ] — install the public reader, capture + strip the raw `*Into`.
 for ( const [ name, type, argc ] of [
 	[ 'b3World_GetGravity', 'v3', 1 ], [ 'b3World_GetBounds', 'v6', 1 ],
 	[ 'b3Body_GetPosition', 'v3', 1 ], [ 'b3Body_GetRotation', 'q4', 1 ],
@@ -479,7 +483,13 @@ for ( const [ name, type, argc ] of [
 	[ 'b3Body_ComputeAABB', 'v6', 1 ], [ 'b3Shape_GetAABB', 'v6', 1 ], [ 'b3Shape_GetClosestPoint', 'v3', 2 ],
 	[ 'b3Joint_GetConstraintForce', 'v3', 1 ], [ 'b3Joint_GetConstraintTorque', 'v3', 1 ],
 	[ 'b3Body_GetTransform', 'xf', 1 ], [ 'b3Joint_GetLocalFrameA', 'xf', 1 ], [ 'b3Joint_GetLocalFrameB', 'xf', 1 ],
-] ) Module[ name ] = MAKERS[ type ][ argc ]( name + 'Into' );
+] )
+{
+	const rawName = name + 'Into';
+	const raw = Module[ rawName ];
+	delete Module[ rawName ]; // strip the raw writer from the public surface
+	Module[ name ] = MAKERS[ type ][ argc ]( raw );
+}
 
 // Attach onto the Emscripten module object (in scope here as `Module`).
 Object.assign( Module, {

@@ -278,6 +278,10 @@ tsd = tsd.replace( /^(\s*)(b3\w+)Into\(out: number(, [^)]*)?\): void;/gm, ( _, i
 	return `${indent}${name}(out: ${t}${rest || ''}): ${t};`;
 } );
 
+// b3_getMathScratch is internal plumbing (the facade captures it then deletes it
+// from the module) — strip it from the public types.
+tsd = tsd.replace( /^\s*b3_getMathScratch\(\): number;\r?\n/m, '' );
+
 writeFileSync( tsdPath, tsd );
 
 // Inlined single-file build (wasm base64-embedded).
