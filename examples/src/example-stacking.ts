@@ -11,11 +11,11 @@ const b3: Box3DModule = await Box3D();
 const app = createHarness({ camera: [0, 10, 22], target: [0, 4, 0] });
 
 const worldDef = b3.b3DefaultWorldDef();
-worldDef.gravity = { x: 0, y: -10, z: 0 };
+worldDef.gravity = [0, -10, 0];
 const world = b3.b3CreateWorld(worldDef);
 
 const groundDef = b3.b3DefaultBodyDef();
-groundDef.position = { x: 0, y: -0.5, z: 0 };
+groundDef.position = [0, -0.5, 0];
 const groundBody = b3.b3CreateBody(world, groundDef);
 b3.b3CreateBoxShape(groundBody, b3.b3DefaultShapeDef(), 30, 0.5, 30);
 
@@ -29,7 +29,7 @@ let boxes: b3BodyId[] = [];
 function box(x: number, y: number, z: number): void {
 	const def = b3.b3DefaultBodyDef();
 	def.type = b3.b3BodyType.b3_dynamicBody;
-	def.position = { x, y, z };
+	def.position = [x, y, z];
 	const body = b3.b3CreateBody(world, def);
 	const shapeDef = b3.b3DefaultShapeDef();
 	shapeDef.baseMaterial.friction = 0.6;

@@ -124,7 +124,10 @@ run( 'em++', [ 'src/bindings.cpp', stLib, ...commonFlags, '--emit-tsd', 'box3d.d
 // --emit-tsd can only see as `any`, but the runtime shape is well-defined.
 // Types for the packed query buffers and the src/facade.js reader helpers,
 // intersected into Box3DModule below so `b3.getContactAt(...)` etc. are typed.
-const facadeTypes = `export interface ShapeIdBuffer { count: number; data: Int32Array; }
+const facadeTypes = `// The facade readers below emit named {x,y,z} objects (ergonomic field
+// access over the packed buffers), distinct from the core b3Vec3 mathcat arrays.
+export interface Vec3Obj { x: number; y: number; z: number }
+export interface ShapeIdBuffer { count: number; data: Int32Array; }
 export interface ContactBuffer {
   count: number;
   contactsI32: Int32Array;
@@ -149,15 +152,15 @@ export interface ContactHitEvent {
   shapeIdA: b3ShapeId;
   shapeIdB: b3ShapeId;
   contactId: b3ContactId;
-  point: b3Vec3;
-  normal: b3Vec3;
+  point: Vec3Obj;
+  normal: Vec3Obj;
   approachSpeed: number;
   userMaterialIdA: bigint;
   userMaterialIdB: bigint;
 }
 export interface BodyMoveEvent {
   bodyId: b3BodyId;
-  position: b3Vec3;
+  position: Vec3Obj;
   rotation: { x: number; y: number; z: number; w: number };
   fellAsleep: boolean;
 }
@@ -165,7 +168,7 @@ export interface SensorTouchEvent { sensorShapeId: b3ShapeId; visitorShapeId: b3
 export interface JointEvent { jointId: b3JointId; }
 /** Packed plane buffer passed to the b3World_CollideMover callback. */
 export interface PlaneResultBuffer { count: number; data: Float32Array; }
-export interface PlaneResult { plane: { normal: b3Vec3; offset: number }; point: b3Vec3; }
+export interface PlaneResult { plane: { normal: Vec3Obj; offset: number }; point: Vec3Obj; }
 export interface Contact {
   shapeIdA: b3ShapeId;
   shapeIdB: b3ShapeId;
@@ -173,8 +176,8 @@ export interface Contact {
   manifoldCount: number;
 }
 export interface ManifoldPoint {
-  anchorA: b3Vec3;
-  anchorB: b3Vec3;
+  anchorA: Vec3Obj;
+  anchorB: Vec3Obj;
   separation: number;
   baseSeparation: number;
   normalImpulse: number;
@@ -185,14 +188,15 @@ export interface ManifoldPoint {
   persisted: boolean;
 }
 export interface Manifold {
-  normal: b3Vec3;
+  normal: Vec3Obj;
   twistImpulse: number;
-  frictionImpulse: b3Vec3;
-  rollingImpulse: b3Vec3;
+  frictionImpulse: Vec3Obj;
+  rollingImpulse: Vec3Obj;
   pointCount: number;
   points: ManifoldPoint[];
 }
 export interface Box3DFacade {
+  createTransform(): { position: b3Vec3; quaternion: b3Quat };
   getNumShapeIds(buf: ShapeIdBuffer): number;
   createShapeId(): b3ShapeId;
   getShapeIdAt(out: b3ShapeId, buf: ShapeIdBuffer, i: number): b3ShapeId;
@@ -259,6 +263,24 @@ for ( const [ fn, sig ] of Object.entries( valReturnSignatures ) )
 	if ( !re.test( tsd ) ) throw new Error( `tsd: no \`any\`-returning ${fn} to retype — binding renamed/removed or return type changed?` );
 	tsd = tsd.replace( re, `${fn}${sig};` );
 }
+
+// out-param math reads (see docs/BINDING_CONVENTIONS.md §2): rewrite the raw
+// `XInto(out: number, ...): void;` embind method to the public out-param reader
+// `X(out: T, ...): T;`. Default out type is b3Vec3; OUT_TYPE overrides per method.
+const OUT_TYPE = {
+	b3Body_GetRotation: 'b3Quat',
+	b3World_GetBounds: 'b3AABB', b3Body_ComputeAABB: 'b3AABB', b3Shape_GetAABB: 'b3AABB',
+	b3Body_GetTransform: '{ position: b3Vec3, quaternion: b3Quat }',
+	b3Joint_GetLocalFrameA: '{ position: b3Vec3, quaternion: b3Quat }',
+	b3Joint_GetLocalFrameB: '{ position: b3Vec3, quaternion: b3Quat }',
+};
+if ( !/\w+Into\(out: number/.test( tsd ) ) throw new Error( 'tsd: no *Into out-param methods found — binding changed?' );
+tsd = tsd.replace( /^(\s*)(b3\w+)Into\(out: number(, [^)]*)?\): void;/gm, ( _, indent, name, rest ) =>
+{
+	const t = OUT_TYPE[ name ] || 'b3Vec3';
+	return `${indent}${name}(out: ${t}${rest || ''}): ${t};`;
+} );
+
 writeFileSync( tsdPath, tsd );
 
 // Inlined single-file build (wasm base64-embedded).

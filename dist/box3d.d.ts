@@ -204,16 +204,7 @@ export type b3QueryFilter = {
   id: bigint
 };
 
-export type b3Vec3 = {
-  x: number,
-  y: number,
-  z: number
-};
-
-export type b3AABB = {
-  lowerBound: b3Vec3,
-  upperBound: b3Vec3
-};
+export type b3Vec3 = [ number, number, number ];
 
 export type b3PlaneSolverResult = {
   delta: b3Vec3,
@@ -226,14 +217,11 @@ export type b3Matrix3 = {
   cz: b3Vec3
 };
 
-export type b3Quat = {
-  v: b3Vec3,
-  s: number
-};
+export type b3Quat = [ number, number, number, number ];
 
 export type b3Transform = {
-  p: b3Vec3,
-  q: b3Quat
+  position: b3Vec3,
+  quaternion: b3Quat
 };
 
 export type b3BodyMoveEvent = {
@@ -249,6 +237,8 @@ export type b3Sweep = {
   q1: b3Quat,
   q2: b3Quat
 };
+
+export type b3AABB = [ number, number, number, number, number, number ];
 
 export type b3Plane = {
   normal: b3Vec3,
@@ -716,6 +706,22 @@ interface EmbindModule {
   b3DynamicTree_GetHeight(tree: b3DynamicTree | null): number;
   b3DynamicTree_GetProxyCount(tree: b3DynamicTree | null): number;
   b3DynamicTree_GetByteCount(tree: b3DynamicTree | null): number;
+  b3_getMathScratch(): number;
+  b3World_GetGravity(out: b3Vec3, worldId: b3WorldId): b3Vec3;
+  b3World_GetBounds(out: b3AABB, worldId: b3WorldId): b3AABB;
+  b3Body_GetPosition(out: b3Vec3, bodyId: b3BodyId): b3Vec3;
+  b3Body_GetRotation(out: b3Quat, bodyId: b3BodyId): b3Quat;
+  b3Body_GetTransform(out: { position: b3Vec3, quaternion: b3Quat }, bodyId: b3BodyId): { position: b3Vec3, quaternion: b3Quat };
+  b3Body_GetLinearVelocity(out: b3Vec3, bodyId: b3BodyId): b3Vec3;
+  b3Body_GetAngularVelocity(out: b3Vec3, bodyId: b3BodyId): b3Vec3;
+  b3Body_GetLocalCenterOfMass(out: b3Vec3, bodyId: b3BodyId): b3Vec3;
+  b3Body_GetWorldCenterOfMass(out: b3Vec3, bodyId: b3BodyId): b3Vec3;
+  b3Body_ComputeAABB(out: b3AABB, bodyId: b3BodyId): b3AABB;
+  b3Shape_GetAABB(out: b3AABB, shapeId: b3ShapeId): b3AABB;
+  b3Joint_GetLocalFrameA(out: { position: b3Vec3, quaternion: b3Quat }, jointId: b3JointId): { position: b3Vec3, quaternion: b3Quat };
+  b3Joint_GetLocalFrameB(out: { position: b3Vec3, quaternion: b3Quat }, jointId: b3JointId): { position: b3Vec3, quaternion: b3Quat };
+  b3Joint_GetConstraintForce(out: b3Vec3, jointId: b3JointId): b3Vec3;
+  b3Joint_GetConstraintTorque(out: b3Vec3, jointId: b3JointId): b3Vec3;
   b3CreateRecording(byteCapacity: number): number;
   b3DestroyRecording(recording: number): void;
   b3World_StartRecording(worldId: b3WorldId, recording: number): void;
@@ -738,41 +744,25 @@ interface EmbindModule {
   b3Shape_GetFilter(shapeId: b3ShapeId): b3Filter;
   b3Shape_SetFilter(shapeId: b3ShapeId, filter: b3Filter, invokeContacts: boolean): void;
   b3DefaultQueryFilter(): b3QueryFilter;
-  b3World_GetBounds(worldId: b3WorldId): b3AABB;
-  b3Body_ComputeAABB(bodyId: b3BodyId): b3AABB;
-  b3Shape_GetAABB(shapeId: b3ShapeId): b3AABB;
-  b3AABB_Union(a: b3AABB, b: b3AABB): b3AABB;
-  b3DynamicTree_CreateProxy(tree: b3DynamicTree | null, aabb: b3AABB, categoryBits: number, userData: number): number;
-  b3DynamicTree_MoveProxy(tree: b3DynamicTree | null, proxyId: number, aabb: b3AABB): void;
-  b3DynamicTree_EnlargeProxy(tree: b3DynamicTree | null, proxyId: number, aabb: b3AABB): void;
-  b3DynamicTree_GetRootBounds(tree: b3DynamicTree | null): b3AABB;
   b3World_SetGravity(worldId: b3WorldId, gravity: b3Vec3): void;
-  b3World_GetGravity(worldId: b3WorldId): b3Vec3;
-  b3Body_GetPosition(bodyId: b3BodyId): b3Vec3;
-  b3Body_GetLinearVelocity(bodyId: b3BodyId): b3Vec3;
-  b3Body_GetAngularVelocity(bodyId: b3BodyId): b3Vec3;
   b3CreateBoxMesh(center: b3Vec3, extent: b3Vec3, identifyEdges: boolean): b3MeshData | null;
   b3CreateHollowBoxMesh(center: b3Vec3, extent: b3Vec3): b3MeshData | null;
   b3CreateGrid(rowCount: number, columnCount: number, scale: b3Vec3, makeHoles: boolean): b3HeightFieldData | null;
-  b3Body_GetLocalPoint(bodyId: b3BodyId, worldPoint: b3Vec3): b3Vec3;
-  b3Body_GetWorldPoint(bodyId: b3BodyId, localPoint: b3Vec3): b3Vec3;
-  b3Body_GetLocalVector(bodyId: b3BodyId, worldVector: b3Vec3): b3Vec3;
-  b3Body_GetWorldVector(bodyId: b3BodyId, localVector: b3Vec3): b3Vec3;
+  b3Body_GetLocalPoint(out: b3Vec3, bodyId: b3BodyId, worldPoint: b3Vec3): b3Vec3;
+  b3Body_GetWorldPoint(out: b3Vec3, bodyId: b3BodyId, localPoint: b3Vec3): b3Vec3;
+  b3Body_GetLocalVector(out: b3Vec3, bodyId: b3BodyId, worldVector: b3Vec3): b3Vec3;
+  b3Body_GetWorldVector(out: b3Vec3, bodyId: b3BodyId, localVector: b3Vec3): b3Vec3;
   b3Body_SetLinearVelocity(bodyId: b3BodyId, linearVelocity: b3Vec3): void;
   b3Body_SetAngularVelocity(bodyId: b3BodyId, angularVelocity: b3Vec3): void;
-  b3Body_GetLocalPointVelocity(bodyId: b3BodyId, localPoint: b3Vec3): b3Vec3;
-  b3Body_GetWorldPointVelocity(bodyId: b3BodyId, worldPoint: b3Vec3): b3Vec3;
+  b3Body_GetLocalPointVelocity(out: b3Vec3, bodyId: b3BodyId, localPoint: b3Vec3): b3Vec3;
+  b3Body_GetWorldPointVelocity(out: b3Vec3, bodyId: b3BodyId, worldPoint: b3Vec3): b3Vec3;
   b3Body_ApplyForce(bodyId: b3BodyId, force: b3Vec3, point: b3Vec3, wake: boolean): void;
   b3Body_ApplyForceToCenter(bodyId: b3BodyId, force: b3Vec3, wake: boolean): void;
   b3Body_ApplyTorque(bodyId: b3BodyId, torque: b3Vec3, wake: boolean): void;
   b3Body_ApplyLinearImpulse(bodyId: b3BodyId, impulse: b3Vec3, point: b3Vec3, wake: boolean): void;
   b3Body_ApplyLinearImpulseToCenter(bodyId: b3BodyId, impulse: b3Vec3, wake: boolean): void;
   b3Body_ApplyAngularImpulse(bodyId: b3BodyId, impulse: b3Vec3, wake: boolean): void;
-  b3Body_GetLocalCenterOfMass(bodyId: b3BodyId): b3Vec3;
-  b3Body_GetWorldCenterOfMass(bodyId: b3BodyId): b3Vec3;
-  b3Shape_GetClosestPoint(shapeId: b3ShapeId, target: b3Vec3): b3Vec3;
-  b3Joint_GetConstraintForce(jointId: b3JointId): b3Vec3;
-  b3Joint_GetConstraintTorque(jointId: b3JointId): b3Vec3;
+  b3Shape_GetClosestPoint(out: b3Vec3, shapeId: b3ShapeId, target: b3Vec3): b3Vec3;
   b3MotorJoint_SetLinearVelocity(jointId: b3JointId, velocity: b3Vec3): void;
   b3MotorJoint_GetLinearVelocity(jointId: b3JointId): b3Vec3;
   b3MotorJoint_SetAngularVelocity(jointId: b3JointId, velocity: b3Vec3): void;
@@ -786,20 +776,12 @@ interface EmbindModule {
   b3OffsetPos(p: b3Vec3, v: b3Vec3): b3Vec3;
   b3Perp(v: b3Vec3): b3Vec3;
   b3IsNormalized(v: b3Vec3): boolean;
-  b3AABB_Center(aabb: b3AABB): b3Vec3;
-  b3AABB_Extents(aabb: b3AABB): b3Vec3;
-  b3ClosestPointToAABB(aabb: b3Vec3, p: b3AABB): b3Vec3;
-  b3Body_GetTransform(bodyId: b3BodyId): b3Transform;
   b3CloneAndTransformHull(original: b3HullData | null, transform: b3Transform, scale: b3Vec3): b3HullData | null;
   b3InvMulTransforms(a: b3Transform, b: b3Transform): b3Transform;
-  b3ComputeHullAABB(hull: b3HullData | null, transform: b3Transform): b3AABB;
   b3Joint_SetLocalFrameA(jointId: b3JointId, localFrame: b3Transform): void;
-  b3Joint_GetLocalFrameA(jointId: b3JointId): b3Transform;
   b3Joint_SetLocalFrameB(jointId: b3JointId, localFrame: b3Transform): void;
-  b3Joint_GetLocalFrameB(jointId: b3JointId): b3Transform;
   b3TransformPoint(transform: b3Transform, v: b3Vec3): b3Vec3;
   b3MulTransforms(a: b3Transform, b: b3Transform): b3Transform;
-  b3Body_GetRotation(bodyId: b3BodyId): b3Quat;
   b3Body_SetTransform(bodyId: b3BodyId, position: b3Vec3, rotation: b3Quat): void;
   b3SphericalJoint_SetTargetRotation(jointId: b3JointId, targetRotation: b3Quat): void;
   b3SphericalJoint_GetTargetRotation(jointId: b3JointId): b3Quat;
@@ -807,6 +789,15 @@ interface EmbindModule {
   b3InvRotateVector(q: b3Quat, v: b3Vec3): b3Vec3;
   b3ComputeQuatBetweenUnitVectors(v1: b3Vec3, v2: b3Vec3): b3Quat;
   b3InvMulQuat(a: b3Quat, b: b3Quat): b3Quat;
+  b3ComputeHullAABB(hull: b3HullData | null, transform: b3Transform): b3AABB;
+  b3AABB_Union(a: b3AABB, b: b3AABB): b3AABB;
+  b3AABB_Center(aabb: b3AABB): b3Vec3;
+  b3AABB_Extents(aabb: b3AABB): b3Vec3;
+  b3ClosestPointToAABB(aabb: b3Vec3, p: b3AABB): b3Vec3;
+  b3DynamicTree_CreateProxy(tree: b3DynamicTree | null, aabb: b3AABB, categoryBits: number, userData: number): number;
+  b3DynamicTree_MoveProxy(tree: b3DynamicTree | null, proxyId: number, aabb: b3AABB): void;
+  b3DynamicTree_EnlargeProxy(tree: b3DynamicTree | null, proxyId: number, aabb: b3AABB): void;
+  b3DynamicTree_GetRootBounds(tree: b3DynamicTree | null): b3AABB;
   b3IsValidPlane(p: b3Plane): boolean;
   b3ComputeSphereAABB(sphere: b3Sphere, transform: b3Transform): b3AABB;
   b3Shape_GetSphere(shapeId: b3ShapeId): b3Sphere;
@@ -1070,6 +1061,9 @@ interface EmbindModule {
   b3World_Draw(worldId: b3WorldId, handler: any): void;
 }
 
+// The facade readers below emit named {x,y,z} objects (ergonomic field
+// access over the packed buffers), distinct from the core b3Vec3 mathcat arrays.
+export interface Vec3Obj { x: number; y: number; z: number }
 export interface ShapeIdBuffer { count: number; data: Int32Array; }
 export interface ContactBuffer {
   count: number;
@@ -1095,15 +1089,15 @@ export interface ContactHitEvent {
   shapeIdA: b3ShapeId;
   shapeIdB: b3ShapeId;
   contactId: b3ContactId;
-  point: b3Vec3;
-  normal: b3Vec3;
+  point: Vec3Obj;
+  normal: Vec3Obj;
   approachSpeed: number;
   userMaterialIdA: bigint;
   userMaterialIdB: bigint;
 }
 export interface BodyMoveEvent {
   bodyId: b3BodyId;
-  position: b3Vec3;
+  position: Vec3Obj;
   rotation: { x: number; y: number; z: number; w: number };
   fellAsleep: boolean;
 }
@@ -1111,7 +1105,7 @@ export interface SensorTouchEvent { sensorShapeId: b3ShapeId; visitorShapeId: b3
 export interface JointEvent { jointId: b3JointId; }
 /** Packed plane buffer passed to the b3World_CollideMover callback. */
 export interface PlaneResultBuffer { count: number; data: Float32Array; }
-export interface PlaneResult { plane: { normal: b3Vec3; offset: number }; point: b3Vec3; }
+export interface PlaneResult { plane: { normal: Vec3Obj; offset: number }; point: Vec3Obj; }
 export interface Contact {
   shapeIdA: b3ShapeId;
   shapeIdB: b3ShapeId;
@@ -1119,8 +1113,8 @@ export interface Contact {
   manifoldCount: number;
 }
 export interface ManifoldPoint {
-  anchorA: b3Vec3;
-  anchorB: b3Vec3;
+  anchorA: Vec3Obj;
+  anchorB: Vec3Obj;
   separation: number;
   baseSeparation: number;
   normalImpulse: number;
@@ -1131,14 +1125,15 @@ export interface ManifoldPoint {
   persisted: boolean;
 }
 export interface Manifold {
-  normal: b3Vec3;
+  normal: Vec3Obj;
   twistImpulse: number;
-  frictionImpulse: b3Vec3;
-  rollingImpulse: b3Vec3;
+  frictionImpulse: Vec3Obj;
+  rollingImpulse: Vec3Obj;
   pointCount: number;
   points: ManifoldPoint[];
 }
 export interface Box3DFacade {
+  createTransform(): { position: b3Vec3; quaternion: b3Quat };
   getNumShapeIds(buf: ShapeIdBuffer): number;
   createShapeId(): b3ShapeId;
   getShapeIdAt(out: b3ShapeId, buf: ShapeIdBuffer, i: number): b3ShapeId;

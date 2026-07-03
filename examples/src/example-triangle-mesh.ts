@@ -12,7 +12,7 @@ const b3: Box3DModule = await Box3D();
 const app = createHarness({ camera: [0, 22, 32], target: [0, 0, 0] });
 
 const worldDef = b3.b3DefaultWorldDef();
-worldDef.gravity = { x: 0, y: -10, z: 0 };
+worldDef.gravity = [0, -10, 0];
 const world = b3.b3CreateWorld(worldDef);
 
 // --- procedural wavy terrain grid ---
@@ -55,11 +55,7 @@ for (let z = 0; z < N; z++) {
 
 const meshData = b3.b3CreateMesh(positions, indices);
 const terrainBody = b3.b3CreateBody(world, b3.b3DefaultBodyDef()); // static
-b3.b3CreateMeshShape(terrainBody, b3.b3DefaultShapeDef(), meshData, {
-	x: 1,
-	y: 1,
-	z: 1,
-});
+b3.b3CreateMeshShape(terrainBody, b3.b3DefaultShapeDef(), meshData, [1, 1, 1]);
 
 // draw the terrain (renderer can't introspect a mesh shape, so draw it here)
 const terrainGeom = new THREE.BufferGeometry();
@@ -85,12 +81,12 @@ const rand = (a: number, b: number) => a + Math.random() * (b - a);
 for (let i = 0; i < 50; i++) {
 	const def = b3.b3DefaultBodyDef();
 	def.type = b3.b3BodyType.b3_dynamicBody;
-	def.position = { x: rand(-18, 18), y: 14 + i * 0.3, z: rand(-18, 18) };
+	def.position = [rand(-18, 18), 14 + i * 0.3, rand(-18, 18)];
 	const body = b3.b3CreateBody(world, def);
 	const shapeDef = b3.b3DefaultShapeDef();
 	shapeDef.baseMaterial.restitution = 0.3;
 	b3.b3CreateSphereShape(body, shapeDef, {
-		center: { x: 0, y: 0, z: 0 },
+		center: [0, 0, 0],
 		radius: rand(0.5, 0.9),
 	});
 }

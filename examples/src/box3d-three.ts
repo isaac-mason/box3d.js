@@ -7,14 +7,16 @@
 // One mesh per shape (cached by shape id). Simple and robust; a THREE.BatchedMesh
 // variant is a drop-in optimization if a scene ever needs one draw call.
 
-import type { Box3DModule, b3BodyId, b3ShapeId, b3WorldId } from 'box3d.js';
+import type { Box3DModule, b3AABB, b3BodyId, b3ShapeId, b3WorldId } from 'box3d.js';
 import * as THREE from 'three';
 import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 
-const HUGE_BOUNDS = {
-	lowerBound: { x: -1e9, y: -1e9, z: -1e9 },
-	upperBound: { x: 1e9, y: 1e9, z: 1e9 },
-};
+// b3AABB is a flat mathcat Box3: [minX, minY, minZ, maxX, maxY, maxZ]
+const HUGE_BOUNDS: b3AABB = [-1e9, -1e9, -1e9, 1e9, 1e9, 1e9];
+
+// reused scratch for zero-alloc per-shape transform reads
+const _p: [number, number, number] = [0, 0, 0];
+const _q: [number, number, number, number] = [0, 0, 0, 1];
 const PALETTE = [
 	0xff6b6b, 0xffd93d, 0x6bcb77, 0x4d96ff, 0xc78bff, 0xff9f45, 0x22d3ee,
 ];
@@ -67,17 +69,14 @@ export function createWorldRenderer(
 		if (type === b3.b3ShapeType.b3_sphereShape.value) {
 			const s = b3.b3Shape_GetSphere(shapeId);
 			const g = new THREE.SphereGeometry(s.radius, 20, 14);
-			g.translate(s.center.x, s.center.y, s.center.z);
+			g.translate(s.center[0], s.center[1], s.center[2]);
 			return g;
 		}
 
 		if (type === b3.b3ShapeType.b3_capsuleShape.value) {
 			const c = b3.b3Shape_GetCapsule(shapeId);
-			const axis = new THREE.Vector3(
-				c.center2.x - c.center1.x,
-				c.center2.y - c.center1.y,
-				c.center2.z - c.center1.z,
-			);
+			const [c1, c2] = [c.center1, c.center2];
+			const axis = new THREE.Vector3(c2[0] - c1[0], c2[1] - c1[1], c2[2] - c1[2]);
 			const g = new THREE.CapsuleGeometry(c.radius, axis.length(), 8, 16);
 			g.applyQuaternion(
 				new THREE.Quaternion().setFromUnitVectors(
@@ -85,11 +84,7 @@ export function createWorldRenderer(
 					axis.clone().normalize(),
 				),
 			);
-			g.translate(
-				(c.center1.x + c.center2.x) / 2,
-				(c.center1.y + c.center2.y) / 2,
-				(c.center1.z + c.center2.z) / 2,
-			);
+			g.translate((c1[0] + c2[0]) / 2, (c1[1] + c2[1]) / 2, (c1[2] + c2[2]) / 2);
 			return g;
 		}
 
@@ -135,10 +130,11 @@ export function createWorldRenderer(
 				group.add(mesh);
 			}
 
-			const p = b3.b3Body_GetPosition(body);
-			const q = b3.b3Body_GetRotation(body);
-			mesh.position.set(p.x, p.y, p.z);
-			mesh.quaternion.set(q.v.x, q.v.y, q.v.z, q.s);
+			// zero-alloc out-param reads into reused scratch (see BINDING_CONVENTIONS §2)
+			b3.b3Body_GetPosition(_p, body);
+			b3.b3Body_GetRotation(_q, body);
+			mesh.position.set(_p[0], _p[1], _p[2]);
+			mesh.quaternion.set(_q[0], _q[1], _q[2], _q[3]);
 			mesh.visible = true;
 			return true; // continue enumeration
 		});

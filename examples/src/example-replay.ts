@@ -19,11 +19,11 @@ const app = createHarness({ camera: [0, 8, 18], target: [0, 4, 0] });
 const RECORD_FRAMES = 360;
 
 const worldDef = b3.b3DefaultWorldDef();
-worldDef.gravity = { x: 0, y: -10, z: 0 };
+worldDef.gravity = [0, -10, 0];
 const recWorld = b3.b3CreateWorld(worldDef);
 
 const groundDef = b3.b3DefaultBodyDef();
-groundDef.position = { x: 0, y: -0.5, z: 0 };
+groundDef.position = [0, -0.5, 0];
 const ground = b3.b3CreateBody(recWorld, groundDef);
 b3.b3CreateBoxShape(ground, b3.b3DefaultShapeDef(), 12, 0.5, 12);
 
@@ -31,11 +31,11 @@ b3.b3CreateBoxShape(ground, b3.b3DefaultShapeDef(), 12, 0.5, 12);
 for (let i = 0; i < 14; i++) {
 	const def = b3.b3DefaultBodyDef();
 	def.type = b3.b3BodyType.b3_dynamicBody;
-	def.position = { x: 0, y: 0.5 + i, z: 0 };
+	def.position = [0, 0.5 + i, 0];
 	const body = b3.b3CreateBody(recWorld, def);
 	b3.b3CreateBoxShape(body, b3.b3DefaultShapeDef(), 0.5, 0.5, 0.5);
 	// give the top few a shove so the tower topples
-	if (i >= 11) b3.b3Body_SetLinearVelocity(body, { x: 6, y: 0, z: 0 });
+	if (i >= 11) b3.b3Body_SetLinearVelocity(body, [6, 0, 0]);
 }
 
 const recording = b3.b3CreateRecording(8 * 1024 * 1024);

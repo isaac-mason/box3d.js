@@ -5,14 +5,14 @@
 // Ported from box3d's sample_manifold.
 
 import Box3D from 'box3d.js/inline';
-import type { Box3DModule, b3Transform, b3HullData } from 'box3d.js';
+import type { Box3DModule, b3Transform, b3HullData, b3Vec3 } from 'box3d.js';
 import * as THREE from 'three';
 import { createHarness } from './harness';
 
 const b3: Box3DModule = await Box3D();
 const app = createHarness({ camera: [0, 3, 8], target: [0, 0, 0] });
 
-const IDENTITY: b3Transform = { p: { x: 0, y: 0, z: 0 }, q: { v: { x: 0, y: 0, z: 0 }, s: 1 } };
+const IDENTITY: b3Transform = { position: [0, 0, 0], quaternion: [0, 0, 0, 1] };
 
 // box3d hull for a box of the given half-extents
 function boxHull(hx: number, hy: number, hz: number): b3HullData {
@@ -21,8 +21,8 @@ function boxHull(hx: number, hy: number, hz: number): b3HullData {
 	return b3.b3CreateHull(v)!;
 }
 
-const SPHERE = { center: { x: 0, y: 0, z: 0 }, radius: 1 };
-const CAPSULE = { center1: { x: 0, y: -0.9, z: 0 }, center2: { x: 0, y: 0.9, z: 0 }, radius: 0.6 };
+const SPHERE = { center: [0, 0, 0] as b3Vec3, radius: 1 };
+const CAPSULE = { center1: [0, -0.9, 0] as b3Vec3, center2: [0, 0.9, 0] as b3Vec3, radius: 0.6 };
 const HULL = boxHull(1, 1, 1);
 
 // three.js geometry mirroring each collidable
@@ -34,7 +34,7 @@ type Kind = 'sphere' | 'capsule' | 'hull';
 const geomFor: Record<Kind, () => THREE.BufferGeometry> = { sphere: sphereGeom, capsule: capsuleGeom, hull: boxGeom };
 
 // dispatch b3Collide* for a shape pair (A, B) given B relative to A
-function collide(a: Kind, b: Kind, xfBtoA: b3Transform): { normal: { x: number; y: number; z: number }; points: { point: { x: number; y: number; z: number }; separation: number }[] } {
+function collide(a: Kind, b: Kind, xfBtoA: b3Transform): { normal: b3Vec3; points: { point: b3Vec3; separation: number }[] } {
 	if (a === 'sphere' && b === 'sphere') return b3.b3CollideSpheres(SPHERE, SPHERE, xfBtoA);
 	if (a === 'capsule' && b === 'sphere') return b3.b3CollideCapsuleAndSphere(CAPSULE, SPHERE, xfBtoA);
 	if (a === 'capsule' && b === 'capsule') return b3.b3CollideCapsules(CAPSULE, CAPSULE, xfBtoA);
@@ -92,14 +92,14 @@ app.onFrame((dt: number) => {
 	// shape A fixed at the origin (identity); shape B orbits, dipping in and out
 	const dist = 1.6 + 0.5 * Math.sin(t * 0.8);
 	const xfB: b3Transform = {
-		p: { x: Math.cos(t * 0.5) * dist, y: Math.sin(t * 0.9) * 0.6, z: Math.sin(t * 0.5) * dist },
-		q: b3.b3MakeQuatFromAxisAngle({ x: 0.3, y: 1, z: 0.2 }, t * 0.7),
+		position: [Math.cos(t * 0.5) * dist, Math.sin(t * 0.9) * 0.6, Math.sin(t * 0.5) * dist],
+		quaternion: b3.b3MakeQuatFromAxisAngle([0.3, 1, 0.2], t * 0.7),
 	};
 
 	meshA.position.set(0, 0, 0);
 	meshA.quaternion.set(0, 0, 0, 1);
-	meshB.position.set(xfB.p.x, xfB.p.y, xfB.p.z);
-	meshB.quaternion.set(xfB.q.v.x, xfB.q.v.y, xfB.q.v.z, xfB.q.s);
+	meshB.position.set(xfB.position[0], xfB.position[1], xfB.position[2]);
+	meshB.quaternion.set(xfB.quaternion[0], xfB.quaternion[1], xfB.quaternion[2], xfB.quaternion[3]);
 
 	// A is identity, so transformBtoA == xfB and manifold points are world-space
 	const [ka, kb] = pairs[params.pair];
@@ -109,10 +109,10 @@ app.onFrame((dt: number) => {
 		const p = m.points[i];
 		if (p) {
 			dots[i].visible = true;
-			dots[i].position.set(p.point.x, p.point.y, p.point.z);
+			dots[i].position.set(p.point[0], p.point[1], p.point[2]);
 			arrows[i].visible = true;
-			arrows[i].position.set(p.point.x, p.point.y, p.point.z);
-			arrows[i].setDirection(new THREE.Vector3(m.normal.x, m.normal.y, m.normal.z).normalize());
+			arrows[i].position.set(p.point[0], p.point[1], p.point[2]);
+			arrows[i].setDirection(new THREE.Vector3(m.normal[0], m.normal[1], m.normal[2]).normalize());
 		} else {
 			dots[i].visible = false;
 			arrows[i].visible = false;

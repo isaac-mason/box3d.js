@@ -28,7 +28,7 @@ const b3: Box3DModule = await Box3D();
 const app = createHarness({ camera: [0, 10, 20], target: [0, 10, 0] });
 
 const worldDef = b3.b3DefaultWorldDef();
-worldDef.gravity = { x: 0, y: -25, z: 0 };
+worldDef.gravity = [0, -25, 0];
 const world = b3.b3CreateWorld(worldDef);
 
 // ---------------------------------------------------------------------------
@@ -45,7 +45,7 @@ function staticBox(
 	q?: b3Quat,
 ): b3BodyId {
 	const def = b3.b3DefaultBodyDef();
-	def.position = { x, y, z };
+	def.position = [x, y, z];
 	if (q) def.rotation = q;
 	const body = b3.b3CreateBody(world, def);
 	b3.b3CreateBoxShape(body, b3.b3DefaultShapeDef(), hx, hy, hz);
@@ -54,10 +54,10 @@ function staticBox(
 
 function staticSphere(x: number, y: number, z: number, r: number): void {
 	const def = b3.b3DefaultBodyDef();
-	def.position = { x, y, z };
+	def.position = [x, y, z];
 	const body = b3.b3CreateBody(world, def);
 	b3.b3CreateSphereShape(body, b3.b3DefaultShapeDef(), {
-		center: { x: 0, y: 0, z: 0 },
+		center: [0, 0, 0],
 		radius: r,
 	});
 }
@@ -71,16 +71,12 @@ function dynamic(
 ): void {
 	const def = b3.b3DefaultBodyDef();
 	def.type = b3.b3BodyType.b3_dynamicBody;
-	def.position = { x, y, z };
+	def.position = [x, y, z];
 	const body = b3.b3CreateBody(world, def);
 	const sd = b3.b3DefaultShapeDef();
 	sd.density = 40;
 	if (kind === 'box') b3.b3CreateBoxShape(body, sd, r, r, r);
-	else
-		b3.b3CreateSphereShape(body, sd, {
-			center: { x: 0, y: 0, z: 0 },
-			radius: r,
-		});
+	else b3.b3CreateSphereShape(body, sd, { center: [0, 0, 0], radius: r });
 }
 
 function kinematic(
@@ -93,7 +89,7 @@ function kinematic(
 ): b3BodyId {
 	const def = b3.b3DefaultBodyDef();
 	def.type = b3.b3BodyType.b3_kinematicBody;
-	def.position = { x, y, z };
+	def.position = [x, y, z];
 	const body = b3.b3CreateBody(world, def);
 	b3.b3CreateBoxShape(body, b3.b3DefaultShapeDef(), hx, hy, hz);
 	return body;
@@ -127,7 +123,7 @@ for (let j = 0; j < 5; j++) {
 // slopes — 10 angled boxes from 70° down to 25°
 for (let i = 0; i < 10; i++) {
 	const angle = ((70 - i * 5) * Math.PI) / 180;
-	const q = b3.b3MakeQuatFromAxisAngle({ x: 1, y: 0, z: 0 }, angle);
+	const q = b3.b3MakeQuatFromAxisAngle([1, 0, 0], angle);
 	staticBox(-40 + 5 * i, 2, -25, 2.5, 0.6, 8, q);
 }
 
@@ -137,7 +133,7 @@ dynamic('sphere', -8, 2, 10, 0.75);
 
 // spinning kinematic platform
 const spinning = kinematic(0, 2, 15, 4, 0.2, 4);
-b3.b3Body_SetAngularVelocity(spinning, { x: 0, y: 0.6, z: 0 });
+b3.b3Body_SetAngularVelocity(spinning, [0, 0.6, 0]);
 
 // sliding + diagonal kinematic platforms (animated in the loop)
 const sliding = kinematic(20, 2, -5, 3, 0.2, 3);
@@ -151,7 +147,7 @@ const diagonalCenter = { x: 20, y: 3, z: 5 };
 	const grid = 16,
 		cell = 2,
 		hScale = 2;
-	const meshPos = { x: -30, y: 2, z: 30 };
+	const meshPos: b3Vec3 = [-30, 2, 30];
 	const heightAt = (x: number, z: number) =>
 		Math.sin(x * 0.3) * Math.cos(z * 0.3) * hScale * 0.5 +
 		Math.sin(x * 0.7 + 1) * Math.sin(z * 0.7) * hScale * 0.3 +
@@ -193,11 +189,7 @@ const diagonalCenter = { x: 20, y: 3, z: 5 };
 			return d;
 		})(),
 	);
-	b3.b3CreateMeshShape(body, b3.b3DefaultShapeDef(), meshData, {
-		x: 1,
-		y: 1,
-		z: 1,
-	});
+	b3.b3CreateMeshShape(body, b3.b3DefaultShapeDef(), meshData, [1, 1, 1]);
 
 	const geom = new THREE.BufferGeometry();
 	geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -207,7 +199,7 @@ const diagonalCenter = { x: 20, y: 3, z: 5 };
 		geom,
 		new THREE.MeshStandardMaterial({ color: 0x3d6b4f, roughness: 0.95 }),
 	);
-	mesh.position.set(meshPos.x, meshPos.y, meshPos.z);
+	mesh.position.set(meshPos[0], meshPos[1], meshPos[2]);
 	mesh.receiveShadow = true;
 	app.scene.add(mesh);
 }
@@ -252,8 +244,8 @@ for (const [x, z, r] of bumps) staticSphere(x, r * -0.5, z, r);
 
 // spring-suspended platform — a dynamic slab hung from 4 spring distance joints
 {
-	const center = { x: -10, y: 5, z: 35 };
-	const half = { x: 3, y: 0.3, z: 3 };
+	const center: b3Vec3 = [-10, 5, 35];
+	const half: b3Vec3 = [3, 0.3, 3];
 	const anchorHeight = 12;
 	const platDef = b3.b3DefaultBodyDef();
 	platDef.type = b3.b3BodyType.b3_dynamicBody;
@@ -261,33 +253,23 @@ for (const [x, z, r] of bumps) staticSphere(x, r * -0.5, z, r);
 	platDef.linearDamping = 0.5;
 	platDef.angularDamping = 0.5;
 	const plat = b3.b3CreateBody(world, platDef);
-	b3.b3CreateBoxShape(plat, b3.b3DefaultShapeDef(), half.x, half.y, half.z);
+	b3.b3CreateBoxShape(plat, b3.b3DefaultShapeDef(), half[0], half[1], half[2]);
 
 	for (const [sx, sz] of [
-		[-half.x, -half.z],
-		[half.x, -half.z],
-		[-half.x, half.z],
-		[half.x, half.z],
+		[-half[0], -half[2]],
+		[half[0], -half[2]],
+		[-half[0], half[2]],
+		[half[0], half[2]],
 	]) {
 		const anchorDef = b3.b3DefaultBodyDef();
-		anchorDef.position = {
-			x: center.x + sx,
-			y: anchorHeight,
-			z: center.z + sz,
-		};
+		anchorDef.position = [center[0] + sx, anchorHeight, center[2] + sz];
 		const anchor = b3.b3CreateBody(world, anchorDef);
 		const jd = b3.b3DefaultDistanceJointDef();
 		jd.base.bodyIdA = anchor;
 		jd.base.bodyIdB = plat;
-		jd.base.localFrameA = {
-			p: { x: 0, y: 0, z: 0 },
-			q: { v: { x: 0, y: 0, z: 0 }, s: 1 },
-		};
-		jd.base.localFrameB = {
-			p: { x: sx, y: half.y, z: sz },
-			q: { v: { x: 0, y: 0, z: 0 }, s: 1 },
-		};
-		jd.length = anchorHeight - center.y;
+		jd.base.localFrameA = { position: [0, 0, 0], quaternion: [0, 0, 0, 1] };
+		jd.base.localFrameB = { position: [sx, half[1], sz], quaternion: [0, 0, 0, 1] };
+		jd.length = anchorHeight - center[1];
 		jd.enableSpring = true;
 		jd.hertz = 1.5;
 		jd.dampingRatio = 0.3;
@@ -303,8 +285,8 @@ app.scene.add(renderer.object3d);
 // ---------------------------------------------------------------------------
 
 const RADIUS = 0.5;
-const CAP1 = { x: 0, y: -1, z: 0 };
-const CAP2 = { x: 0, y: 1, z: 0 };
+const CAP1: b3Vec3 = [0, -1, 0];
+const CAP2: b3Vec3 = [0, 1, 0];
 const capsule = { center1: CAP1, center2: CAP2, radius: RADIUS };
 
 const MIN_SPEED = 0.01;
@@ -322,8 +304,8 @@ app.gui.add(move, 'maxSpeed', 2, 20, 1).name('move speed');
 // capsule near the ground so it reads as walking rather than hovering.
 const POGO_REST = RADIUS;
 
-let position = { x: 0, y: 8, z: 0 };
-let velocity = { x: 0, y: 0, z: 0 };
+let position: b3Vec3 = [0, 8, 0];
+let velocity: b3Vec3 = [0, 0, 0];
 let pogoVelocity = 0;
 let onGround = false;
 
@@ -342,12 +324,7 @@ app.scene.add(charMesh);
 // These are read from the packed plane buffer via getPlaneResultAt (see solveMove).
 // ---------------------------------------------------------------------------
 const MAX_PLANES = 64;
-// depthTest off + high renderOrder draws the plane markers on top of the scene
-// geometry, so they're never hidden inside the surfaces they sit on.
-const planeMat = new THREE.MeshBasicMaterial({
-	color: 0xffcc33,
-	depthTest: false,
-});
+const planeMat = new THREE.MeshBasicMaterial({ color: 0xffcc33, depthTest: false });
 const planePointsMesh = new THREE.InstancedMesh(
 	new THREE.SphereGeometry(0.07, 8, 6),
 	planeMat,
@@ -360,8 +337,6 @@ const planeNormalsMesh = new THREE.InstancedMesh(
 );
 planePointsMesh.count = 0;
 planeNormalsMesh.count = 0;
-// instances are positioned via per-instance matrices, so the auto-computed bounds
-// (empty at creation) would wrongly cull the whole mesh — disable frustum culling.
 planePointsMesh.frustumCulled = false;
 planeNormalsMesh.frustumCulled = false;
 planePointsMesh.renderOrder = 999;
@@ -413,8 +388,8 @@ const keys = new Set<string>();
 window.addEventListener('keydown', (e) => keys.add(e.key.toLowerCase()));
 window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
 
-const len = (v: b3Vec3) => Math.hypot(v.x, v.y, v.z);
-const dot = (a: b3Vec3, b: b3Vec3) => a.x * b.x + a.y * b.y + a.z * b.z;
+const len = (v: b3Vec3) => Math.hypot(v[0], v[1], v[2]);
+const dot = (a: b3Vec3, b: b3Vec3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 
 function solveMove(
 	dt: number,
@@ -425,61 +400,56 @@ function solveMove(
 ): void {
 	const speed = len(velocity);
 	if (speed < MIN_SPEED) {
-		velocity.x = 0;
-		velocity.z = 0;
+		velocity[0] = 0;
+		velocity[2] = 0;
 	} else {
 		const control = speed < STOP_SPEED ? STOP_SPEED : speed;
 		const drop = control * FRICTION * dt;
 		const scale = Math.max(0, speed - drop) / speed;
-		velocity.x *= scale;
-		velocity.y *= scale;
-		velocity.z *= scale;
+		velocity[0] *= scale;
+		velocity[1] *= scale;
+		velocity[2] *= scale;
 	}
 
 	const sprint = onGround && keys.has('shift');
 	const maxSpeed = sprint ? 1.5 * move.maxSpeed : move.maxSpeed;
 
-	const desired = {
-		x: maxSpeed * tx * forward.x + maxSpeed * ty * right.x,
-		y: 0,
-		z: maxSpeed * tx * forward.z + maxSpeed * ty * right.z,
-	};
+	const desired: b3Vec3 = [
+		maxSpeed * tx * forward[0] + maxSpeed * ty * right[0],
+		0,
+		maxSpeed * tx * forward[2] + maxSpeed * ty * right[2],
+	];
 	let desiredSpeed = len(desired);
-	const dir =
+	const dir: b3Vec3 =
 		desiredSpeed > 1e-6
-			? { x: desired.x / desiredSpeed, y: 0, z: desired.z / desiredSpeed }
-			: { x: 0, y: 0, z: 0 };
+			? [desired[0] / desiredSpeed, 0, desired[2] / desiredSpeed]
+			: [0, 0, 0];
 	if (desiredSpeed > maxSpeed) desiredSpeed = maxSpeed;
 
-	if (onGround) velocity.y = 0;
+	if (onGround) velocity[1] = 0;
 
 	const currentSpeed = dot(velocity, dir);
 	const addSpeed = desiredSpeed - currentSpeed;
 	if (addSpeed > 0) {
 		let accel = ACCELERATE * maxSpeed * dt;
 		if (accel > addSpeed) accel = addSpeed;
-		velocity.x += accel * dir.x;
-		velocity.z += accel * dir.z;
+		velocity[0] += accel * dir[0];
+		velocity[2] += accel * dir[2];
 	}
 
-	velocity.y -= move.gravity * dt;
+	velocity[1] -= move.gravity * dt;
 
 	// pogo ray for ground stick. Only engage when settled or descending — while
 	// rising from a jump we stay "airborne" so the suspension spring doesn't yank
 	// the character straight back down.
 	const rayLength = POGO_REST + RADIUS;
-	const rayOrigin = {
-		x: position.x + CAP1.x,
-		y: position.y + CAP1.y,
-		z: position.z + CAP1.z,
-	};
-	const ray = b3.b3World_CastRayClosest(
-		world,
-		rayOrigin,
-		{ x: 0, y: -rayLength, z: 0 },
-		filter,
-	);
-	if (ray.hit && velocity.y <= 0.1) {
+	const rayOrigin: b3Vec3 = [
+		position[0] + CAP1[0],
+		position[1] + CAP1[1],
+		position[2] + CAP1[2],
+	];
+	const ray = b3.b3World_CastRayClosest(world, rayOrigin, [0, -rayLength, 0], filter);
+	if (ray.hit && velocity[1] <= 0.1) {
 		onGround = true;
 		const currentLength = ray.fraction * rayLength;
 		const zeta = 0.7,
@@ -494,11 +464,11 @@ function solveMove(
 		pogoVelocity = 0;
 	}
 
-	const target = {
-		x: position.x + dt * velocity.x,
-		y: position.y + dt * velocity.y + dt * pogoVelocity,
-		z: position.z + dt * velocity.z,
-	};
+	const target: b3Vec3 = [
+		position[0] + dt * velocity[0],
+		position[1] + dt * velocity[1] + dt * pogoVelocity,
+		position[2] + dt * velocity[2],
+	];
 
 	const tol = 0.01;
 	let planes: unknown[] = [];
@@ -515,23 +485,20 @@ function solveMove(
 			(_s: unknown, buf: PlaneResultBuffer) => {
 				for (let i = 0, n = b3.getNumPlaneResults(buf); i < n; i++) {
 					b3.getPlaneResultAt(planeResult, buf, i);
+					// planeResult.plane.normal / .point are facade {x,y,z} objects
 					const nrm = planeResult.plane.normal;
 					planes.push({
-						plane: {
-							normal: { x: nrm.x, y: nrm.y, z: nrm.z },
-							offset: planeResult.plane.offset,
-						},
+						plane: { normal: [nrm.x, nrm.y, nrm.z], offset: planeResult.plane.offset },
 						pushLimit: PUSH_LIMIT,
 						push: 0,
 						clipVelocity: true,
 					});
 					if (iter === 0 && planeVizCount < MAX_PLANES) {
 						const v = planeViz[planeVizCount++];
-						// point is relative to the mover origin (the CollideMover
-						// `position` arg) — offset it into world space.
-						v.px = position.x + planeResult.point.x;
-						v.py = position.y + planeResult.point.y;
-						v.pz = position.z + planeResult.point.z;
+						// point is relative to the mover origin — offset into world space.
+						v.px = position[0] + planeResult.point.x;
+						v.py = position[1] + planeResult.point.y;
+						v.pz = position[2] + planeResult.point.z;
 						v.nx = nrm.x;
 						v.ny = nrm.y;
 						v.nz = nrm.z;
@@ -540,32 +507,17 @@ function solveMove(
 				return true;
 			},
 		);
-		const targetDelta = {
-			x: target.x - position.x,
-			y: target.y - position.y,
-			z: target.z - position.z,
-		};
+		const targetDelta: b3Vec3 = [
+			target[0] - position[0],
+			target[1] - position[1],
+			target[2] - position[2],
+		];
 		const solved = b3.b3SolvePlanes(targetDelta, planes);
 		let delta = solved.delta;
-		const fraction = b3.b3World_CastMover(
-			world,
-			position,
-			capsule,
-			delta,
-			filter,
-			() => true,
-		);
-		delta = {
-			x: delta.x * fraction,
-			y: delta.y * fraction,
-			z: delta.z * fraction,
-		};
-		position = {
-			x: position.x + delta.x,
-			y: position.y + delta.y,
-			z: position.z + delta.z,
-		};
-		if (delta.x * delta.x + delta.y * delta.y + delta.z * delta.z < tol * tol)
+		const fraction = b3.b3World_CastMover(world, position, capsule, delta, filter, () => true);
+		delta = [delta[0] * fraction, delta[1] * fraction, delta[2] * fraction];
+		position = [position[0] + delta[0], position[1] + delta[1], position[2] + delta[2]];
+		if (delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2] < tol * tol)
 			break;
 	}
 
@@ -573,6 +525,7 @@ function solveMove(
 }
 
 // drive a kinematic body toward a target position via velocity (so contacts work)
+const _kpos: b3Vec3 = [0, 0, 0];
 function moveKinematic(
 	body: b3BodyId,
 	tx: number,
@@ -580,12 +533,12 @@ function moveKinematic(
 	tz: number,
 	dt: number,
 ): void {
-	const p = b3.b3Body_GetPosition(body);
-	b3.b3Body_SetLinearVelocity(body, {
-		x: (tx - p.x) / dt,
-		y: (ty - p.y) / dt,
-		z: (tz - p.z) / dt,
-	});
+	b3.b3Body_GetPosition(_kpos, body);
+	b3.b3Body_SetLinearVelocity(body, [
+		(tx - _kpos[0]) / dt,
+		(ty - _kpos[1]) / dt,
+		(tz - _kpos[2]) / dt,
+	]);
 }
 
 let elapsed = 0;
@@ -599,8 +552,8 @@ app.onFrame((dt: number) => {
 	app.camera.getWorldDirection(camDir);
 	camDir.y = 0;
 	camDir.normalize();
-	const forward = { x: camDir.x, y: 0, z: camDir.z };
-	const right = { x: -camDir.z, y: 0, z: camDir.x };
+	const forward: b3Vec3 = [camDir.x, 0, camDir.z];
+	const right: b3Vec3 = [-camDir.z, 0, camDir.x];
 
 	let tx = 0,
 		ty = 0;
@@ -609,11 +562,11 @@ app.onFrame((dt: number) => {
 	if (keys.has('d')) ty += 1;
 	if (keys.has('a')) ty -= 1;
 	if (keys.has(' ') && onGround) {
-		velocity.y = move.jumpSpeed;
+		velocity[1] = move.jumpSpeed;
 		onGround = false;
 	}
 
-	const oldPos = { ...position };
+	const oldPos: b3Vec3 = [position[0], position[1], position[2]];
 
 	app.step(() => {
 		// animate the moving platforms
@@ -637,16 +590,16 @@ app.onFrame((dt: number) => {
 
 	renderer.update();
 	updatePlaneViz();
-	charMesh.position.set(position.x, position.y, position.z);
+	charMesh.position.set(position[0], position[1], position[2]);
 
 	// rigid follow: translate camera + orbit target by the character's delta,
 	// preserving the user's orbit offset (crashcat KCC camera behaviour)
 	const d = new THREE.Vector3(
-		position.x - oldPos.x,
-		position.y - oldPos.y,
-		position.z - oldPos.z,
+		position[0] - oldPos[0],
+		position[1] - oldPos[1],
+		position[2] - oldPos[2],
 	);
 	app.camera.position.add(d);
-	app.controls.target.set(position.x, position.y, position.z);
+	app.controls.target.set(position[0], position[1], position[2]);
 });
 app.start();

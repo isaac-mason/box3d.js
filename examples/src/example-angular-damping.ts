@@ -2,7 +2,7 @@
 // a row of boxes all spun at the same rate with angular damping 0.0 → 0.9. Higher
 // damping stops the spin sooner. Press R to reset.
 
-import type { Box3DModule, b3BodyId } from 'box3d.js';
+import type { Box3DModule, b3BodyId, b3Vec3 } from 'box3d.js';
 import Box3D from 'box3d.js/inline';
 import * as THREE from 'three';
 import { createWorldRenderer } from './box3d-three';
@@ -12,13 +12,13 @@ const b3: Box3DModule = await Box3D();
 const app = createHarness({ camera: [0, 0, 25], target: [0, 0, 0] });
 
 const worldDef = b3.b3DefaultWorldDef();
-worldDef.gravity = { x: 0, y: 0, z: 0 }; // zero gravity: isolate rotation
+worldDef.gravity = [0, 0, 0]; // zero gravity: isolate rotation
 const world = b3.b3CreateWorld(worldDef);
 
 const numBoxes = 10;
 const spacing = 3.0;
 const startX = -((numBoxes - 1) / 2) * spacing;
-const SPIN = { x: 3, y: 5, z: 2 };
+const SPIN: b3Vec3 = [3, 5, 2];
 
 function makeLabel(text: string, x: number, y: number, z: number): void {
 	const canvas = document.createElement('canvas');
@@ -44,7 +44,7 @@ for (let i = 0; i < numBoxes; i++) {
 	const x = startX + spacing * i;
 	const def = b3.b3DefaultBodyDef();
 	def.type = b3.b3BodyType.b3_dynamicBody;
-	def.position = { x, y: 0, z: 0 };
+	def.position = [x, 0, 0];
 	def.angularDamping = damping;
 	def.angularVelocity = SPIN;
 	const body = b3.b3CreateBody(world, def);
@@ -55,12 +55,8 @@ for (let i = 0; i < numBoxes; i++) {
 
 function reset(): void {
 	for (const { body, x } of boxes) {
-		b3.b3Body_SetTransform(
-			body,
-			{ x, y: 0, z: 0 },
-			{ v: { x: 0, y: 0, z: 0 }, s: 1 },
-		);
-		b3.b3Body_SetLinearVelocity(body, { x: 0, y: 0, z: 0 });
+		b3.b3Body_SetTransform(body, [x, 0, 0], [0, 0, 0, 1]);
+		b3.b3Body_SetLinearVelocity(body, [0, 0, 0]);
 		b3.b3Body_SetAngularVelocity(body, SPIN);
 		b3.b3Body_SetAwake(body, true);
 	}

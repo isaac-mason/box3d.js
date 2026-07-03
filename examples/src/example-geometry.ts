@@ -13,11 +13,11 @@ const b3: Box3DModule = await Box3D();
 const app = createHarness({ camera: [0, 6, 18], target: [0, 1, 0] });
 
 const worldDef = b3.b3DefaultWorldDef();
-worldDef.gravity = { x: 0, y: -10, z: 0 };
+worldDef.gravity = [0, -10, 0];
 const world = b3.b3CreateWorld(worldDef);
 
 const groundDef = b3.b3DefaultBodyDef();
-groundDef.position = { x: 0, y: -0.5, z: 0 };
+groundDef.position = [0, -0.5, 0];
 const groundBody = b3.b3CreateBody(world, groundDef);
 b3.b3CreateBoxShape(groundBody, b3.b3DefaultShapeDef(), 20, 0.5, 20);
 
@@ -140,7 +140,7 @@ function drop(): void {
 		const x = startX + i * spacing;
 		const def = b3.b3DefaultBodyDef();
 		def.type = b3.b3BodyType.b3_dynamicBody;
-		def.position = { x, y: 5, z: 0 };
+		def.position = [x, 5, 0];
 		const body = b3.b3CreateBody(world, def);
 		kind.attach(body);
 		shapes.push(body);

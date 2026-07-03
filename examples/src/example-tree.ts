@@ -4,7 +4,7 @@
 // lights up the proxies it crosses; a query box highlights everything it overlaps
 // (b3DynamicTree_Query). The tree's root bounds and live stats are shown too.
 
-import type { Box3DModule } from 'box3d.js';
+import type { Box3DModule, b3AABB, b3Vec3 } from 'box3d.js';
 import Box3D from 'box3d.js/inline';
 import * as THREE from 'three';
 import { createHarness } from './harness';
@@ -44,19 +44,15 @@ function rand(): number {
 	return seed / 0x7fffffff;
 }
 
-function aabbOf(p: Proxy) {
-	return {
-		lowerBound: {
-			x: p.pos.x - p.half,
-			y: p.pos.y - p.half,
-			z: p.pos.z - p.half,
-		},
-		upperBound: {
-			x: p.pos.x + p.half,
-			y: p.pos.y + p.half,
-			z: p.pos.z + p.half,
-		},
-	};
+function aabbOf(p: Proxy): b3AABB {
+	return [
+		p.pos.x - p.half,
+		p.pos.y - p.half,
+		p.pos.z - p.half,
+		p.pos.x + p.half,
+		p.pos.y + p.half,
+		p.pos.z + p.half,
+	];
 }
 
 function rebuild(count: number): void {
@@ -166,7 +162,7 @@ app.onFrame((dt: number) => {
 		const h = QSIZE / 2;
 		b3.b3DynamicTree_Query(
 			tree,
-			{ lowerBound: { x: -h, y: -h, z: -h }, upperBound: { x: h, y: h, z: h } },
+			[-h, -h, -h, h, h, h],
 			0xffffffff,
 			(_pid: number, userData: number) => {
 				const p = idToProxy.get(userData);
@@ -181,16 +177,16 @@ app.onFrame((dt: number) => {
 	rayLine.visible = params.ray;
 	if (params.ray) {
 		const r = BOUND + 6;
-		const origin = {
-			x: Math.cos(t * 0.6) * r,
-			y: Math.sin(t * 0.35) * 4,
-			z: Math.sin(t * 0.6) * r,
-		};
-		const translation = {
-			x: -origin.x * 2,
-			y: -origin.y * 2,
-			z: -origin.z * 2,
-		};
+		const origin: b3Vec3 = [
+			Math.cos(t * 0.6) * r,
+			Math.sin(t * 0.35) * 4,
+			Math.sin(t * 0.6) * r,
+		];
+		const translation: b3Vec3 = [
+			-origin[0] * 2,
+			-origin[1] * 2,
+			-origin[2] * 2,
+		];
 		const s = b3.b3DynamicTree_RayCast(
 			tree,
 			origin,
@@ -206,11 +202,11 @@ app.onFrame((dt: number) => {
 		);
 		stats.rayVisits = s.leafVisits;
 		(rayLine.geometry as THREE.BufferGeometry).setFromPoints([
-			new THREE.Vector3(origin.x, origin.y, origin.z),
+			new THREE.Vector3(origin[0], origin[1], origin[2]),
 			new THREE.Vector3(
-				origin.x + translation.x,
-				origin.y + translation.y,
-				origin.z + translation.z,
+				origin[0] + translation[0],
+				origin[1] + translation[1],
+				origin[2] + translation[2],
 			),
 		]);
 	}
@@ -218,15 +214,11 @@ app.onFrame((dt: number) => {
 	// root bounds + stats
 	const rb = b3.b3DynamicTree_GetRootBounds(tree);
 	rootBox.position.set(
-		(rb.lowerBound.x + rb.upperBound.x) / 2,
-		(rb.lowerBound.y + rb.upperBound.y) / 2,
-		(rb.lowerBound.z + rb.upperBound.z) / 2,
+		(rb[0] + rb[3]) / 2,
+		(rb[1] + rb[4]) / 2,
+		(rb[2] + rb[5]) / 2,
 	);
-	rootBox.scale.set(
-		rb.upperBound.x - rb.lowerBound.x,
-		rb.upperBound.y - rb.lowerBound.y,
-		rb.upperBound.z - rb.lowerBound.z,
-	);
+	rootBox.scale.set(rb[3] - rb[0], rb[4] - rb[1], rb[5] - rb[2]);
 	stats.height = b3.b3DynamicTree_GetHeight(tree);
 	stats.areaRatio = Math.round(b3.b3DynamicTree_GetAreaRatio(tree) * 100) / 100;
 });

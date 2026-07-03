@@ -25,6 +25,36 @@ using namespace emscripten;
 
 namespace
 {
+// --- out-param math reads (see docs/BINDING_CONVENTIONS.md §2) ---
+// A static float scratch the facade points the raw `*Into` writers at, then copies
+// out into the caller's array. 16 floats covers the largest math read (a transform).
+float g_mathScratch[16];
+
+inline void writeVec3( uintptr_t out, b3Vec3 v )
+{
+	float* o = reinterpret_cast<float*>( out );
+	o[0] = v.x; o[1] = v.y; o[2] = v.z;
+}
+inline void writeQuat( uintptr_t out, b3Quat q )
+{
+	float* o = reinterpret_cast<float*>( out );
+	o[0] = q.v.x; o[1] = q.v.y; o[2] = q.v.z; o[3] = q.s;
+}
+inline void writeAABB( uintptr_t out, b3AABB a )
+{
+	float* o = reinterpret_cast<float*>( out );
+	o[0] = a.lowerBound.x; o[1] = a.lowerBound.y; o[2] = a.lowerBound.z;
+	o[3] = a.upperBound.x; o[4] = a.upperBound.y; o[5] = a.upperBound.z;
+}
+// Transform out layout: position(3) then quaternion(4) = 7 floats. The facade
+// splits these into the { position, quaternion } out object.
+inline void writeTransform( uintptr_t out, b3Transform t )
+{
+	float* o = reinterpret_cast<float*>( out );
+	o[0] = t.p.x; o[1] = t.p.y; o[2] = t.p.z;
+	o[3] = t.q.v.x; o[4] = t.q.v.y; o[5] = t.q.v.z; o[6] = t.q.s;
+}
+
 // Copy a POD std::vector into a JS-owned typed array. typed_memory_view aliases
 // the wasm heap; the TypedArray constructor copies out of it, so the result
 // stays valid after `v` (a local) is freed. One boundary crossing per tier.
@@ -367,26 +397,40 @@ EMSCRIPTEN_BINDINGS( box3d )
 		.value( "b3_weldJoint", b3_weldJoint )
 		.value( "b3_wheelJoint", b3_wheelJoint );
 
-	value_object<b3Vec3>( "b3Vec3" )
-		.field( "x", &b3Vec3::x )
-		.field( "y", &b3Vec3::y )
-		.field( "z", &b3Vec3::z );
+	// Math value types are mathcat-shaped plain arrays (see docs/BINDING_CONVENTIONS.md).
+	// b3Vec3 -> [x,y,z], b3Quat -> [x,y,z,w], b3AABB -> [minX,minY,minZ,maxX,maxY,maxZ].
+	value_array<b3Vec3>( "b3Vec3" )
+		.element( &b3Vec3::x )
+		.element( &b3Vec3::y )
+		.element( &b3Vec3::z );
 
-	value_object<b3Quat>( "b3Quat" )
-		.field( "v", &b3Quat::v )
-		.field( "s", &b3Quat::s );
+	// b3Quat is { v: b3Vec3, s } in C; flatten to [x,y,z,w].
+	value_array<b3Quat>( "b3Quat" )
+		.element( +[]( const b3Quat& q ) { return q.v.x; }, +[]( b3Quat& q, float x ) { q.v.x = x; } )
+		.element( +[]( const b3Quat& q ) { return q.v.y; }, +[]( b3Quat& q, float y ) { q.v.y = y; } )
+		.element( +[]( const b3Quat& q ) { return q.v.z; }, +[]( b3Quat& q, float z ) { q.v.z = z; } )
+		.element( +[]( const b3Quat& q ) { return q.s; }, +[]( b3Quat& q, float s ) { q.s = s; } );
 
+	// b3AABB { lowerBound, upperBound } -> mathcat Box3 [minX,minY,minZ,maxX,maxY,maxZ].
+	value_array<b3AABB>( "b3AABB" )
+		.element( +[]( const b3AABB& a ) { return a.lowerBound.x; }, +[]( b3AABB& a, float v ) { a.lowerBound.x = v; } )
+		.element( +[]( const b3AABB& a ) { return a.lowerBound.y; }, +[]( b3AABB& a, float v ) { a.lowerBound.y = v; } )
+		.element( +[]( const b3AABB& a ) { return a.lowerBound.z; }, +[]( b3AABB& a, float v ) { a.lowerBound.z = v; } )
+		.element( +[]( const b3AABB& a ) { return a.upperBound.x; }, +[]( b3AABB& a, float v ) { a.upperBound.x = v; } )
+		.element( +[]( const b3AABB& a ) { return a.upperBound.y; }, +[]( b3AABB& a, float v ) { a.upperBound.y = v; } )
+		.element( +[]( const b3AABB& a ) { return a.upperBound.z; }, +[]( b3AABB& a, float v ) { a.upperBound.z = v; } );
+
+	// b3Transform stays an object of two arrays: { position: Vec3, quaternion: Quat }.
 	value_object<b3Transform>( "b3Transform" )
-		.field( "p", &b3Transform::p )
-		.field( "q", &b3Transform::q );
-
-	value_object<b3AABB>( "b3AABB" )
-		.field( "lowerBound", &b3AABB::lowerBound )
-		.field( "upperBound", &b3AABB::upperBound );
+		.field( "position", &b3Transform::p )
+		.field( "quaternion", &b3Transform::q );
 
 	value_object<b3Plane>( "b3Plane" )
 		.field( "normal", &b3Plane::normal )
 		.field( "offset", &b3Plane::offset );
+
+	// Static scratch the facade points the out-param `*Into` readers at (§2).
+	function( "b3_getMathScratch", +[]() -> uintptr_t { return reinterpret_cast<uintptr_t>( g_mathScratch ); } );
 
 	value_object<b3WorldId>( "b3WorldId" )
 		.field( "index1", &b3WorldId::index1 )
@@ -511,11 +555,11 @@ EMSCRIPTEN_BINDINGS( box3d )
 	function( "b3World_IsValid(worldId)", &b3World_IsValid );
 	function( "b3World_Step(worldId, timeStep, subStepCount)", &b3World_Step );
 	function( "b3World_SetGravity(worldId, gravity)", &b3World_SetGravity );
-	function( "b3World_GetGravity(worldId)", &b3World_GetGravity );
+	function( "b3World_GetGravityInto(out, worldId)", +[]( uintptr_t out, b3WorldId worldId ) { writeVec3( out, b3World_GetGravity( worldId ) ); } );
 
 	function( "b3GetWorldCount()", &b3GetWorldCount );
 	function( "b3GetMaxWorldCount()", &b3GetMaxWorldCount );
-	function( "b3World_GetBounds(worldId)", &b3World_GetBounds );
+	function( "b3World_GetBoundsInto(out, worldId)", +[]( uintptr_t out, b3WorldId worldId ) { writeAABB( out, b3World_GetBounds( worldId ) ); } );
 	function( "b3World_EnableSleeping(worldId, flag)", &b3World_EnableSleeping );
 	function( "b3World_IsSleepingEnabled(worldId)", &b3World_IsSleepingEnabled );
 	function( "b3World_EnableContinuous(worldId, flag)", &b3World_EnableContinuous );
@@ -543,12 +587,12 @@ EMSCRIPTEN_BINDINGS( box3d )
 	function( "b3DestroyBody(bodyId)", &b3DestroyBody );
 	function( "b3Body_IsValid(id)", &b3Body_IsValid );
 	function( "b3Body_GetType(bodyId)", &b3Body_GetType );
-	function( "b3Body_GetPosition(bodyId)", &b3Body_GetPosition );
-	function( "b3Body_GetRotation(bodyId)", &b3Body_GetRotation );
-	function( "b3Body_GetTransform(bodyId)", &b3Body_GetTransform );
+	function( "b3Body_GetPositionInto(out, bodyId)", +[]( uintptr_t out, b3BodyId id ) { writeVec3( out, b3Body_GetPosition( id ) ); } );
+	function( "b3Body_GetRotationInto(out, bodyId)", +[]( uintptr_t out, b3BodyId id ) { writeQuat( out, b3Body_GetRotation( id ) ); } );
+	function( "b3Body_GetTransformInto(out, bodyId)", +[]( uintptr_t out, b3BodyId id ) { writeTransform( out, b3Body_GetTransform( id ) ); } );
 	function( "b3Body_SetTransform(bodyId, position, rotation)", &b3Body_SetTransform );
-	function( "b3Body_GetLinearVelocity(bodyId)", &b3Body_GetLinearVelocity );
-	function( "b3Body_GetAngularVelocity(bodyId)", &b3Body_GetAngularVelocity );
+	function( "b3Body_GetLinearVelocityInto(out, bodyId)", +[]( uintptr_t out, b3BodyId id ) { writeVec3( out, b3Body_GetLinearVelocity( id ) ); } );
+	function( "b3Body_GetAngularVelocityInto(out, bodyId)", +[]( uintptr_t out, b3BodyId id ) { writeVec3( out, b3Body_GetAngularVelocity( id ) ); } );
 
 	function( "b3CreateSphereShape(bodyId, shapeDef, sphere)",
 		+[]( b3BodyId bodyId, b3ShapeDef def, b3Sphere sphere ) { return b3CreateSphereShape( bodyId, &def, &sphere ); } );
@@ -1089,16 +1133,16 @@ EMSCRIPTEN_BINDINGS( box3d )
 	function( "b3Body_SetName(bodyId, name)", +[]( b3BodyId bodyId, std::string name ) { b3Body_SetName( bodyId, name.c_str() ); } );
 	function( "b3Body_GetName(bodyId)", +[]( b3BodyId bodyId ) { const char* n = b3Body_GetName( bodyId ); return std::string( n ? n : "" ); } );
 
-	function( "b3Body_GetLocalPoint(bodyId, worldPoint)", &b3Body_GetLocalPoint );
-	function( "b3Body_GetWorldPoint(bodyId, localPoint)", &b3Body_GetWorldPoint );
-	function( "b3Body_GetLocalVector(bodyId, worldVector)", &b3Body_GetLocalVector );
-	function( "b3Body_GetWorldVector(bodyId, localVector)", &b3Body_GetWorldVector );
+	function( "b3Body_GetLocalPointInto(out, bodyId, worldPoint)", +[]( uintptr_t out, b3BodyId bodyId, b3Vec3 worldPoint ) { writeVec3( out, b3Body_GetLocalPoint( bodyId, worldPoint ) ); } );
+	function( "b3Body_GetWorldPointInto(out, bodyId, localPoint)", +[]( uintptr_t out, b3BodyId bodyId, b3Vec3 localPoint ) { writeVec3( out, b3Body_GetWorldPoint( bodyId, localPoint ) ); } );
+	function( "b3Body_GetLocalVectorInto(out, bodyId, worldVector)", +[]( uintptr_t out, b3BodyId bodyId, b3Vec3 worldVector ) { writeVec3( out, b3Body_GetLocalVector( bodyId, worldVector ) ); } );
+	function( "b3Body_GetWorldVectorInto(out, bodyId, localVector)", +[]( uintptr_t out, b3BodyId bodyId, b3Vec3 localVector ) { writeVec3( out, b3Body_GetWorldVector( bodyId, localVector ) ); } );
 
 	function( "b3Body_SetLinearVelocity(bodyId, linearVelocity)", &b3Body_SetLinearVelocity );
 	function( "b3Body_SetAngularVelocity(bodyId, angularVelocity)", &b3Body_SetAngularVelocity );
 	function( "b3Body_SetTargetTransform(bodyId, target, timeStep, wake)", &b3Body_SetTargetTransform );
-	function( "b3Body_GetLocalPointVelocity(bodyId, localPoint)", &b3Body_GetLocalPointVelocity );
-	function( "b3Body_GetWorldPointVelocity(bodyId, worldPoint)", &b3Body_GetWorldPointVelocity );
+	function( "b3Body_GetLocalPointVelocityInto(out, bodyId, localPoint)", +[]( uintptr_t out, b3BodyId bodyId, b3Vec3 localPoint ) { writeVec3( out, b3Body_GetLocalPointVelocity( bodyId, localPoint ) ); } );
+	function( "b3Body_GetWorldPointVelocityInto(out, bodyId, worldPoint)", +[]( uintptr_t out, b3BodyId bodyId, b3Vec3 worldPoint ) { writeVec3( out, b3Body_GetWorldPointVelocity( bodyId, worldPoint ) ); } );
 
 	function( "b3Body_ApplyForce(bodyId, force, point, wake)", &b3Body_ApplyForce );
 	function( "b3Body_ApplyForceToCenter(bodyId, force, wake)", &b3Body_ApplyForceToCenter );
@@ -1109,8 +1153,8 @@ EMSCRIPTEN_BINDINGS( box3d )
 
 	function( "b3Body_GetMass(bodyId)", &b3Body_GetMass );
 	function( "b3Body_GetInverseMass(bodyId)", &b3Body_GetInverseMass );
-	function( "b3Body_GetLocalCenterOfMass(bodyId)", &b3Body_GetLocalCenterOfMass );
-	function( "b3Body_GetWorldCenterOfMass(bodyId)", &b3Body_GetWorldCenterOfMass );
+	function( "b3Body_GetLocalCenterOfMassInto(out, bodyId)", +[]( uintptr_t out, b3BodyId bodyId ) { writeVec3( out, b3Body_GetLocalCenterOfMass( bodyId ) ); } );
+	function( "b3Body_GetWorldCenterOfMassInto(out, bodyId)", +[]( uintptr_t out, b3BodyId bodyId ) { writeVec3( out, b3Body_GetWorldCenterOfMass( bodyId ) ); } );
 	function( "b3Body_ApplyMassFromShapes(bodyId)", &b3Body_ApplyMassFromShapes );
 
 	function( "b3Body_SetLinearDamping(bodyId, linearDamping)", &b3Body_SetLinearDamping );
@@ -1153,7 +1197,7 @@ EMSCRIPTEN_BINDINGS( box3d )
 		if ( !out.empty() ) b3Body_GetJoints( bodyId, out.data(), (int)out.size() );
 		return out;
 	} );
-	function( "b3Body_ComputeAABB(bodyId)", &b3Body_ComputeAABB );
+	function( "b3Body_ComputeAABBInto(out, bodyId)", +[]( uintptr_t out, b3BodyId bodyId ) { writeAABB( out, b3Body_ComputeAABB( bodyId ) ); } );
 
 	function( "b3Shape_GetType(shapeId)", &b3Shape_GetType );
 	function( "b3Shape_GetBody(shapeId)", &b3Shape_GetBody );
@@ -1193,8 +1237,8 @@ EMSCRIPTEN_BINDINGS( box3d )
 	function( "b3Shape_SetSphere(shapeId, sphere)", +[]( b3ShapeId shapeId, b3Sphere sphere ) { b3Shape_SetSphere( shapeId, &sphere ); } );
 	function( "b3Shape_SetCapsule(shapeId, capsule)", +[]( b3ShapeId shapeId, b3Capsule capsule ) { b3Shape_SetCapsule( shapeId, &capsule ); } );
 
-	function( "b3Shape_GetAABB(shapeId)", &b3Shape_GetAABB );
-	function( "b3Shape_GetClosestPoint(shapeId, target)", &b3Shape_GetClosestPoint );
+	function( "b3Shape_GetAABBInto(out, shapeId)", +[]( uintptr_t out, b3ShapeId shapeId ) { writeAABB( out, b3Shape_GetAABB( shapeId ) ); } );
+	function( "b3Shape_GetClosestPointInto(out, shapeId, target)", +[]( uintptr_t out, b3ShapeId shapeId, b3Vec3 target ) { writeVec3( out, b3Shape_GetClosestPoint( shapeId, target ) ); } );
 	function( "b3Shape_ApplyWind(shapeId, wind, drag, lift, maxSpeed, wake)", &b3Shape_ApplyWind );
 	function( "b3DestroyShape(shapeId, updateBodyMass)", &b3DestroyShape );
 
@@ -1343,14 +1387,14 @@ EMSCRIPTEN_BINDINGS( box3d )
 	function( "b3Joint_GetBodyB(jointId)", &b3Joint_GetBodyB );
 	function( "b3Joint_GetWorld(jointId)", &b3Joint_GetWorld );
 	function( "b3Joint_SetLocalFrameA(jointId, localFrame)", &b3Joint_SetLocalFrameA );
-	function( "b3Joint_GetLocalFrameA(jointId)", &b3Joint_GetLocalFrameA );
+	function( "b3Joint_GetLocalFrameAInto(out, jointId)", +[]( uintptr_t out, b3JointId jointId ) { writeTransform( out, b3Joint_GetLocalFrameA( jointId ) ); } );
 	function( "b3Joint_SetLocalFrameB(jointId, localFrame)", &b3Joint_SetLocalFrameB );
-	function( "b3Joint_GetLocalFrameB(jointId)", &b3Joint_GetLocalFrameB );
+	function( "b3Joint_GetLocalFrameBInto(out, jointId)", +[]( uintptr_t out, b3JointId jointId ) { writeTransform( out, b3Joint_GetLocalFrameB( jointId ) ); } );
 	function( "b3Joint_SetCollideConnected(jointId, shouldCollide)", &b3Joint_SetCollideConnected );
 	function( "b3Joint_GetCollideConnected(jointId)", &b3Joint_GetCollideConnected );
 	function( "b3Joint_WakeBodies(jointId)", &b3Joint_WakeBodies );
-	function( "b3Joint_GetConstraintForce(jointId)", &b3Joint_GetConstraintForce );
-	function( "b3Joint_GetConstraintTorque(jointId)", &b3Joint_GetConstraintTorque );
+	function( "b3Joint_GetConstraintForceInto(out, jointId)", +[]( uintptr_t out, b3JointId jointId ) { writeVec3( out, b3Joint_GetConstraintForce( jointId ) ); } );
+	function( "b3Joint_GetConstraintTorqueInto(out, jointId)", +[]( uintptr_t out, b3JointId jointId ) { writeVec3( out, b3Joint_GetConstraintTorque( jointId ) ); } );
 	function( "b3Joint_GetLinearSeparation(jointId)", &b3Joint_GetLinearSeparation );
 	function( "b3Joint_GetAngularSeparation(jointId)", &b3Joint_GetAngularSeparation );
 	function( "b3Joint_SetConstraintTuning(jointId, hertz, dampingRatio)", &b3Joint_SetConstraintTuning );

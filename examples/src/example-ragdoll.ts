@@ -13,11 +13,11 @@ const b3: Box3DModule = await Box3D();
 const app = createHarness({ camera: [0, 3, 9], target: [0, 1, 0] });
 
 const worldDef = b3.b3DefaultWorldDef();
-worldDef.gravity = { x: 0, y: -10, z: 0 };
+worldDef.gravity = [0, -10, 0];
 const world = b3.b3CreateWorld(worldDef);
 
 const groundDef = b3.b3DefaultBodyDef();
-groundDef.position = { x: 0, y: -0.5, z: 0 };
+groundDef.position = [0, -0.5, 0];
 const ground = b3.b3CreateBody(world, groundDef);
 b3.b3CreateBoxShape(ground, b3.b3DefaultShapeDef(), 20, 0.5, 20);
 
@@ -47,7 +47,7 @@ function respawn(): void {
 		const human = createHuman(
 			b3,
 			world,
-			{ x, y: 2.2 + rand() * 1.5, z: 0 },
+			[x, 2.2 + rand() * 1.5, 0],
 			group++,
 			params.jointFriction,
 		);
@@ -55,11 +55,7 @@ function respawn(): void {
 		const m = 8;
 		b3.b3Body_ApplyAngularImpulse(
 			human.bodies[1],
-			{
-				x: (rand() * 2 - 1) * m,
-				y: (rand() * 2 - 1) * m,
-				z: (rand() * 2 - 1) * m,
-			},
+			[(rand() * 2 - 1) * m, (rand() * 2 - 1) * m, (rand() * 2 - 1) * m],
 			true,
 		);
 		humans.push(human);

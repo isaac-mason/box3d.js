@@ -13,11 +13,11 @@ const b3: Box3DModule = await Box3D();
 const app = createHarness({ camera: [0, 8, 18], target: [0, 2, 0] });
 
 const worldDef = b3.b3DefaultWorldDef();
-worldDef.gravity = { x: 0, y: -10, z: 0 };
+worldDef.gravity = [0, -10, 0];
 const world = b3.b3CreateWorld(worldDef);
 
 const groundDef = b3.b3DefaultBodyDef();
-groundDef.position = { x: 0, y: -0.5, z: 0 };
+groundDef.position = [0, -0.5, 0];
 const ground = b3.b3CreateBody(world, groundDef);
 b3.b3CreateBoxShape(ground, b3.b3DefaultShapeDef(), 30, 0.5, 30);
 
@@ -35,11 +35,11 @@ function build(): void {
 		for (let i = 0; i < count; i++) {
 			const def = b3.b3DefaultBodyDef();
 			def.type = b3.b3BodyType.b3_dynamicBody;
-			def.position = {
-				x: (i - (count - 1) / 2) * (H * 2 + 0.02),
-				y: H + r * (H * 2),
-				z: 0,
-			};
+			def.position = [
+				(i - (count - 1) / 2) * (H * 2 + 0.02),
+				H + r * (H * 2),
+				0,
+			];
 			const body = b3.b3CreateBody(world, def);
 			b3.b3CreateBoxShape(body, b3.b3DefaultShapeDef(), H, H, H);
 			blocks.push(body);
@@ -64,8 +64,8 @@ app.renderer.domElement.addEventListener('pointerdown', (e) => {
 	const d = raycaster.ray.direction;
 	const r = b3.b3World_CastRayClosest(
 		world,
-		{ x: o.x, y: o.y, z: o.z },
-		{ x: d.x * 100, y: d.y * 100, z: d.z * 100 },
+		[o.x, o.y, o.z],
+		[d.x * 100, d.y * 100, d.z * 100],
 		b3.b3DefaultQueryFilter(),
 	);
 	if (!r.hit) return;

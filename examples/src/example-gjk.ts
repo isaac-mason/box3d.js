@@ -96,19 +96,19 @@ app.onFrame((dt) => {
 		0,
 		B,
 		0,
-		{ p: { x: bx, y: 0, z: bz }, q: { v: { x: q.x, y: q.y, z: q.z }, s: q.w } },
+		{ position: [bx, 0, bz], quaternion: [q.x, q.y, q.z, q.w] },
 		false,
 	);
 
-	linePos[0] = out.pointA.x;
-	linePos[1] = out.pointA.y;
-	linePos[2] = out.pointA.z;
-	linePos[3] = out.pointB.x;
-	linePos[4] = out.pointB.y;
-	linePos[5] = out.pointB.z;
+	linePos[0] = out.pointA[0];
+	linePos[1] = out.pointA[1];
+	linePos[2] = out.pointA[2];
+	linePos[3] = out.pointB[0];
+	linePos[4] = out.pointB[1];
+	linePos[5] = out.pointB[2];
 	lineGeom.getAttribute('position').needsUpdate = true;
-	markerA.position.set(out.pointA.x, out.pointA.y, out.pointA.z);
-	markerB.position.set(out.pointB.x, out.pointB.y, out.pointB.z);
+	markerA.position.set(out.pointA[0], out.pointA[1], out.pointA[2]);
+	markerB.position.set(out.pointB[0], out.pointB[1], out.pointB[2]);
 
 	// green when far, red when touching
 	const t = Math.min(out.distance / 3, 1);

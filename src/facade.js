@@ -431,8 +431,65 @@ function getPlaneResultAt( out, buf, i )
 	return out;
 }
 
+// --- out-param math reads (see docs/BINDING_CONVENTIONS.md §2) --------------
+// Each raw `b3X_GetYInto(out, ...)` writes floats to a static wasm scratch; here we
+// install the public `b3X_GetY(out, ...) -> out` copying scratch -> the caller's
+// mathcat array. Zero allocation; HEAPF32 re-read each call (memory-growth safe).
+// Raw embind fns are looked up lazily so post-js/embind init order never matters.
+
+let _scratchPtr = 0;
+const mathScratch = () => _scratchPtr || ( _scratchPtr = Module.b3_getMathScratch() );
+
+function installOutRead( publicName, size )
+{
+	const rawName = publicName + 'Into';
+	let raw;
+	Module[ publicName ] = function ( out )
+	{
+		if ( !raw ) raw = Module[ rawName ];
+		raw( mathScratch(), ...Array.prototype.slice.call( arguments, 1 ) );
+		const base = mathScratch() >> 2, h = HEAPF32;
+		for ( let i = 0; i < size; i++ ) out[ i ] = h[ base + i ];
+		return out;
+	};
+}
+
+// transform out is { position: Vec3, quaternion: Quat } — split the 7-float scratch
+function installTransformRead( publicName )
+{
+	const rawName = publicName + 'Into';
+	let raw;
+	Module[ publicName ] = function ( out )
+	{
+		if ( !raw ) raw = Module[ rawName ];
+		raw( mathScratch(), ...Array.prototype.slice.call( arguments, 1 ) );
+		const base = mathScratch() >> 2, h = HEAPF32;
+		const p = out.position, q = out.quaternion;
+		p[ 0 ] = h[ base ]; p[ 1 ] = h[ base + 1 ]; p[ 2 ] = h[ base + 2 ];
+		q[ 0 ] = h[ base + 3 ]; q[ 1 ] = h[ base + 4 ]; q[ 2 ] = h[ base + 5 ]; q[ 3 ] = h[ base + 6 ];
+		return out;
+	};
+}
+
+function createTransform() { return { position: [ 0, 0, 0 ], quaternion: [ 0, 0, 0, 1 ] }; }
+
+for ( const [ name, size ] of [
+	[ 'b3World_GetGravity', 3 ], [ 'b3World_GetBounds', 6 ],
+	[ 'b3Body_GetPosition', 3 ], [ 'b3Body_GetRotation', 4 ],
+	[ 'b3Body_GetLinearVelocity', 3 ], [ 'b3Body_GetAngularVelocity', 3 ],
+	[ 'b3Body_GetLocalPoint', 3 ], [ 'b3Body_GetWorldPoint', 3 ],
+	[ 'b3Body_GetLocalVector', 3 ], [ 'b3Body_GetWorldVector', 3 ],
+	[ 'b3Body_GetLocalPointVelocity', 3 ], [ 'b3Body_GetWorldPointVelocity', 3 ],
+	[ 'b3Body_GetLocalCenterOfMass', 3 ], [ 'b3Body_GetWorldCenterOfMass', 3 ],
+	[ 'b3Body_ComputeAABB', 6 ], [ 'b3Shape_GetAABB', 6 ], [ 'b3Shape_GetClosestPoint', 3 ],
+	[ 'b3Joint_GetConstraintForce', 3 ], [ 'b3Joint_GetConstraintTorque', 3 ],
+] ) installOutRead( name, size );
+for ( const name of [ 'b3Body_GetTransform', 'b3Joint_GetLocalFrameA', 'b3Joint_GetLocalFrameB' ] )
+	installTransformRead( name );
+
 // Attach onto the Emscripten module object (in scope here as `Module`).
 Object.assign( Module, {
+	createTransform,
 	getNumShapeIds, createShapeId, getShapeIdAt,
 	getNumContacts, createContact, getContactAt,
 	createPoint, createManifold, getManifoldAt,

@@ -2,7 +2,7 @@
 // side to side past a dynamic and a static box; a label above it reads hit/no-hit
 // driven by box3d sensor events (begin/end touch).
 
-import type { Box3DModule, b3BodyType, b3ShapeId } from 'box3d.js';
+import type { Box3DModule, b3BodyType, b3Quat, b3ShapeId } from 'box3d.js';
 import Box3D from 'box3d.js/inline';
 import * as THREE from 'three';
 import { createWorldRenderer } from './box3d-three';
@@ -12,7 +12,7 @@ const b3: Box3DModule = await Box3D();
 const app = createHarness({ camera: [0, 5, 15], target: [0, 2, 0] });
 
 const worldDef = b3.b3DefaultWorldDef();
-worldDef.gravity = { x: 0, y: 0, z: 0 }; // zero gravity
+worldDef.gravity = [0, 0, 0]; // zero gravity
 const world = b3.b3CreateWorld(worldDef);
 
 const shapeKey = (s: b3ShapeId): string =>
@@ -21,7 +21,7 @@ const shapeKey = (s: b3ShapeId): string =>
 // kinematic sensor box that slides side to side
 const sensorDef = b3.b3DefaultBodyDef();
 sensorDef.type = b3.b3BodyType.b3_kinematicBody;
-sensorDef.position = { x: -8, y: 1, z: 0 };
+sensorDef.position = [-8, 1, 0];
 const sensorBody = b3.b3CreateBody(world, sensorDef);
 const sensorShapeDef = b3.b3DefaultShapeDef();
 sensorShapeDef.isSensor = true;
@@ -32,7 +32,7 @@ b3.b3CreateBoxShape(sensorBody, sensorShapeDef, 1.5, 1.0, 1.5);
 function makeBox(type: b3BodyType, x: number): void {
 	const def = b3.b3DefaultBodyDef();
 	def.type = type;
-	def.position = { x, y: 1, z: 0 };
+	def.position = [x, 1, 0];
 	const body = b3.b3CreateBody(world, def);
 	const sd = b3.b3DefaultShapeDef();
 	sd.enableSensorEvents = true;
@@ -66,7 +66,7 @@ app.scene.add(renderer.object3d);
 
 // track active sensor overlaps via begin/end touch events
 const active = new Set<string>();
-const IDENTITY = { v: { x: 0, y: 0, z: 0 }, s: 1 };
+const IDENTITY: b3Quat = [0, 0, 0, 1];
 const amplitude = 6.0;
 const frequency = 1.0;
 let time = 0;
@@ -78,7 +78,7 @@ const touch = b3.createSensorTouchEvent();
 app.onFrame((dt) => {
 	time += dt;
 	const x = Math.sin(time * frequency) * amplitude;
-	b3.b3Body_SetTransform(sensorBody, { x, y: 1, z: 0 }, IDENTITY);
+	b3.b3Body_SetTransform(sensorBody, [x, 1, 0], IDENTITY);
 
 	app.step(() => b3.b3World_Step(world, 1 / 60, 4));
 
