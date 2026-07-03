@@ -137,9 +137,9 @@ b3.b3Body_SetAngularVelocity(spinning, [0, 0.6, 0]);
 
 // sliding + diagonal kinematic platforms (animated in the loop)
 const sliding = kinematic(20, 2, -5, 3, 0.2, 3);
-const slidingCenter = { x: 20, y: 2, z: -5 };
+const slidingCenter: b3Vec3 = [20, 2, -5];
 const diagonal = kinematic(20, 3, 5, 3, 0.2, 3);
-const diagonalCenter = { x: 20, y: 3, z: 5 };
+const diagonalCenter: b3Vec3 = [20, 3, 5];
 
 // triangle-mesh terrain (16×16 heightfield), drawn by us since the renderer
 // can't introspect a mesh shape
@@ -573,16 +573,16 @@ app.onFrame((dt: number) => {
 		// animate the moving platforms
 		moveKinematic(
 			sliding,
-			slidingCenter.x + 8 * Math.sin(2 * Math.PI * 0.15 * elapsed),
-			slidingCenter.y,
-			slidingCenter.z,
+			slidingCenter[0] + 8 * Math.sin(2 * Math.PI * 0.15 * elapsed),
+			slidingCenter[1],
+			slidingCenter[2],
 			h,
 		);
 		moveKinematic(
 			diagonal,
-			diagonalCenter.x + 6 * Math.sin(2 * Math.PI * 0.12 * elapsed),
-			diagonalCenter.y + 2 * Math.sin(2 * Math.PI * 0.12 * elapsed),
-			diagonalCenter.z,
+			diagonalCenter[0] + 6 * Math.sin(2 * Math.PI * 0.12 * elapsed),
+			diagonalCenter[1] + 2 * Math.sin(2 * Math.PI * 0.12 * elapsed),
+			diagonalCenter[2],
 			h,
 		);
 		b3.b3World_Step(world, 1 / 60, 4);
