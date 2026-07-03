@@ -562,11 +562,6 @@ export type b3ContactHitEvent = {
   userMaterialIdB: bigint
 };
 
-export type b3CosSin = {
-  cosine: number,
-  sine: number
-};
-
 interface EmbindModule {
   b3BodyType: {b3_staticBody: b3BodyTypeValue<0>, b3_kinematicBody: b3BodyTypeValue<1>, b3_dynamicBody: b3BodyTypeValue<2>};
   b3ShapeType: {b3_capsuleShape: b3ShapeTypeValue<0>, b3_compoundShape: b3ShapeTypeValue<1>, b3_heightShape: b3ShapeTypeValue<2>, b3_hullShape: b3ShapeTypeValue<3>, b3_meshShape: b3ShapeTypeValue<4>, b3_sphereShape: b3ShapeTypeValue<5>};
@@ -772,33 +767,17 @@ interface EmbindModule {
   b3SphericalJoint_GetMotorTorque(jointId: b3JointId): b3Vec3;
   b3Body_GetLocalRotationalInertia(bodyId: b3BodyId): b3Matrix3;
   b3Body_GetWorldInverseRotationalInertia(bodyId: b3BodyId): b3Matrix3;
-  b3Cross(a: b3Vec3, b: b3Vec3): b3Vec3;
-  b3OffsetPos(p: b3Vec3, v: b3Vec3): b3Vec3;
-  b3Perp(v: b3Vec3): b3Vec3;
-  b3IsNormalized(v: b3Vec3): boolean;
   b3CloneAndTransformHull(original: b3HullData | null, transform: b3Transform, scale: b3Vec3): b3HullData | null;
-  b3InvMulTransforms(a: b3Transform, b: b3Transform): b3Transform;
   b3Joint_SetLocalFrameA(jointId: b3JointId, localFrame: b3Transform): void;
   b3Joint_SetLocalFrameB(jointId: b3JointId, localFrame: b3Transform): void;
-  b3TransformPoint(transform: b3Transform, v: b3Vec3): b3Vec3;
-  b3MulTransforms(a: b3Transform, b: b3Transform): b3Transform;
   b3Body_SetTransform(bodyId: b3BodyId, position: b3Vec3, rotation: b3Quat): void;
   b3SphericalJoint_SetTargetRotation(jointId: b3JointId, targetRotation: b3Quat): void;
   b3SphericalJoint_GetTargetRotation(jointId: b3JointId): b3Quat;
-  b3RotateVector(q: b3Quat, v: b3Vec3): b3Vec3;
-  b3InvRotateVector(q: b3Quat, v: b3Vec3): b3Vec3;
-  b3ComputeQuatBetweenUnitVectors(v1: b3Vec3, v2: b3Vec3): b3Quat;
-  b3InvMulQuat(a: b3Quat, b: b3Quat): b3Quat;
   b3ComputeHullAABB(hull: b3HullData | null, transform: b3Transform): b3AABB;
-  b3AABB_Union(a: b3AABB, b: b3AABB): b3AABB;
-  b3AABB_Center(aabb: b3AABB): b3Vec3;
-  b3AABB_Extents(aabb: b3AABB): b3Vec3;
-  b3ClosestPointToAABB(aabb: b3Vec3, p: b3AABB): b3Vec3;
   b3DynamicTree_CreateProxy(tree: b3DynamicTree | null, aabb: b3AABB, categoryBits: number, userData: number): number;
   b3DynamicTree_MoveProxy(tree: b3DynamicTree | null, proxyId: number, aabb: b3AABB): void;
   b3DynamicTree_EnlargeProxy(tree: b3DynamicTree | null, proxyId: number, aabb: b3AABB): void;
   b3DynamicTree_GetRootBounds(tree: b3DynamicTree | null): b3AABB;
-  b3IsValidPlane(p: b3Plane): boolean;
   b3ComputeSphereAABB(sphere: b3Sphere, transform: b3Transform): b3AABB;
   b3Shape_GetSphere(shapeId: b3ShapeId): b3Sphere;
   b3Shape_SetSphere(shapeId: b3ShapeId, sphere: b3Sphere): void;
@@ -1010,11 +989,6 @@ interface EmbindModule {
   b3Shape_ComputeMassData(shapeId: b3ShapeId): b3MassData;
   b3World_CastRayClosest(worldId: b3WorldId, origin: b3Vec3, translation: b3Vec3, filter: b3QueryFilter): b3RayResult;
   b3Shape_RayCast(shapeId: b3ShapeId, origin: b3Vec3, translation: b3Vec3): b3WorldCastOutput;
-  b3Distance(a: b3Vec3, b: b3Vec3): number;
-  b3DistanceSquared(a: b3Vec3, b: b3Vec3): number;
-  b3MakeQuatFromAxisAngle(axis: b3Vec3, radians: number): b3Quat;
-  b3AABB_Area(aabb: b3AABB): number;
-  b3ComputeCosSin(radians: number): b3CosSin;
   b3DynamicTree_GetAreaRatio(tree: b3DynamicTree | null): number;
   b3Body_SetName(bodyId: b3BodyId, name: EmbindString): void;
   b3Body_GetName(bodyId: b3BodyId): string;
@@ -1053,8 +1027,6 @@ interface EmbindModule {
   b3DistanceJoint_GetSpringForceRange(jointId: b3JointId): any;
   b3World_OverlapAABB(worldId: b3WorldId, aabb: b3AABB, filter: b3QueryFilter, callback: any): void;
   b3World_CastRay(worldId: b3WorldId, origin: b3Vec3, translation: b3Vec3, filter: b3QueryFilter, callback: any): void;
-  b3GetLengthAndNormalize(v: b3Vec3): any;
-  b3GetAxisAngle(q: b3Quat): any;
   b3DynamicTree_Query(tree: b3DynamicTree | null, aabb: b3AABB, maskBits: number, callback: any): b3TreeStats;
   b3DynamicTree_RayCast(tree: b3DynamicTree | null, origin: b3Vec3, translation: b3Vec3, maxFraction: number, maskBits: number, callback: any): b3TreeStats;
   b3DynamicTree_QueryClosest(tree: b3DynamicTree | null, point: b3Vec3, maskBits: number, callback: any): b3TreeStats;

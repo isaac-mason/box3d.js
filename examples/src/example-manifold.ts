@@ -8,11 +8,10 @@ import Box3D from 'box3d.js/inline';
 import type { Box3DModule, b3Transform, b3HullData, b3Vec3 } from 'box3d.js';
 import * as THREE from 'three';
 import { createHarness } from './harness';
+import { quatFromAxisAngle } from './math';
 
 const b3: Box3DModule = await Box3D();
 const app = createHarness({ camera: [0, 3, 8], target: [0, 0, 0] });
-
-const IDENTITY: b3Transform = { position: [0, 0, 0], quaternion: [0, 0, 0, 1] };
 
 // box3d hull for a box of the given half-extents
 function boxHull(hx: number, hy: number, hz: number): b3HullData {
@@ -93,7 +92,7 @@ app.onFrame((dt: number) => {
 	const dist = 1.6 + 0.5 * Math.sin(t * 0.8);
 	const xfB: b3Transform = {
 		position: [Math.cos(t * 0.5) * dist, Math.sin(t * 0.9) * 0.6, Math.sin(t * 0.5) * dist],
-		quaternion: b3.b3MakeQuatFromAxisAngle([0.3, 1, 0.2], t * 0.7),
+		quaternion: quatFromAxisAngle([0.3, 1, 0.2], t * 0.7),
 	};
 
 	meshA.position.set(0, 0, 0);
@@ -103,7 +102,7 @@ app.onFrame((dt: number) => {
 
 	// A is identity, so transformBtoA == xfB and manifold points are world-space
 	const [ka, kb] = pairs[params.pair];
-	const m = collide(ka, kb, b3.b3InvMulTransforms(IDENTITY, xfB));
+	const m = collide(ka, kb, xfB); // shape A is at identity, so B-relative-to-A == xfB
 
 	for (let i = 0; i < 4; i++) {
 		const p = m.points[i];

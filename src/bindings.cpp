@@ -938,8 +938,8 @@ EMSCRIPTEN_BINDINGS( box3d )
 
 	// --- manifold generation (b3Collide*). Collide two shapes, with shape B
 	// given relative to A via transformBtoA, returning { normal, points:[{point,
-	// separation}] } in shape A's local frame. Up to 4 points. ---
-	function( "b3InvMulTransforms(a, b)", &b3InvMulTransforms );
+	// separation}] } in shape A's local frame. Up to 4 points. Compute transformBtoA
+	// in JS (inverse of A times B) — no math-op wasm crossing. ---
 	function( "b3CollideSpheres(sphereA, sphereB, transformB)", +[]( b3Sphere a, b3Sphere b, b3Transform xf ) -> val
 	{
 		b3LocalManifoldPoint pts[4] = {}; b3LocalManifold m = {}; m.points = pts;
@@ -1717,39 +1717,9 @@ EMSCRIPTEN_BINDINGS( box3d )
 		.function( "sensorEndPtr", &EventsBuffer::sensorEndPtr )
 		.function( "jointPtr", &EventsBuffer::jointPtr );
 
-	function( "b3Distance(a, b)", &b3Distance );
-	function( "b3DistanceSquared(a, b)", &b3DistanceSquared );
-	function( "b3Cross(a, b)", &b3Cross );
-	function( "b3RotateVector(q, v)", &b3RotateVector );
-	function( "b3InvRotateVector(q, v)", &b3InvRotateVector );
-	function( "b3TransformPoint(transform, v)", &b3TransformPoint );
-	function( "b3MulTransforms(a, b)", &b3MulTransforms );
-	function( "b3AABB_Union(a, b)", &b3AABB_Union );
-	function( "b3MakeQuatFromAxisAngle(axis, radians)", &b3MakeQuatFromAxisAngle );
-	function( "b3ComputeQuatBetweenUnitVectors(v1, v2)", &b3ComputeQuatBetweenUnitVectors );
-	function( "b3InvMulQuat(a, b)", &b3InvMulQuat );
-	function( "b3OffsetPos(p, v)", &b3OffsetPos );
-	function( "b3Perp(v)", &b3Perp );
-	function( "b3IsNormalized(v)", &b3IsNormalized );
-	function( "b3IsValidPlane(p)", &b3IsValidPlane );
-	function( "b3AABB_Area(aabb)", &b3AABB_Area );
-	function( "b3AABB_Center(aabb)", &b3AABB_Center );
-	function( "b3AABB_Extents(aabb)", &b3AABB_Extents );
-	function( "b3ClosestPointToAABB(aabb, p)", &b3ClosestPointToAABB );
-	value_object<b3CosSin>( "b3CosSin" ).field( "cosine", &b3CosSin::cosine ).field( "sine", &b3CosSin::sine );
-	function( "b3ComputeCosSin(radians)", &b3ComputeCosSin );
-	function( "b3GetLengthAndNormalize(v)", +[]( b3Vec3 a ) -> val
-	{
-		float length = 0.0f;
-		b3Vec3 n = b3GetLengthAndNormalize( &length, a );
-		val o = val::object(); o.set( "length", length ); o.set( "normalized", val( n ) ); return o;
-	} );
-	function( "b3GetAxisAngle(q)", +[]( b3Quat q ) -> val
-	{
-		float radians = 0.0f;
-		b3Vec3 axis = b3GetAxisAngle( &radians, q );
-		val o = val::object(); o.set( "radians", radians ); o.set( "axis", val( axis ) ); return o;
-	} );
+	// NOTE: box3d's inline vector/quaternion/AABB math (b3Cross, b3RotateVector,
+	// b3MakeQuatFromAxisAngle, b3AABB_Union, …) is intentionally NOT bound — a quick
+	// math op should never cross the wasm boundary. Do it in JS (gl-matrix / mathcat).
 
 	// b3DynamicTree owns heap memory — opaque handle, never copied to JS by value. Category/mask/userData as 32-bit numbers.
 	class_<b3DynamicTree>( "b3DynamicTree" );

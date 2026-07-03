@@ -21,6 +21,7 @@ import type {
 import Box3D from 'box3d.js/inline';
 import * as THREE from 'three';
 import { createWorldRenderer } from './box3d-three';
+import { quatFromAxisAngle } from './math';
 import { createHarness } from './harness';
 
 const b3: Box3DModule = await Box3D();
@@ -123,7 +124,7 @@ for (let j = 0; j < 5; j++) {
 // slopes — 10 angled boxes from 70° down to 25°
 for (let i = 0; i < 10; i++) {
 	const angle = ((70 - i * 5) * Math.PI) / 180;
-	const q = b3.b3MakeQuatFromAxisAngle([1, 0, 0], angle);
+	const q = quatFromAxisAngle([1, 0, 0], angle);
 	staticBox(-40 + 5 * i, 2, -25, 2.5, 0.6, 8, q);
 }
 
