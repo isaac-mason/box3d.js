@@ -124,10 +124,7 @@ run( 'em++', [ 'src/bindings.cpp', stLib, ...commonFlags, '--emit-tsd', 'box3d.d
 // --emit-tsd can only see as `any`, but the runtime shape is well-defined.
 // Types for the packed query buffers and the src/facade.js reader helpers,
 // intersected into Box3DModule below so `b3.getContactAt(...)` etc. are typed.
-const facadeTypes = `// The facade readers below emit named {x,y,z} objects (ergonomic field
-// access over the packed buffers), distinct from the core b3Vec3 mathcat arrays.
-export interface Vec3Obj { x: number; y: number; z: number }
-export interface ShapeIdBuffer { count: number; data: Int32Array; }
+const facadeTypes = `export interface ShapeIdBuffer { count: number; data: Int32Array; }
 export interface ContactBuffer {
   count: number;
   contactsI32: Int32Array;
@@ -152,23 +149,23 @@ export interface ContactHitEvent {
   shapeIdA: b3ShapeId;
   shapeIdB: b3ShapeId;
   contactId: b3ContactId;
-  point: Vec3Obj;
-  normal: Vec3Obj;
+  point: b3Vec3;
+  normal: b3Vec3;
   approachSpeed: number;
   userMaterialIdA: bigint;
   userMaterialIdB: bigint;
 }
 export interface BodyMoveEvent {
   bodyId: b3BodyId;
-  position: Vec3Obj;
-  rotation: { x: number; y: number; z: number; w: number };
+  position: b3Vec3;
+  rotation: b3Quat;
   fellAsleep: boolean;
 }
 export interface SensorTouchEvent { sensorShapeId: b3ShapeId; visitorShapeId: b3ShapeId; }
 export interface JointEvent { jointId: b3JointId; }
 /** Packed plane buffer passed to the b3World_CollideMover callback. */
 export interface PlaneResultBuffer { count: number; data: Float32Array; }
-export interface PlaneResult { plane: { normal: Vec3Obj; offset: number }; point: Vec3Obj; }
+export interface PlaneResult { plane: { normal: b3Vec3; offset: number }; point: b3Vec3; }
 export interface Contact {
   shapeIdA: b3ShapeId;
   shapeIdB: b3ShapeId;
@@ -176,8 +173,8 @@ export interface Contact {
   manifoldCount: number;
 }
 export interface ManifoldPoint {
-  anchorA: Vec3Obj;
-  anchorB: Vec3Obj;
+  anchorA: b3Vec3;
+  anchorB: b3Vec3;
   separation: number;
   baseSeparation: number;
   normalImpulse: number;
@@ -188,10 +185,10 @@ export interface ManifoldPoint {
   persisted: boolean;
 }
 export interface Manifold {
-  normal: Vec3Obj;
+  normal: b3Vec3;
   twistImpulse: number;
-  frictionImpulse: Vec3Obj;
-  rollingImpulse: Vec3Obj;
+  frictionImpulse: b3Vec3;
+  rollingImpulse: b3Vec3;
   pointCount: number;
   points: ManifoldPoint[];
 }

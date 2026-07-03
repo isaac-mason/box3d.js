@@ -86,8 +86,8 @@ function getContactAt( out, buf, i )
 function createPoint()
 {
 	return {
-		anchorA: { x: 0, y: 0, z: 0 },
-		anchorB: { x: 0, y: 0, z: 0 },
+		anchorA: [ 0, 0, 0 ],
+		anchorB: [ 0, 0, 0 ],
 		separation: 0,
 		baseSeparation: 0,
 		normalImpulse: 0,
@@ -104,10 +104,10 @@ function createPoint()
 function createManifold()
 {
 	return {
-		normal: { x: 0, y: 0, z: 0 },
+		normal: [ 0, 0, 0 ],
 		twistImpulse: 0,
-		frictionImpulse: { x: 0, y: 0, z: 0 },
-		rollingImpulse: { x: 0, y: 0, z: 0 },
+		frictionImpulse: [ 0, 0, 0 ],
+		rollingImpulse: [ 0, 0, 0 ],
 		pointCount: 0,
 		points: [ createPoint(), createPoint(), createPoint(), createPoint() ],
 	};
@@ -121,12 +121,12 @@ function getManifoldAt( out, contact, m )
 	const mi = buf.manifoldsI32;
 	const fs = ( buf.manifoldsF32Base | 0 ) + gm * MANIFOLD_STRIDE_F;
 	const n = out.normal;
-	n.x = mf[ fs ]; n.y = mf[ fs + 1 ]; n.z = mf[ fs + 2 ];
+	n[ 0 ] = mf[ fs ]; n[ 1 ] = mf[ fs + 1 ]; n[ 2 ] = mf[ fs + 2 ];
 	out.twistImpulse = mf[ fs + 3 ];
 	const fr = out.frictionImpulse;
-	fr.x = mf[ fs + 4 ]; fr.y = mf[ fs + 5 ]; fr.z = mf[ fs + 6 ];
+	fr[ 0 ] = mf[ fs + 4 ]; fr[ 1 ] = mf[ fs + 5 ]; fr[ 2 ] = mf[ fs + 6 ];
 	const rl = out.rollingImpulse;
-	rl.x = mf[ fs + 7 ]; rl.y = mf[ fs + 8 ]; rl.z = mf[ fs + 9 ];
+	rl[ 0 ] = mf[ fs + 7 ]; rl[ 1 ] = mf[ fs + 8 ]; rl[ 2 ] = mf[ fs + 9 ];
 
 	const is = ( buf.manifoldsI32Base | 0 ) + gm * MANIFOLD_STRIDE_I;
 	const pointStart = mi[ is ];
@@ -144,9 +144,9 @@ function getManifoldAt( out, contact, m )
 		const ps = pfBase + g * POINT_STRIDE_F;
 		const pis = piBase + g * POINT_STRIDE_I;
 		const aA = P.anchorA;
-		aA.x = pf[ ps ]; aA.y = pf[ ps + 1 ]; aA.z = pf[ ps + 2 ];
+		aA[ 0 ] = pf[ ps ]; aA[ 1 ] = pf[ ps + 1 ]; aA[ 2 ] = pf[ ps + 2 ];
 		const aB = P.anchorB;
-		aB.x = pf[ ps + 3 ]; aB.y = pf[ ps + 4 ]; aB.z = pf[ ps + 5 ];
+		aB[ 0 ] = pf[ ps + 3 ]; aB[ 1 ] = pf[ ps + 4 ]; aB[ 2 ] = pf[ ps + 5 ];
 		P.separation = pf[ ps + 6 ];
 		P.baseSeparation = pf[ ps + 7 ];
 		P.normalImpulse = pf[ ps + 8 ];
@@ -335,8 +335,8 @@ function createContactHitEvent()
 		shapeIdA: { index1: 0, world0: 0, generation: 0 },
 		shapeIdB: { index1: 0, world0: 0, generation: 0 },
 		contactId: { index1: 0, world0: 0, padding: 0, generation: 0 },
-		point: { x: 0, y: 0, z: 0 },
-		normal: { x: 0, y: 0, z: 0 },
+		point: [ 0, 0, 0 ],
+		normal: [ 0, 0, 0 ],
 		approachSpeed: 0,
 		userMaterialIdA: 0n,
 		userMaterialIdB: 0n,
@@ -353,8 +353,8 @@ function getContactHitEventAt( out, eb, i )
 	out.userMaterialIdB = readU64( a, s + 12 );
 	const f = eb.f64;
 	const fs = eb.contactHitF64Base + i * CONTACT_HIT_STRIDE_F;
-	out.point.x = f[ fs ]; out.point.y = f[ fs + 1 ]; out.point.z = f[ fs + 2 ];
-	out.normal.x = f[ fs + 3 ]; out.normal.y = f[ fs + 4 ]; out.normal.z = f[ fs + 5 ];
+	out.point[ 0 ] = f[ fs ]; out.point[ 1 ] = f[ fs + 1 ]; out.point[ 2 ] = f[ fs + 2 ];
+	out.normal[ 0 ] = f[ fs + 3 ]; out.normal[ 1 ] = f[ fs + 4 ]; out.normal[ 2 ] = f[ fs + 5 ];
 	out.approachSpeed = f[ fs + 6 ];
 	return out;
 }
@@ -364,8 +364,8 @@ function createBodyMoveEvent()
 {
 	return {
 		bodyId: { index1: 0, world0: 0, generation: 0 },
-		position: { x: 0, y: 0, z: 0 },
-		rotation: { x: 0, y: 0, z: 0, w: 1 },
+		position: [ 0, 0, 0 ],
+		rotation: [ 0, 0, 0, 1 ],
 		fellAsleep: false,
 	};
 }
@@ -377,8 +377,8 @@ function getBodyMoveEventAt( out, eb, i )
 	out.fellAsleep = a[ s + 3 ] !== 0;
 	const f = eb.f64;
 	const fs = eb.bodyMoveF64Base + i * BODY_MOVE_STRIDE_F;
-	out.position.x = f[ fs ]; out.position.y = f[ fs + 1 ]; out.position.z = f[ fs + 2 ];
-	out.rotation.x = f[ fs + 3 ]; out.rotation.y = f[ fs + 4 ]; out.rotation.z = f[ fs + 5 ]; out.rotation.w = f[ fs + 6 ];
+	out.position[ 0 ] = f[ fs ]; out.position[ 1 ] = f[ fs + 1 ]; out.position[ 2 ] = f[ fs + 2 ];
+	out.rotation[ 0 ] = f[ fs + 3 ]; out.rotation[ 1 ] = f[ fs + 4 ]; out.rotation[ 2 ] = f[ fs + 5 ]; out.rotation[ 3 ] = f[ fs + 6 ];
 	return out;
 }
 
@@ -418,16 +418,16 @@ function getJointEventAt( out, eb, i )
 function getNumPlaneResults( buf ) { return buf.count; }
 function createPlaneResult()
 {
-	return { plane: { normal: { x: 0, y: 0, z: 0 }, offset: 0 }, point: { x: 0, y: 0, z: 0 } };
+	return { plane: { normal: [ 0, 0, 0 ], offset: 0 }, point: [ 0, 0, 0 ] };
 }
 function getPlaneResultAt( out, buf, i )
 {
 	const d = buf.data;
 	const s = i * 7;
 	const nrm = out.plane.normal;
-	nrm.x = d[ s ]; nrm.y = d[ s + 1 ]; nrm.z = d[ s + 2 ];
+	nrm[ 0 ] = d[ s ]; nrm[ 1 ] = d[ s + 1 ]; nrm[ 2 ] = d[ s + 2 ];
 	out.plane.offset = d[ s + 3 ];
-	out.point.x = d[ s + 4 ]; out.point.y = d[ s + 5 ]; out.point.z = d[ s + 6 ];
+	out.point[ 0 ] = d[ s + 4 ]; out.point[ 1 ] = d[ s + 5 ]; out.point[ 2 ] = d[ s + 6 ];
 	return out;
 }
 

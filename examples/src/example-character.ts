@@ -485,10 +485,11 @@ function solveMove(
 			(_s: unknown, buf: PlaneResultBuffer) => {
 				for (let i = 0, n = b3.getNumPlaneResults(buf); i < n; i++) {
 					b3.getPlaneResultAt(planeResult, buf, i);
-					// planeResult.plane.normal / .point are facade {x,y,z} objects
+					// planeResult.plane.normal / .point are mathcat arrays; copy the
+					// normal out since planeResult is reused each iteration.
 					const nrm = planeResult.plane.normal;
 					planes.push({
-						plane: { normal: [nrm.x, nrm.y, nrm.z], offset: planeResult.plane.offset },
+						plane: { normal: [nrm[0], nrm[1], nrm[2]], offset: planeResult.plane.offset },
 						pushLimit: PUSH_LIMIT,
 						push: 0,
 						clipVelocity: true,
@@ -496,12 +497,12 @@ function solveMove(
 					if (iter === 0 && planeVizCount < MAX_PLANES) {
 						const v = planeViz[planeVizCount++];
 						// point is relative to the mover origin — offset into world space.
-						v.px = position[0] + planeResult.point.x;
-						v.py = position[1] + planeResult.point.y;
-						v.pz = position[2] + planeResult.point.z;
-						v.nx = nrm.x;
-						v.ny = nrm.y;
-						v.nz = nrm.z;
+						v.px = position[0] + planeResult.point[0];
+						v.py = position[1] + planeResult.point[1];
+						v.pz = position[2] + planeResult.point[2];
+						v.nx = nrm[0];
+						v.ny = nrm[1];
+						v.nz = nrm[2];
 					}
 				}
 				return true;

@@ -132,9 +132,9 @@ app.onFrame(() => {
 					if (points >= MAX_POINTS) break;
 					const pt = manifold.points[p];
 					_dummy.position.set(
-						_com.x + pt.anchorA.x,
-						_com.y + pt.anchorA.y,
-						_com.z + pt.anchorA.z,
+						_com.x + pt.anchorA[0],
+						_com.y + pt.anchorA[1],
+						_com.z + pt.anchorA[2],
 					);
 					_dummy.scale.setScalar(pt.separation < 0 ? 1.4 : 1);
 					_dummy.updateMatrix();

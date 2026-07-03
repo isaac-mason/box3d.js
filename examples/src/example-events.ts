@@ -153,12 +153,12 @@ app.onFrame((dt) => {
 	for (let i = 0, n = b3.getNumContactHitEvents(eventsBuffer); i < n; i++) {
 		b3.getContactHitEventAt(hit, eventsBuffer, i);
 		spawnMarker(
-			hit.point.x,
-			hit.point.y,
-			hit.point.z,
-			hit.normal.x,
-			hit.normal.y,
-			hit.normal.z,
+			hit.point[0],
+			hit.point[1],
+			hit.point[2],
+			hit.normal[0],
+			hit.normal[1],
+			hit.normal[2],
 			hit.approachSpeed,
 		);
 	}
