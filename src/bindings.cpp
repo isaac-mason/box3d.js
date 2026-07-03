@@ -1,9 +1,31 @@
 // box3d.js — hand-written embind bindings for box3d.
 //
-// Style: flat & faithful. We mirror the C API ~1:1. C structs map to embind
-// value_objects; C functions bind directly. Functions that take a `const
-// b3*Def*` pointer are wrapped by a tiny by-value lambda, because embind
-// marshals value_objects by value, not by pointer.
+// CONVENTIONS (the whole design in one place):
+//
+// * Flat & faithful. We mirror the C API ~1:1. C structs map to embind
+//   value_objects; C functions bind directly. Functions taking a `const b3*Def*`
+//   pointer are wrapped by a tiny by-value lambda (embind marshals value_objects
+//   by value, not by pointer). Param names are embedded in the bound name string
+//   ("b3Body_SetLinearVelocity(bodyId, v)") so --emit-tsd names them.
+//
+// * Math is mathcat-shaped plain arrays, input AND output: b3Vec3 = [x,y,z]
+//   (value_array), b3Quat = [x,y,z,w] (flattened from {v,s}), b3AABB =
+//   [minX,minY,minZ,maxX,maxY,maxZ], b3Transform = { position, quaternion }.
+//
+// * Value reads are OUT-PARAM-FIRST and zero-alloc — there is no allocating
+//   returning form. Each getter is bound as a raw writer `b3X_GetYInto(out, ...)`
+//   that writes floats to a static scratch (b3_getMathScratch); src/facade.js
+//   installs the public `b3X_GetY(out, ...) -> out` that copies scratch into the
+//   caller's array (specialized per type × arity, no per-call allocation).
+//
+// * ID handles (b3BodyId/etc.) stay small value_objects — opaque 64-bit handles,
+//   not math, can't pack into a JS number.
+//
+// * Pure vec/quat/AABB math ops (b3Cross, b3MakeQuatFromAxisAngle, …) are NOT
+//   bound — a quick op should never cross the wasm boundary; do it in JS.
+//
+// * Bulk/packed reads (contacts, per-step events, sensor overlaps, mover planes)
+//   cross the boundary once as a typed-array buffer; facade.js scans them alloc-free.
 //
 // The file is organized into sections so it stays buildable as coverage grows.
 
@@ -25,7 +47,7 @@ using namespace emscripten;
 
 namespace
 {
-// --- out-param math reads (see docs/BINDING_CONVENTIONS.md §2) ---
+// --- out-param math reads (see conventions in the file header) ---
 // A static float scratch the facade points the raw `*Into` writers at, then copies
 // out into the caller's array. 16 floats covers the largest math read (a transform).
 float g_mathScratch[16];
@@ -397,7 +419,7 @@ EMSCRIPTEN_BINDINGS( box3d )
 		.value( "b3_weldJoint", b3_weldJoint )
 		.value( "b3_wheelJoint", b3_wheelJoint );
 
-	// Math value types are mathcat-shaped plain arrays (see docs/BINDING_CONVENTIONS.md).
+	// Math value types are mathcat-shaped plain arrays (see file header).
 	// b3Vec3 -> [x,y,z], b3Quat -> [x,y,z,w], b3AABB -> [minX,minY,minZ,maxX,maxY,maxZ].
 	value_array<b3Vec3>( "b3Vec3" )
 		.element( &b3Vec3::x )

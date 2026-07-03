@@ -431,7 +431,7 @@ function getPlaneResultAt( out, buf, i )
 	return out;
 }
 
-// --- out-param math reads (see docs/BINDING_CONVENTIONS.md §2) --------------
+// --- out-param math reads (conventions documented in src/bindings.cpp header) ---
 // Each raw `b3X_GetYInto(out, ...)` writes floats to a static wasm scratch; the
 // public `b3X_GetY(out, ...) -> out` copies scratch -> the caller's mathcat array.
 //

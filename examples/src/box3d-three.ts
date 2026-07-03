@@ -130,7 +130,7 @@ export function createWorldRenderer(
 				group.add(mesh);
 			}
 
-			// zero-alloc out-param reads into reused scratch (see BINDING_CONVENTIONS §2)
+			// zero-alloc out-param reads into reused scratch (out-param-first API)
 			b3.b3Body_GetPosition(_p, body);
 			b3.b3Body_GetRotation(_q, body);
 			mesh.position.set(_p[0], _p[1], _p[2]);
