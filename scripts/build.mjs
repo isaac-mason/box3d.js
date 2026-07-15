@@ -35,6 +35,28 @@ function run( cmd, args )
 	execFileSync( cmd, args, { stdio: 'inherit', cwd: root } );
 }
 
+// Emscripten's Node support code (-sENVIRONMENT=...,node) loads node builtins
+// with require() via a createRequire shim. That's valid ESM at runtime, but
+// bundlers flag the require() calls when the file is consumed as an ES module.
+// The calls all sit at the top level of the async MODULARIZE factory, so
+// rewrite them to dynamic imports (node builtins expose everything as named
+// exports, so namespace access keeps working) and drop the dead shim.
+function rewriteRequires( file )
+{
+	const path = join( root, file );
+	let src = readFileSync( path, 'utf8' );
+	src = src.replaceAll( /\brequire\(\s*["']([^"']+)["']\s*\)/g, '(await import("$1"))' );
+	// node: scheme on every builtin import (emscripten emits some itself, bare)
+	// so bundlers unambiguously treat them as Node builtins.
+	src = src.replaceAll( /\bimport\(\s*["'](?:node:)?(fs|path|url|util|module|crypto|worker_threads)["']\s*\)/g, 'import("node:$1")' );
+	src = src.replace( /const\s*{\s*createRequire\s*}\s*=\s*await import\(\s*["'](?:node:)?module["']\s*\);?\s*(?:\/\*\*[^]*?\*\/\s*)?var require\s*=\s*createRequire\(\s*import\.meta\.url\s*\);?/, '' );
+	if ( /\brequire\s*\(\s*["']/.test( src ) || src.includes( 'createRequire(import.meta.url)' ) )
+	{
+		throw new Error( `${file}: require() still present after rewrite — did emscripten's output change?` );
+	}
+	writeFileSync( path, src );
+}
+
 function findFile( dir, name )
 {
 	for ( const e of readdirSync( dir, { withFileTypes: true } ) )
@@ -117,6 +139,7 @@ const mtFlags = [
 // --- single-threaded ---
 // Separate-wasm build (also emits the shared TypeScript defs).
 run( 'em++', [ 'src/bindings.cpp', stLib, ...commonFlags, '--emit-tsd', 'box3d.d.ts', '-o', 'dist/box3d.mjs' ] );
+rewriteRequires( 'dist/box3d.mjs' );
 
 // emscripten hardcodes MainModule / MainModuleFactory in --emit-tsd output.
 // Rename them to friendlier box3d names.
@@ -263,12 +286,15 @@ writeFileSync( tsdPath, tsd );
 
 // Inlined single-file build (wasm base64-embedded).
 run( 'em++', [ 'src/bindings.cpp', stLib, ...commonFlags, '-sSINGLE_FILE=1', '-o', 'dist/box3d.inline.mjs' ] );
+rewriteRequires( 'dist/box3d.inline.mjs' );
 
 // --- multithreaded (pthreads) ---
 run( 'em++', [ 'src/bindings.cpp', mtLib, ...commonFlags, ...mtFlags, '-o', 'dist/box3d.mt.mjs' ] );
+rewriteRequires( 'dist/box3d.mt.mjs' );
 // Single-file MT build: base64-embedding the wasm sidesteps the SharedArrayBuffer
 // + separate-wasm-fetch friction (as JoltPhysics.js does).
 run( 'em++', [ 'src/bindings.cpp', mtLib, ...commonFlags, ...mtFlags, '-sSINGLE_FILE=1', '-o', 'dist/box3d.mt.inline.mjs' ] );
+rewriteRequires( 'dist/box3d.mt.inline.mjs' );
 
 console.log( '\nBuild artifacts:' );
 for ( const f of [
