@@ -13,12 +13,12 @@ const b3: Box3DModule = await Box3D();
 const app = createHarness({ camera: [0, 9, 20], target: [0, 2, 0] });
 
 const worldDef = b3.b3DefaultWorldDef();
-worldDef.gravity = { x: 0, y: -10, z: 0 };
+worldDef.gravity = [0, -10, 0];
 const world = b3.b3CreateWorld(worldDef);
 
 // platform
 const groundDef = b3.b3DefaultBodyDef();
-groundDef.position = { x: 0, y: -0.5, z: 0 };
+groundDef.position = [0, -0.5, 0];
 const ground = b3.b3CreateBody(world, groundDef);
 b3.b3CreateBoxShape(ground, b3.b3DefaultShapeDef(), 12, 0.5, 12);
 
@@ -30,11 +30,11 @@ let bodies: b3BodyId[] = [];
 function spawn(): void {
 	const def = b3.b3DefaultBodyDef();
 	def.type = b3.b3BodyType.b3_dynamicBody;
-	def.position = {
-		x: Math.sin(bodies.length * 12.9898) * 4,
-		y: 8 + (bodies.length % 5),
-		z: Math.cos(bodies.length * 4.1414) * 4,
-	};
+	def.position = [
+		Math.sin(bodies.length * 12.9898) * 4,
+		8 + (bodies.length % 5),
+		Math.cos(bodies.length * 4.1414) * 4,
+	];
 	const body = b3.b3CreateBody(world, def);
 
 	const shapeDef = b3.b3DefaultShapeDef();
@@ -45,13 +45,13 @@ function spawn(): void {
 	if (pick === 0) b3.b3CreateBoxShape(body, shapeDef, 0.5, 0.5, 0.5);
 	else if (pick === 1)
 		b3.b3CreateSphereShape(body, shapeDef, {
-			center: { x: 0, y: 0, z: 0 },
+			center: [0, 0, 0],
 			radius: 0.55,
 		});
 	else
 		b3.b3CreateCapsuleShape(body, shapeDef, {
-			center1: { x: 0, y: -0.35, z: 0 },
-			center2: { x: 0, y: 0.35, z: 0 },
+			center1: [0, -0.35, 0],
+			center2: [0, 0.35, 0],
 			radius: 0.4,
 		});
 
@@ -153,12 +153,12 @@ app.onFrame((dt) => {
 	for (let i = 0, n = b3.getNumContactHitEvents(eventsBuffer); i < n; i++) {
 		b3.getContactHitEventAt(hit, eventsBuffer, i);
 		spawnMarker(
-			hit.point.x,
-			hit.point.y,
-			hit.point.z,
-			hit.normal.x,
-			hit.normal.y,
-			hit.normal.z,
+			hit.point[0],
+			hit.point[1],
+			hit.point[2],
+			hit.normal[0],
+			hit.normal[1],
+			hit.normal[2],
 			hit.approachSpeed,
 		);
 	}

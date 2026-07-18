@@ -12,11 +12,11 @@ const b3: Box3DModule = await Box3D();
 const app = createHarness({ camera: [0, 8, 25], target: [0, 2, 0] });
 
 const worldDef = b3.b3DefaultWorldDef();
-worldDef.gravity = { x: 0, y: -10, z: 0 };
+worldDef.gravity = [0, -10, 0];
 const world = b3.b3CreateWorld(worldDef);
 
 const floorDef = b3.b3DefaultBodyDef();
-floorDef.position = { x: 0, y: -0.5, z: 0 };
+floorDef.position = [0, -0.5, 0];
 const floor = b3.b3CreateBody(world, floorDef);
 const floorShapeDef = b3.b3DefaultShapeDef();
 floorShapeDef.baseMaterial.friction = 0;
@@ -26,7 +26,7 @@ const numBoxes = 10;
 const spacing = 2.0;
 const startHeight = 0.5;
 const startX = -((numBoxes - 1) / 2) * spacing;
-const LAUNCH = { x: 0, y: 0, z: 8 };
+const LAUNCH: [number, number, number] = [0, 0, 8];
 
 function makeLabel(text: string, x: number, y: number, z: number): void {
 	const canvas = document.createElement('canvas');
@@ -52,7 +52,7 @@ for (let i = 0; i < numBoxes; i++) {
 	const x = startX + spacing * i;
 	const def = b3.b3DefaultBodyDef();
 	def.type = b3.b3BodyType.b3_dynamicBody;
-	def.position = { x, y: startHeight, z: -20 };
+	def.position = [x, startHeight, -20];
 	def.linearDamping = damping;
 	def.linearVelocity = LAUNCH;
 	const body = b3.b3CreateBody(world, def);
@@ -65,13 +65,9 @@ for (let i = 0; i < numBoxes; i++) {
 
 function reset(): void {
 	for (const { body, x } of boxes) {
-		b3.b3Body_SetTransform(
-			body,
-			{ x, y: startHeight, z: -20 },
-			{ v: { x: 0, y: 0, z: 0 }, s: 1 },
-		);
+		b3.b3Body_SetTransform(body, [x, startHeight, -20], [0, 0, 0, 1]);
 		b3.b3Body_SetLinearVelocity(body, LAUNCH);
-		b3.b3Body_SetAngularVelocity(body, { x: 0, y: 0, z: 0 });
+		b3.b3Body_SetAngularVelocity(body, [0, 0, 0]);
 		b3.b3Body_SetAwake(body, true);
 	}
 }

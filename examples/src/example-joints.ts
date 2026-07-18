@@ -3,7 +3,7 @@
 // local x, spherical cone is about frame z. Each demo is built at a grid cell
 // origin; the joint frame offsets are identical to the single-cell case.
 
-import type { Box3DModule } from 'box3d.js';
+import type { Box3DModule, b3Quat } from 'box3d.js';
 import Box3D from 'box3d.js/inline';
 import * as THREE from 'three';
 import { createWorldRenderer } from './box3d-three';
@@ -13,22 +13,22 @@ const b3: Box3DModule = await Box3D();
 const app = createHarness({ camera: [0, 20, 30], target: [0, 2, 0] });
 
 const worldDef = b3.b3DefaultWorldDef();
-worldDef.gravity = { x: 0, y: -10, z: 0 };
+worldDef.gravity = [0, -10, 0];
 const world = b3.b3CreateWorld(worldDef);
 
-const ID = { v: { x: 0, y: 0, z: 0 }, s: 1 };
-const Z_TO_Y = { v: { x: Math.SQRT1_2, y: 0, z: 0 }, s: Math.SQRT1_2 }; // frame z -> +Y
+const ID: b3Quat = [0, 0, 0, 1];
+const Z_TO_Y: b3Quat = [Math.SQRT1_2, 0, 0, Math.SQRT1_2]; // frame z -> +Y
 
 // body helpers that place at a grid-cell origin (ox, oz); joint frame offsets stay the same
 function ground(ox: number, oz: number) {
 	const d = b3.b3DefaultBodyDef();
-	d.position = { x: ox, y: 0, z: oz };
+	d.position = [ox, 0, oz];
 	return b3.b3CreateBody(world, d);
 }
 function dyn(ox: number, oz: number, x: number, y: number, z: number) {
 	const d = b3.b3DefaultBodyDef();
 	d.type = b3.b3BodyType.b3_dynamicBody;
-	d.position = { x: ox + x, y, z: oz + z };
+	d.position = [ox + x, y, oz + z];
 	return b3.b3CreateBody(world, d);
 }
 
@@ -44,8 +44,8 @@ const scenes: Array<[string, Scene]> = [
 			const jd = b3.b3DefaultRevoluteJointDef();
 			jd.base.bodyIdA = hub;
 			jd.base.bodyIdB = arm;
-			jd.base.localFrameA = { p: { x: 0, y: 5, z: 0 }, q: Z_TO_Y };
-			jd.base.localFrameB = { p: { x: -2, y: 0, z: 0 }, q: Z_TO_Y };
+			jd.base.localFrameA = { position: [0, 5, 0], quaternion: Z_TO_Y };
+			jd.base.localFrameB = { position: [-2, 0, 0], quaternion: Z_TO_Y };
 			jd.enableMotor = true;
 			jd.motorSpeed = 2;
 			jd.maxMotorTorque = 20000;
@@ -61,8 +61,8 @@ const scenes: Array<[string, Scene]> = [
 			const jd = b3.b3DefaultPrismaticJointDef();
 			jd.base.bodyIdA = g;
 			jd.base.bodyIdB = slider;
-			jd.base.localFrameA = { p: { x: 0, y: 5, z: 0 }, q: ID };
-			jd.base.localFrameB = { p: { x: 0, y: 0, z: 0 }, q: ID };
+			jd.base.localFrameA = { position: [0, 5, 0], quaternion: ID };
+			jd.base.localFrameB = { position: [0, 0, 0], quaternion: ID };
 			jd.enableLimit = true;
 			jd.lowerTranslation = -2.5;
 			jd.upperTranslation = 2.5;
@@ -82,18 +82,18 @@ const scenes: Array<[string, Scene]> = [
 			const hub = ground(ox, oz);
 			const bob = dyn(ox, oz, 0, 3, 0);
 			b3.b3CreateSphereShape(bob, b3.b3DefaultShapeDef(), {
-				center: { x: 0, y: 0, z: 0 },
+				center: [0, 0, 0],
 				radius: 0.5,
 			});
 			const jd = b3.b3DefaultSphericalJointDef();
 			jd.base.bodyIdA = hub;
 			jd.base.bodyIdB = bob;
-			jd.base.localFrameA = { p: { x: 0, y: 5, z: 0 }, q: Z_TO_Y };
-			jd.base.localFrameB = { p: { x: 0, y: 2, z: 0 }, q: Z_TO_Y };
+			jd.base.localFrameA = { position: [0, 5, 0], quaternion: Z_TO_Y };
+			jd.base.localFrameB = { position: [0, 2, 0], quaternion: Z_TO_Y };
 			jd.enableConeLimit = true;
 			jd.coneAngle = 0.6;
 			b3.b3CreateSphericalJoint(world, jd);
-			b3.b3Body_SetLinearVelocity(bob, { x: 4, y: 0, z: 2 });
+			b3.b3Body_SetLinearVelocity(bob, [4, 0, 2]);
 		},
 	],
 	[
@@ -107,14 +107,14 @@ const scenes: Array<[string, Scene]> = [
 			const rj = b3.b3DefaultRevoluteJointDef();
 			rj.base.bodyIdA = hub;
 			rj.base.bodyIdB = a;
-			rj.base.localFrameA = { p: { x: -1.5, y: 5, z: 0 }, q: Z_TO_Y };
-			rj.base.localFrameB = { p: { x: -1.5, y: 0, z: 0 }, q: Z_TO_Y };
+			rj.base.localFrameA = { position: [-1.5, 5, 0], quaternion: Z_TO_Y };
+			rj.base.localFrameB = { position: [-1.5, 0, 0], quaternion: Z_TO_Y };
 			b3.b3CreateRevoluteJoint(world, rj);
 			const wj = b3.b3DefaultWeldJointDef();
 			wj.base.bodyIdA = a;
 			wj.base.bodyIdB = b;
-			wj.base.localFrameA = { p: { x: 1.5, y: 0, z: 0 }, q: ID };
-			wj.base.localFrameB = { p: { x: 0, y: 1, z: 0 }, q: ID };
+			wj.base.localFrameA = { position: [1.5, 0, 0], quaternion: ID };
+			wj.base.localFrameB = { position: [0, 1, 0], quaternion: ID };
 			b3.b3CreateWeldJoint(world, wj);
 		},
 	],
@@ -124,14 +124,14 @@ const scenes: Array<[string, Scene]> = [
 			const hub = ground(ox, oz);
 			const bob = dyn(ox, oz, 0, 3, 0);
 			b3.b3CreateSphereShape(bob, b3.b3DefaultShapeDef(), {
-				center: { x: 0, y: 0, z: 0 },
+				center: [0, 0, 0],
 				radius: 0.5,
 			});
 			const jd = b3.b3DefaultDistanceJointDef();
 			jd.base.bodyIdA = hub;
 			jd.base.bodyIdB = bob;
-			jd.base.localFrameA = { p: { x: 0, y: 6, z: 0 }, q: ID };
-			jd.base.localFrameB = { p: { x: 0, y: 0, z: 0 }, q: ID };
+			jd.base.localFrameA = { position: [0, 6, 0], quaternion: ID };
+			jd.base.localFrameB = { position: [0, 0, 0], quaternion: ID };
 			jd.length = 3;
 			jd.enableSpring = true;
 			jd.hertz = 1.5;
@@ -145,15 +145,15 @@ const scenes: Array<[string, Scene]> = [
 			const hub = ground(ox, oz);
 			const wheel = dyn(ox, oz, 0, 3, 0);
 			b3.b3CreateCapsuleShape(wheel, b3.b3DefaultShapeDef(), {
-				center1: { x: -0.15, y: 0, z: 0 },
-				center2: { x: 0.15, y: 0, z: 0 },
+				center1: [-0.15, 0, 0],
+				center2: [0.15, 0, 0],
 				radius: 1,
 			});
 			const jd = b3.b3DefaultWheelJointDef();
 			jd.base.bodyIdA = hub;
 			jd.base.bodyIdB = wheel;
-			jd.base.localFrameA = { p: { x: 0, y: 5, z: 0 }, q: Z_TO_Y };
-			jd.base.localFrameB = { p: { x: 0, y: 0, z: 0 }, q: Z_TO_Y };
+			jd.base.localFrameA = { position: [0, 5, 0], quaternion: Z_TO_Y };
+			jd.base.localFrameB = { position: [0, 0, 0], quaternion: Z_TO_Y };
 			jd.enableSuspensionSpring = true;
 			jd.suspensionHertz = 2;
 			jd.suspensionDampingRatio = 0.3;
@@ -170,7 +170,7 @@ const scenes: Array<[string, Scene]> = [
 				world,
 				Object.assign(b3.b3DefaultBodyDef(), {
 					type: b3.b3BodyType.b3_kinematicBody,
-					position: { x: ox, y: 4, z: oz },
+					position: [ox, 4, oz],
 				}),
 			);
 			const box = dyn(ox, oz, 3, 4, 0);
@@ -190,7 +190,7 @@ const scenes: Array<[string, Scene]> = [
 				t += dt;
 				b3.b3Body_SetTransform(
 					target,
-					{ x: ox + Math.cos(t) * 2.5, y: 4 + Math.sin(t * 1.3) * 1.5, z: oz },
+					[ox + Math.cos(t) * 2.5, 4 + Math.sin(t * 1.3) * 1.5, oz],
 					ID,
 				);
 			};
@@ -205,19 +205,19 @@ const scenes: Array<[string, Scene]> = [
 			const pin = b3.b3DefaultSphericalJointDef();
 			pin.base.bodyIdA = g;
 			pin.base.bodyIdB = plate;
-			pin.base.localFrameA = { p: { x: 0, y: 4, z: 0 }, q: ID };
-			pin.base.localFrameB = { p: { x: 0, y: 0, z: 0 }, q: ID };
+			pin.base.localFrameA = { position: [0, 4, 0], quaternion: ID };
+			pin.base.localFrameB = { position: [0, 0, 0], quaternion: ID };
 			b3.b3CreateSphericalJoint(world, pin);
 			const jd = b3.b3DefaultParallelJointDef();
 			jd.base.bodyIdA = g;
 			jd.base.bodyIdB = plate;
-			jd.base.localFrameA = { p: { x: 0, y: 4, z: 0 }, q: Z_TO_Y };
-			jd.base.localFrameB = { p: { x: 0, y: 0, z: 0 }, q: Z_TO_Y };
+			jd.base.localFrameA = { position: [0, 4, 0], quaternion: Z_TO_Y };
+			jd.base.localFrameB = { position: [0, 0, 0], quaternion: Z_TO_Y };
 			jd.hertz = 2;
 			jd.dampingRatio = 0.5;
 			jd.maxTorque = 1e6;
 			b3.b3CreateParallelJoint(world, jd);
-			b3.b3Body_SetAngularVelocity(plate, { x: 3, y: 0, z: 2 });
+			b3.b3Body_SetAngularVelocity(plate, [3, 0, 2]);
 		},
 	],
 	[

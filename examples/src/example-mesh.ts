@@ -14,7 +14,7 @@ const b3: Box3DModule = await Box3D();
 const app = createHarness({ camera: [0, 18, 30], target: [0, 0, 0] });
 
 const worldDef = b3.b3DefaultWorldDef();
-worldDef.gravity = { x: 0, y: -10, z: 0 };
+worldDef.gravity = [0, -10, 0];
 const world = b3.b3CreateWorld(worldDef);
 
 // Create a static mesh body from generated mesh data, and a matching THREE mesh
@@ -23,7 +23,7 @@ function addMesh(mesh: b3MeshData, pos: b3Vec3, color: number): void {
 	const def = b3.b3DefaultBodyDef();
 	def.position = pos;
 	const body = b3.b3CreateBody(world, def);
-	b3.b3CreateMeshShape(body, b3.b3DefaultShapeDef(), mesh, { x: 1, y: 1, z: 1 });
+	b3.b3CreateMeshShape(body, b3.b3DefaultShapeDef(), mesh, [1, 1, 1]);
 
 	const positions = b3.b3GetMeshVertices(mesh); // Float32Array
 	const indices = b3.b3GetMeshIndices(mesh); // Uint32Array
@@ -32,16 +32,16 @@ function addMesh(mesh: b3MeshData, pos: b3Vec3, color: number): void {
 	geom.setIndex(new THREE.BufferAttribute(indices, 1));
 	geom.computeVertexNormals();
 	const m = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({ color, roughness: 0.9, flatShading: false, side: THREE.DoubleSide }));
-	m.position.set(pos.x, pos.y, pos.z);
+	m.position.set(pos[0], pos[1], pos[2]);
 	m.receiveShadow = true;
 	app.scene.add(m);
 }
 
 // wave-mesh terrain floor
-addMesh(b3.b3CreateWaveMesh(24, 24, 1.2, 1.2, 0.35, 0.35)!, { x: -14.4, y: 0, z: -14.4 }, 0x3d6b4f);
+addMesh(b3.b3CreateWaveMesh(24, 24, 1.2, 1.2, 0.35, 0.35)!, [-14.4, 0, -14.4], 0x3d6b4f);
 // a torus and a box-mesh obstacle resting on it
-addMesh(b3.b3CreateTorusMesh(16, 12, 3, 1.0)!, { x: -7, y: 4, z: 6 }, 0xc78bff);
-addMesh(b3.b3CreateBoxMesh({ x: 0, y: 0, z: 0 }, { x: 3, y: 1.5, z: 3 }, true)!, { x: 8, y: 1.5, z: -6 }, 0x4d96ff);
+addMesh(b3.b3CreateTorusMesh(16, 12, 3, 1.0)!, [-7, 4, 6], 0xc78bff);
+addMesh(b3.b3CreateBoxMesh([0, 0, 0], [3, 1.5, 3], true)!, [8, 1.5, -6], 0x4d96ff);
 
 const renderer = createWorldRenderer(b3, world);
 app.scene.add(renderer.object3d);
@@ -55,11 +55,11 @@ function drop(count: number): void {
 	for (let i = 0; i < count; i++) {
 		const def = b3.b3DefaultBodyDef();
 		def.type = b3.b3BodyType.b3_dynamicBody;
-		def.position = { x: (rand() * 2 - 1) * 12, y: 12 + rand() * 6, z: (rand() * 2 - 1) * 12 };
+		def.position = [(rand() * 2 - 1) * 12, 12 + rand() * 6, (rand() * 2 - 1) * 12];
 		const body = b3.b3CreateBody(world, def);
 		const sd = b3.b3DefaultShapeDef();
 		sd.baseMaterial.restitution = 0.2;
-		if (rand() < 0.5) b3.b3CreateSphereShape(body, sd, { center: { x: 0, y: 0, z: 0 }, radius: 0.4 + rand() * 0.3 });
+		if (rand() < 0.5) b3.b3CreateSphereShape(body, sd, { center: [0, 0, 0], radius: 0.4 + rand() * 0.3 });
 		else b3.b3CreateBoxShape(body, sd, 0.4, 0.4, 0.4);
 		props.push(body);
 	}

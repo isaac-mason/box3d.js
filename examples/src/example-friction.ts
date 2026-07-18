@@ -3,7 +3,7 @@
 // is a friction gradient 0→1. Everything is launched forward (+z) with the same
 // velocity, so friction alone decides how far each slides. Press R to reset.
 
-import type { Box3DModule, b3BodyId } from 'box3d.js';
+import type { Box3DModule, b3BodyId, b3Vec3, b3Quat } from 'box3d.js';
 import Box3D from 'box3d.js/inline';
 import * as THREE from 'three';
 import { createWorldRenderer } from './box3d-three';
@@ -13,12 +13,12 @@ const b3: Box3DModule = await Box3D();
 const app = createHarness({ camera: [0, 8, 25], target: [0, 2, 0] });
 
 const worldDef = b3.b3DefaultWorldDef();
-worldDef.gravity = { x: 0, y: -10, z: 0 };
+worldDef.gravity = [0, -10, 0];
 const world = b3.b3CreateWorld(worldDef);
 
 // static floor with high friction
 const floorDef = b3.b3DefaultBodyDef();
-floorDef.position = { x: 0, y: -0.5, z: 0 };
+floorDef.position = [0, -0.5, 0];
 const floor = b3.b3CreateBody(world, floorDef);
 const floorShapeDef = b3.b3DefaultShapeDef();
 floorShapeDef.baseMaterial.friction = 1.0;
@@ -33,15 +33,15 @@ const spacing = 2.0;
 const rowWidth = (numShapes - 1) * spacing;
 const startHeight = 0.5;
 
-const LAUNCH = { x: 0, y: 0, z: 10 };
-const IDENTITY = { v: { x: 0, y: 0, z: 0 }, s: 1 };
+const LAUNCH: b3Vec3 = [0, 0, 10];
+const IDENTITY: b3Quat = [0, 0, 0, 1];
 // lie the capsule on its side (90° about Z) so it can roll
-const CAPSULE_ROT = { v: { x: 0, y: 0, z: Math.SQRT1_2 }, s: Math.SQRT1_2 };
+const CAPSULE_ROT: b3Quat = [0, 0, Math.SQRT1_2, Math.SQRT1_2];
 
 type BodyData = {
 	body: b3BodyId;
-	position: { x: number; y: number; z: number };
-	rotation: typeof IDENTITY;
+	position: b3Vec3;
+	rotation: b3Quat;
 };
 const bodies: BodyData[] = [];
 
@@ -65,10 +65,10 @@ function makeLabel(text: string, x: number, y: number, z: number): void {
 function make(
 	xPos: number,
 	friction: number,
-	rotation: typeof IDENTITY,
+	rotation: b3Quat,
 	attach: (body: b3BodyId, sd: ReturnType<typeof b3.b3DefaultShapeDef>) => void,
 ): void {
-	const position = { x: xPos, y: startHeight, z: 0 };
+	const position: b3Vec3 = [xPos, startHeight, 0];
 	const def = b3.b3DefaultBodyDef();
 	def.type = b3.b3BodyType.b3_dynamicBody;
 	def.position = position;
@@ -92,7 +92,7 @@ for (let i = 0; i < numShapes; i++) {
 		IDENTITY,
 		(body, sd) =>
 			b3.b3CreateSphereShape(body, sd, {
-				center: { x: 0, y: 0, z: 0 },
+				center: [0, 0, 0],
 				radius: 0.5,
 			}),
 	);
@@ -117,8 +117,8 @@ for (let i = 0; i < numShapes; i++) {
 		CAPSULE_ROT,
 		(body, sd) =>
 			b3.b3CreateCapsuleShape(body, sd, {
-				center1: { x: 0, y: -0.3, z: 0 },
-				center2: { x: 0, y: 0.3, z: 0 },
+				center1: [0, -0.3, 0],
+				center2: [0, 0.3, 0],
 				radius: 0.5,
 			}),
 	);
@@ -128,7 +128,7 @@ function reset(): void {
 	for (const { body, position, rotation } of bodies) {
 		b3.b3Body_SetTransform(body, position, rotation);
 		b3.b3Body_SetLinearVelocity(body, LAUNCH);
-		b3.b3Body_SetAngularVelocity(body, { x: 0, y: 0, z: 0 });
+		b3.b3Body_SetAngularVelocity(body, [0, 0, 0]);
 		b3.b3Body_SetAwake(body, true);
 	}
 }

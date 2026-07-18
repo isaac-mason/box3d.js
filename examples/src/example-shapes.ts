@@ -2,7 +2,7 @@
 // a shapeConfigs table, a Number-of-Bodies slider, and continuous round-robin
 // respawning. Convex hulls are computed once and instanced into many bodies.
 
-import type { Box3DModule, b3BodyId, b3ShapeDef } from 'box3d.js';
+import type { Box3DModule, b3BodyId, b3Quat, b3ShapeDef } from 'box3d.js';
 import Box3D from 'box3d.js/inline';
 import * as THREE from 'three';
 import { createWorldRenderer } from './box3d-three';
@@ -14,11 +14,11 @@ const app = createHarness();
 /* physics world */
 
 const worldDef = b3.b3DefaultWorldDef();
-worldDef.gravity = { x: 0, y: -10, z: 0 };
+worldDef.gravity = [0, -10, 0];
 const world = b3.b3CreateWorld(worldDef);
 
 const groundDef = b3.b3DefaultBodyDef();
-groundDef.position = { x: 0, y: -0.5, z: 0 };
+groundDef.position = [0, -0.5, 0];
 const ground = b3.b3CreateBody(world, groundDef);
 b3.b3CreateBoxShape(ground, b3.b3DefaultShapeDef(), 20, 0.5, 20);
 
@@ -43,7 +43,7 @@ const shapeConfigs: ShapeConfig[] = [
 		name: 'sphere',
 		attach: (b, sd) =>
 			b3.b3CreateSphereShape(b, sd, {
-				center: { x: 0, y: 0, z: 0 },
+				center: [0, 0, 0],
 				radius: 0.5,
 			}),
 	},
@@ -52,8 +52,8 @@ const shapeConfigs: ShapeConfig[] = [
 		name: 'capsule',
 		attach: (b, sd) =>
 			b3.b3CreateCapsuleShape(b, sd, {
-				center1: { x: 0, y: -0.4, z: 0 },
-				center2: { x: 0, y: 0.4, z: 0 },
+				center1: [0, -0.4, 0],
+				center2: [0, 0.4, 0],
 				radius: 0.4,
 			}),
 	},
@@ -79,10 +79,7 @@ const SPAWN_AREA = 8;
 const randomInRange = (min: number, max: number): number =>
 	Math.random() * (max - min) + min;
 
-function randomRotation(): {
-	v: { x: number; y: number; z: number };
-	s: number;
-} {
+function randomRotation(): b3Quat {
 	const axis = new THREE.Vector3(
 		Math.random() - 0.5,
 		Math.random() - 0.5,
@@ -92,17 +89,17 @@ function randomRotation(): {
 		axis,
 		Math.random() * Math.PI * 2,
 	);
-	return { v: { x: q.x, y: q.y, z: q.z }, s: q.w };
+	return [q.x, q.y, q.z, q.w];
 }
 
 function spawnShape(config: ShapeConfig): DynamicShape {
 	const def = b3.b3DefaultBodyDef();
 	def.type = b3.b3BodyType.b3_dynamicBody;
-	def.position = {
-		x: randomInRange(-SPAWN_AREA, SPAWN_AREA),
-		y: SPAWN_HEIGHT,
-		z: randomInRange(-SPAWN_AREA, SPAWN_AREA),
-	};
+	def.position = [
+		randomInRange(-SPAWN_AREA, SPAWN_AREA),
+		SPAWN_HEIGHT,
+		randomInRange(-SPAWN_AREA, SPAWN_AREA),
+	];
 	def.rotation = randomRotation();
 	const body = b3.b3CreateBody(world, def);
 	config.attach(body, b3.b3DefaultShapeDef());
@@ -156,11 +153,11 @@ app.onFrame(() => {
 			shapeConfigs[Math.floor(Math.random() * shapeConfigs.length)];
 		const def = b3.b3DefaultBodyDef();
 		def.type = b3.b3BodyType.b3_dynamicBody;
-		def.position = {
-			x: randomInRange(-SPAWN_AREA, SPAWN_AREA),
-			y: SPAWN_HEIGHT,
-			z: randomInRange(-SPAWN_AREA, SPAWN_AREA),
-		};
+		def.position = [
+			randomInRange(-SPAWN_AREA, SPAWN_AREA),
+			SPAWN_HEIGHT,
+			randomInRange(-SPAWN_AREA, SPAWN_AREA),
+		];
 		def.rotation = randomRotation();
 		entry.body = b3.b3CreateBody(world, def);
 		entry.config.attach(entry.body, b3.b3DefaultShapeDef());

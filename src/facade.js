@@ -15,7 +15,7 @@
 //     for ( let m = 0; m < contact.manifoldCount; m++ )
 //     {
 //       b3.getManifoldAt( manifold, contact, m );
-//       manifold.normal.x; manifold.points[0].separation; // plain reads: no alloc, no crossings
+//       manifold.normal[0]; manifold.points[0].separation; // plain reads: no alloc, no crossings
 //     }
 //   }
 //
@@ -23,7 +23,12 @@
 // reading a pure-JS loop over the wasm heap, so scanning allocates nothing and
 // crosses the wasm/JS boundary only for the fill.
 //
-// STRIDES BELOW MUST STAY IN SYNC with packContactsInto() in src/bindings.cpp.
+// The packed-record tier STRIDES below come from bindings.cpp (namespace layout, via
+// Module._layoutMeta()) — a single source of truth, so they can't drift. The per-field
+// READ order in each reader still has to match the C++ packing order by hand.
+
+// Tier strides, published by src/bindings.cpp's layout namespace.
+const LAYOUT = JSON.parse( Module._layoutMeta() );
 
 // --- shape id overlaps (sensors) -------------------------------------------
 // buffer: { count, data: Int32Array }, 3 int32 per id: index1, world0, generation
@@ -35,7 +40,7 @@ function createShapeId() { return { index1: 0, world0: 0, generation: 0 }; }
 function getShapeIdAt( out, buf, i )
 {
 	const d = buf.data;
-	const s = i * 3;
+	const s = i * LAYOUT.shapeId;
 	out.index1 = d[ s ];
 	out.world0 = d[ s + 1 ];
 	out.generation = d[ s + 2 ];
@@ -44,11 +49,11 @@ function getShapeIdAt( out, buf, i )
 
 // --- contacts (contacts -> manifolds -> points) ----------------------------
 
-const CONTACT_STRIDE = 12; // idA(3) idB(3) contactId(4) manifoldStart manifoldCount
-const MANIFOLD_STRIDE_F = 10; // normal(3) twistImpulse frictionImpulse(3) rollingImpulse(3)
-const MANIFOLD_STRIDE_I = 2; // pointStart pointCount
-const POINT_STRIDE_F = 11; // anchorA(3) anchorB(3) separation baseSeparation normalImpulse totalNormalImpulse normalVelocity
-const POINT_STRIDE_I = 3; // featureId triangleIndex persisted
+const CONTACT_STRIDE = LAYOUT.contact; // idA(3) idB(3) contactId(4) manifoldStart manifoldCount
+const MANIFOLD_STRIDE_F = LAYOUT.manifoldF32; // normal(3) twistImpulse frictionImpulse(3) rollingImpulse(3)
+const MANIFOLD_STRIDE_I = LAYOUT.manifoldI32; // pointStart pointCount
+const POINT_STRIDE_F = LAYOUT.pointF32; // anchorA(3) anchorB(3) separation baseSeparation normalImpulse totalNormalImpulse normalVelocity
+const POINT_STRIDE_I = LAYOUT.pointI32; // featureId triangleIndex persisted
 
 function getNumContacts( buf ) { return buf.count; }
 
@@ -86,8 +91,8 @@ function getContactAt( out, buf, i )
 function createPoint()
 {
 	return {
-		anchorA: { x: 0, y: 0, z: 0 },
-		anchorB: { x: 0, y: 0, z: 0 },
+		anchorA: [ 0, 0, 0 ],
+		anchorB: [ 0, 0, 0 ],
 		separation: 0,
 		baseSeparation: 0,
 		normalImpulse: 0,
@@ -104,10 +109,10 @@ function createPoint()
 function createManifold()
 {
 	return {
-		normal: { x: 0, y: 0, z: 0 },
+		normal: [ 0, 0, 0 ],
 		twistImpulse: 0,
-		frictionImpulse: { x: 0, y: 0, z: 0 },
-		rollingImpulse: { x: 0, y: 0, z: 0 },
+		frictionImpulse: [ 0, 0, 0 ],
+		rollingImpulse: [ 0, 0, 0 ],
 		pointCount: 0,
 		points: [ createPoint(), createPoint(), createPoint(), createPoint() ],
 	};
@@ -121,12 +126,12 @@ function getManifoldAt( out, contact, m )
 	const mi = buf.manifoldsI32;
 	const fs = ( buf.manifoldsF32Base | 0 ) + gm * MANIFOLD_STRIDE_F;
 	const n = out.normal;
-	n.x = mf[ fs ]; n.y = mf[ fs + 1 ]; n.z = mf[ fs + 2 ];
+	n[ 0 ] = mf[ fs ]; n[ 1 ] = mf[ fs + 1 ]; n[ 2 ] = mf[ fs + 2 ];
 	out.twistImpulse = mf[ fs + 3 ];
 	const fr = out.frictionImpulse;
-	fr.x = mf[ fs + 4 ]; fr.y = mf[ fs + 5 ]; fr.z = mf[ fs + 6 ];
+	fr[ 0 ] = mf[ fs + 4 ]; fr[ 1 ] = mf[ fs + 5 ]; fr[ 2 ] = mf[ fs + 6 ];
 	const rl = out.rollingImpulse;
-	rl.x = mf[ fs + 7 ]; rl.y = mf[ fs + 8 ]; rl.z = mf[ fs + 9 ];
+	rl[ 0 ] = mf[ fs + 7 ]; rl[ 1 ] = mf[ fs + 8 ]; rl[ 2 ] = mf[ fs + 9 ];
 
 	const is = ( buf.manifoldsI32Base | 0 ) + gm * MANIFOLD_STRIDE_I;
 	const pointStart = mi[ is ];
@@ -144,9 +149,9 @@ function getManifoldAt( out, contact, m )
 		const ps = pfBase + g * POINT_STRIDE_F;
 		const pis = piBase + g * POINT_STRIDE_I;
 		const aA = P.anchorA;
-		aA.x = pf[ ps ]; aA.y = pf[ ps + 1 ]; aA.z = pf[ ps + 2 ];
+		aA[ 0 ] = pf[ ps ]; aA[ 1 ] = pf[ ps + 1 ]; aA[ 2 ] = pf[ ps + 2 ];
 		const aB = P.anchorB;
-		aB.x = pf[ ps + 3 ]; aB.y = pf[ ps + 4 ]; aB.z = pf[ ps + 5 ];
+		aB[ 0 ] = pf[ ps + 3 ]; aB[ 1 ] = pf[ ps + 4 ]; aB[ 2 ] = pf[ ps + 5 ];
 		P.separation = pf[ ps + 6 ];
 		P.baseSeparation = pf[ ps + 7 ];
 		P.normalImpulse = pf[ ps + 8 ];
@@ -236,15 +241,16 @@ function destroyContactsBuffer( buf )
 //   }
 //   b3.destroyEventsBuffer( eb );                   // free the wasm storage
 //
-// STRIDES MUST STAY IN SYNC with the EventsBuffer struct in src/bindings.cpp.
+// Tier strides come from bindings.cpp (namespace layout, via LAYOUT above); the
+// field READ order below must match the EventsBuffer packing order in src/bindings.cpp.
 
-const CONTACT_TOUCH_STRIDE = 10; // shapeIdA(3) shapeIdB(3) contactId(4)
-const CONTACT_HIT_STRIDE_I = 14; // shapeIdA(3) shapeIdB(3) contactId(4) matA(lo,hi) matB(lo,hi)
-const CONTACT_HIT_STRIDE_F = 7; //  point(3) normal(3) approachSpeed
-const BODY_MOVE_STRIDE_I = 4; //    bodyId(3) fellAsleep
-const BODY_MOVE_STRIDE_F = 7; //    position(3) rotation(x,y,z,w)
-const SENSOR_TOUCH_STRIDE = 6; //   sensorShapeId(3) visitorShapeId(3)
-const JOINT_STRIDE = 3; //          jointId(3)
+const CONTACT_TOUCH_STRIDE = LAYOUT.contactTouch; // shapeIdA(3) shapeIdB(3) contactId(4)
+const CONTACT_HIT_STRIDE_I = LAYOUT.contactHitI32; // shapeIdA(3) shapeIdB(3) contactId(4) matA(lo,hi) matB(lo,hi)
+const CONTACT_HIT_STRIDE_F = LAYOUT.contactHitF64; //  point(3) normal(3) approachSpeed
+const BODY_MOVE_STRIDE_I = LAYOUT.bodyMoveI32; //    bodyId(3) fellAsleep
+const BODY_MOVE_STRIDE_F = LAYOUT.bodyMoveF64; //    position(3) rotation(x,y,z,w)
+const SENSOR_TOUCH_STRIDE = LAYOUT.sensorTouch; //   sensorShapeId(3) visitorShapeId(3)
+const JOINT_STRIDE = LAYOUT.joint; //          jointId(3)
 
 function readShapeId( dst, a, o )
 {
@@ -335,8 +341,8 @@ function createContactHitEvent()
 		shapeIdA: { index1: 0, world0: 0, generation: 0 },
 		shapeIdB: { index1: 0, world0: 0, generation: 0 },
 		contactId: { index1: 0, world0: 0, padding: 0, generation: 0 },
-		point: { x: 0, y: 0, z: 0 },
-		normal: { x: 0, y: 0, z: 0 },
+		point: [ 0, 0, 0 ],
+		normal: [ 0, 0, 0 ],
 		approachSpeed: 0,
 		userMaterialIdA: 0n,
 		userMaterialIdB: 0n,
@@ -353,8 +359,8 @@ function getContactHitEventAt( out, eb, i )
 	out.userMaterialIdB = readU64( a, s + 12 );
 	const f = eb.f64;
 	const fs = eb.contactHitF64Base + i * CONTACT_HIT_STRIDE_F;
-	out.point.x = f[ fs ]; out.point.y = f[ fs + 1 ]; out.point.z = f[ fs + 2 ];
-	out.normal.x = f[ fs + 3 ]; out.normal.y = f[ fs + 4 ]; out.normal.z = f[ fs + 5 ];
+	out.point[ 0 ] = f[ fs ]; out.point[ 1 ] = f[ fs + 1 ]; out.point[ 2 ] = f[ fs + 2 ];
+	out.normal[ 0 ] = f[ fs + 3 ]; out.normal[ 1 ] = f[ fs + 4 ]; out.normal[ 2 ] = f[ fs + 5 ];
 	out.approachSpeed = f[ fs + 6 ];
 	return out;
 }
@@ -364,8 +370,8 @@ function createBodyMoveEvent()
 {
 	return {
 		bodyId: { index1: 0, world0: 0, generation: 0 },
-		position: { x: 0, y: 0, z: 0 },
-		rotation: { x: 0, y: 0, z: 0, w: 1 },
+		position: [ 0, 0, 0 ],
+		rotation: [ 0, 0, 0, 1 ],
 		fellAsleep: false,
 	};
 }
@@ -377,8 +383,8 @@ function getBodyMoveEventAt( out, eb, i )
 	out.fellAsleep = a[ s + 3 ] !== 0;
 	const f = eb.f64;
 	const fs = eb.bodyMoveF64Base + i * BODY_MOVE_STRIDE_F;
-	out.position.x = f[ fs ]; out.position.y = f[ fs + 1 ]; out.position.z = f[ fs + 2 ];
-	out.rotation.x = f[ fs + 3 ]; out.rotation.y = f[ fs + 4 ]; out.rotation.z = f[ fs + 5 ]; out.rotation.w = f[ fs + 6 ];
+	out.position[ 0 ] = f[ fs ]; out.position[ 1 ] = f[ fs + 1 ]; out.position[ 2 ] = f[ fs + 2 ];
+	out.rotation[ 0 ] = f[ fs + 3 ]; out.rotation[ 1 ] = f[ fs + 4 ]; out.rotation[ 2 ] = f[ fs + 5 ]; out.rotation[ 3 ] = f[ fs + 6 ];
 	return out;
 }
 
@@ -413,22 +419,87 @@ function getJointEventAt( out, eb, i )
 
 // --- b3World_CollideMover plane results ---------------------------------------
 // The CollideMover callback receives a packed buffer { count, data: Float32Array }
-// (7 floats per plane); read it with these instead of a JS array of objects.
+// (LAYOUT.plane floats per plane); read it with these instead of a JS array of objects.
 
 function getNumPlaneResults( buf ) { return buf.count; }
 function createPlaneResult()
 {
-	return { plane: { normal: { x: 0, y: 0, z: 0 }, offset: 0 }, point: { x: 0, y: 0, z: 0 } };
+	return { plane: { normal: [ 0, 0, 0 ], offset: 0 }, point: [ 0, 0, 0 ] };
 }
 function getPlaneResultAt( out, buf, i )
 {
 	const d = buf.data;
-	const s = i * 7;
+	const s = i * LAYOUT.plane;
 	const nrm = out.plane.normal;
-	nrm.x = d[ s ]; nrm.y = d[ s + 1 ]; nrm.z = d[ s + 2 ];
+	nrm[ 0 ] = d[ s ]; nrm[ 1 ] = d[ s + 1 ]; nrm[ 2 ] = d[ s + 2 ];
 	out.plane.offset = d[ s + 3 ];
-	out.point.x = d[ s + 4 ]; out.point.y = d[ s + 5 ]; out.point.z = d[ s + 6 ];
+	out.point[ 0 ] = d[ s + 4 ]; out.point[ 1 ] = d[ s + 5 ]; out.point[ 2 ] = d[ s + 6 ];
 	return out;
+}
+
+// --- out-param math reads (conventions documented in src/bindings.cpp header) ---
+// Each raw `b3X_GetYInto(out, ...)` writes floats to a static wasm scratch; the
+// public `b3X_GetY(out, ...) -> out` copies scratch -> the caller's mathcat array.
+//
+// The readers are GENERATED from the binding-site metadata (Module._outMeta()), so
+// this file carries no per-method list: add an out getter in bindings.cpp and it is
+// installed automatically. Each generated reader is monomorphic + fixed-arity with
+// an unrolled copy (no arguments/slice/spread on the hot path) and does one wasm
+// crossing per read. The static scratch address is stable, so its element offsets
+// are baked in as literals; HEAPF32 is re-read each call via getF32() so the reader
+// stays correct across memory growth (which can swap the heap view).
+
+// Resolve the static scratch once — the address is stable — and strip the getter
+// from the public module (it's internal plumbing). --post-js runs after embind has
+// registered, so the raw fns are already on Module here.
+const SCRATCH = Module.b3_getMathScratch(); // byte pointer to the static float scratch
+const SCRATCH_F32 = SCRATCH >>> 2; //          element base into HEAPF32
+delete Module.b3_getMathScratch;
+
+// Live-heap accessor in factory scope: HEAPF32 is a module-scope var that memory
+// growth may reassign, so the generated readers call this each time rather than
+// closing over a stale view. (The readers are built with `new Function`, whose body
+// runs in global scope and so cannot see the bare `HEAPF32` directly.)
+const getF32 = () => HEAPF32;
+
+// Build a reader from one _outMeta entry. `sizes` is the float count of each out
+// slot; `trailing` the number of forwarded input args. Returns the single out for a
+// one-out getter, or [out0, out1, ...] for a multi-out one (a transform reads as
+// position + rotation). The copy is codegen'd unrolled per slot with literal scratch
+// offsets — no per-call allocation or branching.
+function makeOutParamReader( rawInto, sizes, trailing )
+{
+	const outs = sizes.map( ( _, i ) => `out${i}` );
+	const trail = Array.from( { length: trailing }, ( _, i ) => `a${i}` );
+	const params = [ ...outs, ...trail ].join( ', ' );
+
+	// scratch byte pointer per out slot (slots are laid out contiguously)
+	let byteOff = 0;
+	const slotPtrs = sizes.map( ( n ) => { const p = SCRATCH + byteOff; byteOff += n * 4; return p; } );
+	const intoArgs = [ ...slotPtrs, ...trail ].join( ', ' );
+
+	let elemOff = 0;
+	const copy = sizes.map( ( n, i ) =>
+	{
+		const base = SCRATCH_F32 + elemOff; elemOff += n;
+		let body = '';
+		for ( let k = 0; k < n; k++ ) body += `out${i}[${k}]=h[${base + k}];`;
+		return body;
+	} ).join( '' );
+
+	const ret = outs.length === 1 ? outs[ 0 ] : `[ ${outs.join( ', ' )} ]`;
+	return new Function( 'raw', 'getF32',
+		`return function(${params}){raw(${intoArgs});const h=getF32();${copy}return ${ret};};` )( rawInto, getF32 );
+}
+
+// Install a public reader per binding-site entry; capture + strip the raw `*Into`.
+for ( const entry of JSON.parse( Module._outMeta() ) )
+{
+	const rawName = entry.method + 'Into';
+	const raw = Module[ rawName ];
+	if ( !raw ) { console.warn( `box3d.js: _outMeta lists ${rawName}, but it is not on the module — skipping` ); continue; }
+	delete Module[ rawName ]; // strip the raw writer from the public surface
+	Module[ entry.method ] = makeOutParamReader( raw, entry.sizes, entry.trailing );
 }
 
 // Attach onto the Emscripten module object (in scope here as `Module`).

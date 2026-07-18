@@ -11,12 +11,12 @@ const b3: Box3DModule = await Box3D();
 const app = createHarness({ camera: [0, 10, 10], target: [0, 5, 0] });
 
 const worldDef = b3.b3DefaultWorldDef();
-worldDef.gravity = { x: 0, y: -50, z: 0 }; // strong gravity for lively motion
+worldDef.gravity = [0, -50, 0]; // strong gravity for lively motion
 const world = b3.b3CreateWorld(worldDef);
 
 // static ground
 const groundDef = b3.b3DefaultBodyDef();
-groundDef.position = { x: 0, y: -0.5, z: 0 };
+groundDef.position = [0, -0.5, 0];
 const ground = b3.b3CreateBody(world, groundDef);
 b3.b3CreateBoxShape(ground, b3.b3DefaultShapeDef(), 50, 0.5, 50);
 
@@ -31,11 +31,11 @@ const randomInRange = (min: number, max: number): number =>
 function spawnCube(): void {
 	const def = b3.b3DefaultBodyDef();
 	def.type = b3.b3BodyType.b3_dynamicBody;
-	def.position = {
-		x: randomInRange(-SPAWN_AREA, SPAWN_AREA),
-		y: randomInRange(0, SPAWN_HEIGHT),
-		z: randomInRange(-SPAWN_AREA, SPAWN_AREA),
-	};
+	def.position = [
+		randomInRange(-SPAWN_AREA, SPAWN_AREA),
+		randomInRange(0, SPAWN_HEIGHT),
+		randomInRange(-SPAWN_AREA, SPAWN_AREA),
+	];
 	const body = b3.b3CreateBody(world, def);
 	b3.b3CreateBoxShape(body, b3.b3DefaultShapeDef(), 0.25, 0.25, 0.25);
 	cubes.push(body);
@@ -66,11 +66,11 @@ app.onFrame(() => {
 		const cube = cubes[Math.floor(Math.random() * cubes.length)];
 		b3.b3Body_SetTransform(
 			cube,
-			{ x: 0, y: randomInRange(0, SPAWN_HEIGHT), z: 0 },
-			{ v: { x: 0, y: 0, z: 0 }, s: 1 },
+			[0, randomInRange(0, SPAWN_HEIGHT), 0],
+			[0, 0, 0, 1],
 		);
-		b3.b3Body_SetLinearVelocity(cube, { x: 0, y: 0, z: 0 });
-		b3.b3Body_SetAngularVelocity(cube, { x: 0, y: 0, z: 0 });
+		b3.b3Body_SetLinearVelocity(cube, [0, 0, 0]);
+		b3.b3Body_SetAngularVelocity(cube, [0, 0, 0]);
 		b3.b3Body_SetAwake(cube, true);
 	}
 

@@ -12,11 +12,11 @@ const b3: Box3DModule = await Box3D();
 const app = createHarness({ camera: [0, 8, 15], target: [0, 2, 0] });
 
 const worldDef = b3.b3DefaultWorldDef();
-worldDef.gravity = { x: 0, y: -10, z: 0 };
+worldDef.gravity = [0, -10, 0];
 const world = b3.b3CreateWorld(worldDef);
 
 const floorDef = b3.b3DefaultBodyDef();
-floorDef.position = { x: 0, y: -0.5, z: 0 };
+floorDef.position = [0, -0.5, 0];
 const floor = b3.b3CreateBody(world, floorDef);
 b3.b3CreateBoxShape(floor, b3.b3DefaultShapeDef(), 20, 0.5, 10);
 
@@ -49,7 +49,7 @@ for (let i = 0; i < numBoxes; i++) {
 	const x = startX + spacing * i;
 	const def = b3.b3DefaultBodyDef();
 	def.type = b3.b3BodyType.b3_dynamicBody;
-	def.position = { x, y: startHeight, z: 0 };
+	def.position = [x, startHeight, 0];
 	def.gravityScale = gravityFactor;
 	const body = b3.b3CreateBody(world, def);
 	b3.b3CreateBoxShape(body, b3.b3DefaultShapeDef(), 0.5, 0.5, 0.5);
@@ -59,13 +59,9 @@ for (let i = 0; i < numBoxes; i++) {
 
 function reset(): void {
 	for (const { body, x } of boxes) {
-		b3.b3Body_SetTransform(
-			body,
-			{ x, y: startHeight, z: 0 },
-			{ v: { x: 0, y: 0, z: 0 }, s: 1 },
-		);
-		b3.b3Body_SetLinearVelocity(body, { x: 0, y: 0, z: 0 });
-		b3.b3Body_SetAngularVelocity(body, { x: 0, y: 0, z: 0 });
+		b3.b3Body_SetTransform(body, [x, startHeight, 0], [0, 0, 0, 1]);
+		b3.b3Body_SetLinearVelocity(body, [0, 0, 0]);
+		b3.b3Body_SetAngularVelocity(body, [0, 0, 0]);
 		b3.b3Body_SetAwake(body, true);
 	}
 }

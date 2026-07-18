@@ -17,7 +17,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 
 const root = resolve( dirname( fileURLToPath( import.meta.url ) ), '..' );
@@ -118,6 +118,16 @@ const mtFlags = [
 // Separate-wasm build (also emits the shared TypeScript defs).
 run( 'em++', [ 'src/bindings.cpp', stLib, ...commonFlags, '--emit-tsd', 'box3d.d.ts', '-o', 'dist/box3d.mjs' ] );
 
+// Read the binding-site metadata straight off the module we just built: _outMeta()
+// (out-param value types) and _retMeta() (val-returning function return types). These
+// are the single source of truth for the TS types below — no hardcoded maps here.
+// Loading the factory runs the facade post-js, which reads the same _outMeta() to
+// install the readers.
+const { default: Box3DProbe } = await import( pathToFileURL( join( root, 'dist', 'box3d.mjs' ) ).href );
+const probe = await Box3DProbe();
+const outMeta = JSON.parse( probe._outMeta() );
+const retMeta = JSON.parse( probe._retMeta() );
+
 // emscripten hardcodes MainModule / MainModuleFactory in --emit-tsd output.
 // Rename them to friendlier box3d names.
 // Also fix the Get*Events return types: the lambdas return val::object() which
@@ -158,7 +168,7 @@ export interface ContactHitEvent {
 export interface BodyMoveEvent {
   bodyId: b3BodyId;
   position: b3Vec3;
-  rotation: { x: number; y: number; z: number; w: number };
+  rotation: b3Quat;
   fellAsleep: boolean;
 }
 export interface SensorTouchEvent { sensorShapeId: b3ShapeId; visitorShapeId: b3ShapeId; }
@@ -233,17 +243,6 @@ export interface Box3DFacade {
   getPlaneResultAt(out: PlaneResult, buf: PlaneResultBuffer, i: number): PlaneResult;
 }`;
 
-// Functions bound as lambdas returning emscripten::val show up as `any` in
-// --emit-tsd (tsgen can't see a val's runtime shape), so we rewrite each one to
-// its real signature here. Matched by name + `any` return, which is robust to how
-// tsgen names params across emsdk versions (`_0` in 4.x, `worldId` in 6.x).
-const valReturnSignatures = {
-	// packed query buffer, read via the src/facade.js helpers (--post-js). Contact
-	// and event data no longer have array-returning accessors — they are read
-	// through the reusable ContactsBuffer / EventsBuffer instead (see facadeTypes).
-	b3Shape_GetSensorData: '(shapeId: b3ShapeId): ShapeIdBuffer',
-};
-
 const tsdPath = join( root, 'dist', 'box3d.d.ts' );
 let tsd = readFileSync( tsdPath, 'utf8' )
 	.replaceAll( 'MainModuleFactory', 'Box3DFactory' )
@@ -253,12 +252,46 @@ let tsd = readFileSync( tsdPath, 'utf8' )
 		`${facadeTypes}\nexport type Box3DModule = WasmModule & EmbindModule & Box3DFacade;`,
 	);
 if ( !tsd.includes( '& Box3DFacade' ) ) throw new Error( 'tsd: Box3DModule alias not found — did --emit-tsd output change?' );
-for ( const [ fn, sig ] of Object.entries( valReturnSignatures ) )
+
+// val-returning functions emit as `... : any;`; retype the return from _retMeta
+// (declared at the binding site via the ret_function ": T" DSL). Keeps the params
+// emit-tsd inferred, only replacing the `any` return.
+for ( const { method, tsType } of retMeta )
 {
-	const re = new RegExp( `${fn}\\([^)]*\\): any;` );
-	if ( !re.test( tsd ) ) throw new Error( `tsd: no \`any\`-returning ${fn} to retype — binding renamed/removed or return type changed?` );
-	tsd = tsd.replace( re, `${fn}${sig};` );
+	const re = new RegExp( `^(\\s*)${method}\\(([^)]*)\\): any;`, 'm' );
+	if ( !re.test( tsd ) ) throw new Error( `tsd: no \`${method}(...): any;\` line to retype — binding renamed/removed or return type changed?` );
+	tsd = tsd.replace( re, `$1${method}($2): ${tsType};` );
 }
+
+// out-param math reads: rewrite each raw `MethodInto(out: number, ...): void;` embind
+// method to its public reader `Method(out: T, ...): T;`, driven entirely by the
+// binding-site metadata (outMeta above). The out value types live once in
+// bindings.cpp's out_function DSL; nothing is duplicated here. A multi-out getter
+// (e.g. a transform read as position + rotation) returns a tuple of its out types.
+if ( !outMeta.length ) throw new Error( 'tsd: _outMeta() returned no entries — did the out_function DSL change?' );
+for ( const { method, tsTypes } of outMeta )
+{
+	const nOuts = tsTypes.length;
+	const re = new RegExp( `^(\\s*)${method}Into\\(([^)]*)\\): void;`, 'm' );
+	if ( !re.test( tsd ) ) throw new Error( `tsd: no \`${method}Into(...): void;\` line to retype — binding renamed/removed?` );
+	tsd = tsd.replace( re, ( _, indent, params ) =>
+	{
+		// first nOuts params are the `outX: number` slots — retype them; keep the rest.
+		const parts = params.split( ', ' );
+		for ( let k = 0; k < nOuts; k++ ) parts[ k ] = parts[ k ].replace( /: .+$/, `: ${tsTypes[ k ]}` );
+		const ret = nOuts === 1 ? tsTypes[ 0 ] : `[ ${tsTypes.join( ', ' )} ]`;
+		return `${indent}${method}(${parts.join( ', ' )}): ${ret};`;
+	} );
+}
+
+// Internal plumbing — strip from the public types. b3_getMathScratch: scratch
+// pointer (facade captures it); _outMeta/_retMeta/_layoutMeta: the binding-site
+// metadata getters read above (out-param types, val-return types, buffer strides).
+tsd = tsd.replace( /^\s*b3_getMathScratch\(\): number;\r?\n/m, '' );
+tsd = tsd.replace( /^\s*_outMeta\(\): string;\r?\n/m, '' );
+tsd = tsd.replace( /^\s*_retMeta\(\): string;\r?\n/m, '' );
+tsd = tsd.replace( /^\s*_layoutMeta\(\): string;\r?\n/m, '' );
+
 writeFileSync( tsdPath, tsd );
 
 // Inlined single-file build (wasm base64-embedded).

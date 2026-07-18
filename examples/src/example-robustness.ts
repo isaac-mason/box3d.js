@@ -16,7 +16,7 @@ const app = createHarness({ camera: [0, 12, 34], target: [0, 6, 0] });
 let world = b3.b3CreateWorld(
 	(() => {
 		const d = b3.b3DefaultWorldDef();
-		d.gravity = { x: 0, y: -10, z: 0 };
+		d.gravity = [0, -10, 0];
 		return d;
 	})(),
 );
@@ -29,7 +29,7 @@ function newWorld(
 	app.scene.remove(renderer.object3d);
 	b3.b3DestroyWorld(world);
 	const wd = b3.b3DefaultWorldDef();
-	wd.gravity = { x: 0, y: -10, z: 0 };
+	wd.gravity = [0, -10, 0];
 	world = b3.b3CreateWorld(wd);
 	ground(world);
 	renderer = createWorldRenderer(b3, world);
@@ -39,7 +39,7 @@ function newWorld(
 function makeGround(half: number): (w: typeof world) => void {
 	return (w) => {
 		const gd = b3.b3DefaultBodyDef();
-		gd.position = { x: 0, y: -0.5, z: 0 };
+		gd.position = [0, -0.5, 0];
 		const g = b3.b3CreateBody(w, gd);
 		b3.b3CreateBoxShape(g, b3.b3DefaultShapeDef(), half, 0.5, half);
 	};
@@ -48,7 +48,7 @@ function makeGround(half: number): (w: typeof world) => void {
 function box(x: number, y: number, half: number, density: number): void {
 	const def = b3.b3DefaultBodyDef();
 	def.type = b3.b3BodyType.b3_dynamicBody;
-	def.position = { x, y, z: 0 };
+	def.position = [x, y, 0];
 	const body = b3.b3CreateBody(world, def);
 	const shapeDef = b3.b3DefaultShapeDef();
 	shapeDef.density = density;

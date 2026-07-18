@@ -7,26 +7,28 @@ function fallingBox( b3 )
 {
 	// world with downward gravity
 	const worldDef = b3.b3DefaultWorldDef();
-	worldDef.gravity = { x: 0, y: -10, z: 0 };
+	worldDef.gravity = [ 0, -10, 0 ];
 	const world = b3.b3CreateWorld( worldDef );
 	assert.ok( b3.b3World_IsValid( world ), 'world is valid' );
 
 	// static ground: a wide, thin box centered at the origin
 	const groundBodyDef = b3.b3DefaultBodyDef();
 	groundBodyDef.type = b3.b3BodyType.b3_staticBody;
-	groundBodyDef.position = { x: 0, y: 0, z: 0 };
+	groundBodyDef.position = [ 0, 0, 0 ];
 	const ground = b3.b3CreateBody( world, groundBodyDef );
 	b3.b3CreateBoxShape( ground, b3.b3DefaultShapeDef(), 25, 0.5, 25 );
 
 	// dynamic body: a sphere dropped from y = 10
 	const bodyDef = b3.b3DefaultBodyDef();
 	bodyDef.type = b3.b3BodyType.b3_dynamicBody;
-	bodyDef.position = { x: 0, y: 10, z: 0 };
+	bodyDef.position = [ 0, 10, 0 ];
 	const body = b3.b3CreateBody( world, bodyDef );
 	const shapeDef = b3.b3DefaultShapeDef();
-	b3.b3CreateSphereShape( body, shapeDef, { center: { x: 0, y: 0, z: 0 }, radius: 0.5 } );
+	b3.b3CreateSphereShape( body, shapeDef, { center: [ 0, 0, 0 ], radius: 0.5 } );
 
-	const startY = b3.b3Body_GetPosition( body ).y;
+	// out-param reader: fill a caller-owned [x,y,z], read component 1 (y)
+	const pos = [ 0, 0, 0 ];
+	const startY = b3.b3Body_GetPosition( pos, body )[ 1 ];
 
 	// simulate ~2.5 s at 60 Hz
 	for ( let i = 0; i < 150; i++ )
@@ -34,7 +36,16 @@ function fallingBox( b3 )
 		b3.b3World_Step( world, 1 / 60, 4 );
 	}
 
-	const endY = b3.b3Body_GetPosition( body ).y;
+	const endY = b3.b3Body_GetPosition( pos, body )[ 1 ];
+
+	// multi-out reader: a transform reads as two out params (position + rotation),
+	// and returns them as a [position, rotation] tuple.
+	const tp = [ 0, 0, 0 ], tq = [ 0, 0, 0, 1 ];
+	const [ tPos, tRot ] = b3.b3Body_GetTransform( tp, tq, body );
+	assert.ok( tPos === tp && tRot === tq, 'GetTransform fills the caller arrays and returns them' );
+	assert.ok( Math.abs( tPos[ 1 ] - endY ) < 1e-6, 'transform position matches GetPosition' );
+	assert.ok( Math.abs( Math.hypot( tRot[ 0 ], tRot[ 1 ], tRot[ 2 ], tRot[ 3 ] ) - 1 ) < 1e-3, 'transform rotation is a unit quaternion' );
+
 	b3.b3DestroyWorld( world );
 	return { startY, endY };
 }
@@ -44,7 +55,7 @@ function fallingBox( b3 )
 function contactRead( b3 )
 {
 	const worldDef = b3.b3DefaultWorldDef();
-	worldDef.gravity = { x: 0, y: -10, z: 0 };
+	worldDef.gravity = [ 0, -10, 0 ];
 	const world = b3.b3CreateWorld( worldDef );
 
 	const groundDef = b3.b3DefaultBodyDef();
@@ -54,7 +65,7 @@ function contactRead( b3 )
 
 	const boxDef = b3.b3DefaultBodyDef();
 	boxDef.type = b3.b3BodyType.b3_dynamicBody;
-	boxDef.position = { x: 0, y: 5, z: 0 };
+	boxDef.position = [ 0, 5, 0 ];
 	const box = b3.b3CreateBody( world, boxDef );
 	const boxShape = b3.b3CreateBoxShape( box, b3.b3DefaultShapeDef(), 0.5, 0.5, 0.5 );
 
@@ -67,9 +78,9 @@ function contactRead( b3 )
 	const moveCount = b3.getNumBodyMoveEvents( eb );
 	assert.ok( moveCount >= 1, `body move events reported while falling (got ${moveCount})` );
 	b3.getBodyMoveEventAt( move, eb, 0 );
-	assert.ok( Number.isFinite( move.position.y ), 'body move event decodes a finite position' );
+	assert.ok( Number.isFinite( move.position[ 1 ] ), 'body move event decodes a finite position' );
 	const q = move.rotation;
-	assert.ok( Math.abs( Math.hypot( q.x, q.y, q.z, q.w ) - 1 ) < 1e-3, 'move event rotation is a unit quaternion' );
+	assert.ok( Math.abs( Math.hypot( q[ 0 ], q[ 1 ], q[ 2 ], q[ 3 ] ) - 1 ) < 1e-3, 'move event rotation is a unit quaternion' );
 
 	for ( let i = 0; i < 150; i++ ) b3.b3World_Step( world, 1 / 60, 4 );
 
@@ -97,7 +108,7 @@ function contactRead( b3 )
 			{
 				b3.getManifoldAt( manifold, contact, m );
 				const nrm = manifold.normal;
-				worstNormalErr = Math.max( worstNormalErr, Math.abs( Math.hypot( nrm.x, nrm.y, nrm.z ) - 1 ) );
+				worstNormalErr = Math.max( worstNormalErr, Math.abs( Math.hypot( nrm[ 0 ], nrm[ 1 ], nrm[ 2 ] ) - 1 ) );
 				totalPoints += manifold.pointCount;
 			}
 		}
@@ -134,7 +145,7 @@ function eventsAndPlanes( b3 )
 
 	const visitorDef = b3.b3DefaultBodyDef();
 	visitorDef.type = b3.b3BodyType.b3_dynamicBody;
-	visitorDef.position = { x: 0, y: 0, z: 0 };
+	visitorDef.position = [ 0, 0, 0 ];
 	const visitorBody = b3.b3CreateBody( world, visitorDef );
 	const visitorShapeDef = b3.b3DefaultShapeDef();
 	visitorShapeDef.enableSensorEvents = true;
@@ -159,21 +170,21 @@ function eventsAndPlanes( b3 )
 	// CollideMover: a mover capsule overlapping a static sphere yields collision
 	// planes (placed clear of the sensor bodies above).
 	const obstacleDef = b3.b3DefaultBodyDef();
-	obstacleDef.position = { x: 10, y: 1, z: 0 };
+	obstacleDef.position = [ 10, 1, 0 ];
 	const obstacle = b3.b3CreateBody( world, obstacleDef );
-	b3.b3CreateSphereShape( obstacle, b3.b3DefaultShapeDef(), { center: { x: 0, y: 0, z: 0 }, radius: 0.6 } );
+	b3.b3CreateSphereShape( obstacle, b3.b3DefaultShapeDef(), { center: [ 0, 0, 0 ], radius: 0.6 } );
 	b3.b3World_Step( world, 1 / 60, 4 ); // put the new shape into the broadphase
-	const capsule = { center1: { x: 0, y: -0.5, z: 0 }, center2: { x: 0, y: 0.5, z: 0 }, radius: 0.35 };
+	const capsule = { center1: [ 0, -0.5, 0 ], center2: [ 0, 0.5, 0 ], radius: 0.35 };
 	const planeResult = b3.createPlaneResult();
 	let planeCount = 0;
 	let worstNormalErr = 0;
-	b3.b3World_CollideMover( world, { x: 10, y: 1, z: 0 }, capsule, b3.b3DefaultQueryFilter(), ( _s, buf ) =>
+	b3.b3World_CollideMover( world, [ 10, 1, 0 ], capsule, b3.b3DefaultQueryFilter(), ( _s, buf ) =>
 	{
 		for ( let i = 0, n = b3.getNumPlaneResults( buf ); i < n; i++ )
 		{
 			b3.getPlaneResultAt( planeResult, buf, i );
 			const nrm = planeResult.plane.normal;
-			worstNormalErr = Math.max( worstNormalErr, Math.abs( Math.hypot( nrm.x, nrm.y, nrm.z ) - 1 ) );
+			worstNormalErr = Math.max( worstNormalErr, Math.abs( Math.hypot( nrm[ 0 ], nrm[ 1 ], nrm[ 2 ] ) - 1 ) );
 			planeCount++;
 		}
 		return true;

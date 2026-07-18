@@ -7,6 +7,8 @@ import type {
 	Box3DModule,
 	b3BodyId,
 	b3JointId,
+	b3Quat,
+	b3Transform,
 	b3Vec3,
 	b3WorldId,
 } from 'box3d.js';
@@ -17,15 +19,15 @@ type Bone = {
 	name: string;
 	parent: number; // index into bones, -1 for root
 	refP: b3Vec3;
-	refQ: { v: b3Vec3; s: number };
+	refQ: b3Quat;
 	c1: b3Vec3;
 	c2: b3Vec3;
 	radius: number;
 	groupFilter: boolean; // shape joins the human's self-collision-off group
 	joint?: {
 		type: 'spherical' | 'revolute';
-		localFrameA: { p: b3Vec3; q: { v: b3Vec3; s: number } };
-		localFrameB: { p: b3Vec3; q: { v: b3Vec3; s: number } };
+		localFrameA: b3Transform;
+		localFrameB: b3Transform;
 		swing: number;
 		twistLo: number;
 		twistHi: number;
@@ -37,31 +39,31 @@ const BONES: Bone[] = [
 	{
 		name: 'pelvis',
 		parent: -1,
-		refP: { x: 0.0, y: 0.932087, z: -0.051708 },
-		refQ: { v: { x: 0.739169, y: 0.0, z: 0.0 }, s: 0.67352 },
-		c1: { x: 0.07, y: 0.0, z: -0.08 },
-		c2: { x: -0.07, y: 0.0, z: -0.08 },
+		refP: [0.0, 0.932087, -0.051708],
+		refQ: [0.739169, 0.0, 0.0, 0.67352],
+		c1: [0.07, 0.0, -0.08],
+		c2: [-0.07, 0.0, -0.08],
 		radius: 0.13,
 		groupFilter: false,
 	},
 	{
 		name: 'spine_01',
 		parent: 0,
-		refP: { x: 0.0, y: 1.113505, z: -0.03481 },
-		refQ: { v: { x: 0.739973, y: 0.0, z: 0.0 }, s: 0.672637 },
-		c1: { x: 0.06, y: -0.0, z: -0.052264 },
-		c2: { x: -0.06, y: 0.0, z: -0.052264 },
+		refP: [0.0, 1.113505, -0.03481],
+		refQ: [0.739973, 0.0, 0.0, 0.672637],
+		c1: [0.06, -0.0, -0.052264],
+		c2: [-0.06, 0.0, -0.052264],
 		radius: 0.12,
 		groupFilter: true,
 		joint: {
 			type: 'spherical',
 			localFrameA: {
-				p: { x: 0.0, y: 0.0, z: -0.182204 },
-				q: { v: { x: -0.999999, y: 0.0, z: -0.0 }, s: 0.001194 },
+				position: [0.0, 0.0, -0.182204],
+				quaternion: [-0.999999, 0.0, -0.0, 0.001194],
 			},
 			localFrameB: {
-				p: { x: 0.0, y: 0.0, z: -0.007736 },
-				q: { v: { x: -1.0, y: 0.0, z: -0.0 }, s: 0.0 },
+				position: [0.0, 0.0, -0.007736],
+				quaternion: [-1.0, 0.0, -0.0, 0.0],
 			},
 			swing: 25.0 * DEG,
 			twistLo: -15.0 * DEG,
@@ -72,21 +74,21 @@ const BONES: Bone[] = [
 	{
 		name: 'spine_02',
 		parent: 1,
-		refP: { x: 0.0, y: 1.194336, z: -0.027087 },
-		refQ: { v: { x: 0.703611, y: 0.0, z: 0.0 }, s: 0.710586 },
-		c1: { x: 0.08, y: -0.015133, z: -0.091801 },
-		c2: { x: -0.08, y: -0.015133, z: -0.091801 },
+		refP: [0.0, 1.194336, -0.027087],
+		refQ: [0.703611, 0.0, 0.0, 0.710586],
+		c1: [0.08, -0.015133, -0.091801],
+		c2: [-0.08, -0.015133, -0.091801],
 		radius: 0.1,
 		groupFilter: false,
 		joint: {
 			type: 'spherical',
 			localFrameA: {
-				p: { x: 0.0, y: -0.0, z: -0.088935 },
-				q: { v: { x: -0.998619, y: -0.0, z: 0.0 }, s: -0.05254 },
+				position: [0.0, -0.0, -0.088935],
+				quaternion: [-0.998619, -0.0, 0.0, -0.05254],
 			},
 			localFrameB: {
-				p: { x: -0.0, y: 0.0, z: -0.008199 },
-				q: { v: { x: -1.0, y: 0.0, z: -0.0 }, s: 0.0 },
+				position: [-0.0, 0.0, -0.008199],
+				quaternion: [-1.0, 0.0, -0.0, 0.0],
 			},
 			swing: 25.0 * DEG,
 			twistLo: -15.0 * DEG,
@@ -97,21 +99,21 @@ const BONES: Bone[] = [
 	{
 		name: 'spine_03',
 		parent: 2,
-		refP: { x: -0.0, y: 1.31043, z: -0.028232 },
-		refQ: { v: { x: 0.669856, y: 1e-6, z: -1e-6 }, s: 0.742491 },
-		c1: { x: 0.11, y: -0.039753, z: -0.13 },
-		c2: { x: -0.11, y: -0.039753, z: -0.13 },
+		refP: [-0.0, 1.31043, -0.028232],
+		refQ: [0.669856, 1e-6, -1e-6, 0.742491],
+		c1: [0.11, -0.039753, -0.13],
+		c2: [-0.11, -0.039753, -0.13],
 		radius: 0.145,
 		groupFilter: false,
 		joint: {
 			type: 'spherical',
 			localFrameA: {
-				p: { x: -0.0, y: 0.0, z: -0.124298 },
-				q: { v: { x: -0.998921, y: 1e-6, z: -1e-6 }, s: -0.046434 },
+				position: [-0.0, 0.0, -0.124298],
+				quaternion: [-0.998921, 1e-6, -1e-6, -0.046434],
 			},
 			localFrameB: {
-				p: { x: 0.0, y: 0.0, z: 0.0 },
-				q: { v: { x: -1.0, y: 0.0, z: -1e-6 }, s: 0.0 },
+				position: [0.0, 0.0, 0.0],
+				quaternion: [-1.0, 0.0, -1e-6, 0.0],
 			},
 			swing: 15.0 * DEG,
 			twistLo: -10.0 * DEG,
@@ -122,21 +124,21 @@ const BONES: Bone[] = [
 	{
 		name: 'neck',
 		parent: 3,
-		refP: { x: 0.0, y: 1.575582, z: -0.055837 },
-		refQ: { v: { x: 0.879922, y: 0.0, z: 0.0 }, s: 0.475118 },
-		c1: { x: -1e-6, y: -0.0, z: -0.02 },
-		c2: { x: 0.0, y: -0.005, z: -0.08 },
+		refP: [0.0, 1.575582, -0.055837],
+		refQ: [0.879922, 0.0, 0.0, 0.475118],
+		c1: [-1e-6, -0.0, -0.02],
+		c2: [0.0, -0.005, -0.08],
 		radius: 0.07,
 		groupFilter: false,
 		joint: {
 			type: 'spherical',
 			localFrameA: {
-				p: { x: 1e-6, y: -0.000259, z: -0.266585 },
-				q: { v: { x: -0.942192, y: -1e-6, z: 0.0 }, s: 0.335074 },
+				position: [1e-6, -0.000259, -0.266585],
+				quaternion: [-0.942192, -1e-6, 0.0, 0.335074],
 			},
 			localFrameB: {
-				p: { x: 0.0, y: 0.0, z: 0.0 },
-				q: { v: { x: -1.0, y: 0.0, z: -1e-6 }, s: 0.0 },
+				position: [0.0, 0.0, 0.0],
+				quaternion: [-1.0, 0.0, -1e-6, 0.0],
 			},
 			swing: 45.0 * DEG,
 			twistLo: -15.0 * DEG,
@@ -147,21 +149,21 @@ const BONES: Bone[] = [
 	{
 		name: 'head',
 		parent: 4,
-		refP: { x: 0.0, y: 1.653348, z: -0.003241 },
-		refQ: { v: { x: 0.750288, y: 0.0, z: 0.0 }, s: 0.661111 },
-		c1: { x: -1e-6, y: 0.016892, z: -0.05869 },
-		c2: { x: 0.0, y: -0.003629, z: -0.115072 },
+		refP: [0.0, 1.653348, -0.003241],
+		refQ: [0.750288, 0.0, 0.0, 0.661111],
+		c1: [-1e-6, 0.016892, -0.05869],
+		c2: [0.0, -0.003629, -0.115072],
 		radius: 0.0975,
 		groupFilter: false,
 		joint: {
 			type: 'spherical',
 			localFrameA: {
-				p: { x: 0.0, y: 0.001321, z: -0.093873 },
-				q: { v: { x: -0.974301, y: -0.0, z: -0.0 }, s: -0.225251 },
+				position: [0.0, 0.001321, -0.093873],
+				quaternion: [-0.974301, -0.0, -0.0, -0.225251],
 			},
 			localFrameB: {
-				p: { x: 0.0, y: 0.001268, z: -0.005104 },
-				q: { v: { x: -1.0, y: 0.0, z: -0.0 }, s: 0.0 },
+				position: [0.0, 0.001268, -0.005104],
+				quaternion: [-1.0, 0.0, -0.0, 0.0],
 			},
 			swing: 15.0 * DEG,
 			twistLo: -15.0 * DEG,
@@ -172,21 +174,21 @@ const BONES: Bone[] = [
 	{
 		name: 'thigh_l',
 		parent: 0,
-		refP: { x: 0.090416, y: 0.986104, z: -0.03509 },
-		refQ: { v: { x: -0.703287, y: -0.070715, z: 0.053866 }, s: 0.705327 },
-		c1: { x: 0.023719, y: 0.006008, z: -0.039068 },
-		c2: { x: -0.064492, y: -0.004664, z: -0.424718 },
+		refP: [0.090416, 0.986104, -0.03509],
+		refQ: [-0.703287, -0.070715, 0.053866, 0.705327],
+		c1: [0.023719, 0.006008, -0.039068],
+		c2: [-0.064492, -0.004664, -0.424718],
 		radius: 0.09,
 		groupFilter: true,
 		joint: {
 			type: 'spherical',
 			localFrameA: {
-				p: { x: 0.05, y: 0.011537, z: -0.055325 },
-				q: { v: { x: -0.714896, y: -0.022305, z: -0.698361 }, s: -0.02679 },
+				position: [0.05, 0.011537, -0.055325],
+				quaternion: [-0.714896, -0.022305, -0.698361, -0.02679],
 			},
 			localFrameB: {
-				p: { x: 0.0, y: 0.0, z: 0.0 },
-				q: { v: { x: -0.002064, y: 0.758987, z: 0.017046 }, s: 0.65088 },
+				position: [0.0, 0.0, 0.0],
+				quaternion: [-0.002064, 0.758987, 0.017046, 0.65088],
 			},
 			swing: 10.0 * DEG,
 			twistLo: -60.0 * DEG,
@@ -197,21 +199,21 @@ const BONES: Bone[] = [
 	{
 		name: 'calf_l',
 		parent: 6,
-		refP: { x: 0.101198, y: 0.527027, z: -0.037374 },
-		refQ: { v: { x: -0.653328, y: -0.06686, z: 0.058582 }, s: 0.751838 },
-		c1: { x: 0.001778, y: 0.0, z: 0.009841 },
-		c2: { x: -0.078577, y: 0.014707, z: -0.41816 },
+		refP: [0.101198, 0.527027, -0.037374],
+		refQ: [-0.653328, -0.06686, 0.058582, 0.751838],
+		c1: [0.001778, 0.0, 0.009841],
+		c2: [-0.078577, 0.014707, -0.41816],
 		radius: 0.075,
 		groupFilter: false,
 		joint: {
 			type: 'revolute',
 			localFrameA: {
-				p: { x: -0.069989, y: 0.000253, z: -0.453844 },
-				q: { v: { x: -0.000677, y: 0.760087, z: 0.105674 }, s: 0.641171 },
+				position: [-0.069989, 0.000253, -0.453844],
+				quaternion: [-0.000677, 0.760087, 0.105674, 0.641171],
 			},
 			localFrameB: {
-				p: { x: 0.0, y: 0.0, z: 0.0 },
-				q: { v: { x: -0.044589, y: 0.76554, z: 0.053368 }, s: 0.639619 },
+				position: [0.0, 0.0, 0.0],
+				quaternion: [-0.044589, 0.76554, 0.053368, 0.639619],
 			},
 			swing: 0.0 * DEG,
 			twistLo: -5.0 * DEG,
@@ -222,21 +224,21 @@ const BONES: Bone[] = [
 	{
 		name: 'thigh_r',
 		parent: 0,
-		refP: { x: -0.090416, y: 0.986104, z: -0.03509 },
-		refQ: { v: { x: -0.703287, y: 0.070715, z: -0.053865 }, s: 0.705326 },
-		c1: { x: -0.023719, y: 0.006008, z: -0.039068 },
-		c2: { x: 0.064492, y: -0.004664, z: -0.424718 },
+		refP: [-0.090416, 0.986104, -0.03509],
+		refQ: [-0.703287, 0.070715, -0.053865, 0.705326],
+		c1: [-0.023719, 0.006008, -0.039068],
+		c2: [0.064492, -0.004664, -0.424718],
 		radius: 0.09,
 		groupFilter: true,
 		joint: {
 			type: 'spherical',
 			localFrameA: {
-				p: { x: -0.05, y: 0.011537, z: -0.055326 },
-				q: { v: { x: -0.039089, y: -0.714094, z: 0.043177 }, s: 0.697623 },
+				position: [-0.05, 0.011537, -0.055326],
+				quaternion: [-0.039089, -0.714094, 0.043177, 0.697623],
 			},
 			localFrameB: {
-				p: { x: 0.0, y: 0.0, z: 0.0 },
-				q: { v: { x: 0.758805, y: -0.019886, z: -0.651012 }, s: -0.001759 },
+				position: [0.0, 0.0, 0.0],
+				quaternion: [0.758805, -0.019886, -0.651012, -0.001759],
 			},
 			swing: 10.0 * DEG,
 			twistLo: -30.0 * DEG,
@@ -247,21 +249,21 @@ const BONES: Bone[] = [
 	{
 		name: 'calf_r',
 		parent: 8,
-		refP: { x: -0.101198, y: 0.527027, z: -0.037373 },
-		refQ: { v: { x: -0.653327, y: 0.06686, z: -0.058582 }, s: 0.751839 },
-		c1: { x: -0.00182, y: 0.0, z: 0.010071 },
-		c2: { x: 0.077883, y: 0.014825, z: -0.418047 },
+		refP: [-0.101198, 0.527027, -0.037373],
+		refQ: [-0.653327, 0.06686, -0.058582, 0.751839],
+		c1: [-0.00182, 0.0, 0.010071],
+		c2: [0.077883, 0.014825, -0.418047],
 		radius: 0.075,
 		groupFilter: false,
 		joint: {
 			type: 'revolute',
 			localFrameA: {
-				p: { x: 0.069988, y: 0.000253, z: -0.453844 },
-				q: { v: { x: 0.760086, y: -0.000675, z: -0.641171 }, s: -0.105676 },
+				position: [0.069988, 0.000253, -0.453844],
+				quaternion: [0.760086, -0.000675, -0.641171, -0.105676],
 			},
 			localFrameB: {
-				p: { x: 0.0, y: 0.0, z: 0.0 },
-				q: { v: { x: 0.76554, y: -0.044589, z: -0.639619 }, s: -0.053368 },
+				position: [0.0, 0.0, 0.0],
+				quaternion: [0.76554, -0.044589, -0.639619, -0.053368],
 			},
 			swing: 0.0 * DEG,
 			twistLo: -45.0 * DEG,
@@ -272,21 +274,21 @@ const BONES: Bone[] = [
 	{
 		name: 'upper_arm_l',
 		parent: 3,
-		refP: { x: 0.20378, y: 1.484275, z: -0.115897 },
-		refQ: { v: { x: 0.143082, y: 0.69598, z: -0.69013 }, s: 0.13733 },
-		c1: { x: 0.0, y: 0.0, z: 0.0 },
-		c2: { x: -0.091118, y: 0.037775, z: 0.229719 },
+		refP: [0.20378, 1.484275, -0.115897],
+		refQ: [0.143082, 0.69598, -0.69013, 0.13733],
+		c1: [0.0, 0.0, 0.0],
+		c2: [-0.091118, 0.037775, 0.229719],
 		radius: 0.075,
 		groupFilter: false,
 		joint: {
 			type: 'spherical',
 			localFrameA: {
-				p: { x: 0.20378, y: -0.069369, z: -0.181921 },
-				q: { v: { x: -0.278486, y: 0.4456, z: -0.097014 }, s: 0.845266 },
+				position: [0.20378, -0.069369, -0.181921],
+				quaternion: [-0.278486, 0.4456, -0.097014, 0.845266],
 			},
 			localFrameB: {
-				p: { x: 0.0, y: 0.0, z: 0.0 },
-				q: { v: { x: -0.201396, y: -0.001586, z: 0.90185 }, s: 0.382234 },
+				position: [0.0, 0.0, 0.0],
+				quaternion: [-0.201396, -0.001586, 0.90185, 0.382234],
 			},
 			swing: 60.0 * DEG,
 			twistLo: -5.0 * DEG,
@@ -297,21 +299,21 @@ const BONES: Bone[] = [
 	{
 		name: 'lower_arm_l',
 		parent: 10,
-		refP: { x: 0.305614, y: 1.242908, z: -0.117599 },
-		refQ: { v: { x: 0.165048, y: 0.563437, z: -0.802002 }, s: 0.109959 },
-		c1: { x: 0.0, y: 0.0, z: 0.0 },
-		c2: { x: -0.142406, y: 0.039392, z: 0.261092 },
+		refP: [0.305614, 1.242908, -0.117599],
+		refQ: [0.165048, 0.563437, -0.802002, 0.109959],
+		c1: [0.0, 0.0, 0.0],
+		c2: [-0.142406, 0.039392, 0.261092],
 		radius: 0.05,
 		groupFilter: false,
 		joint: {
 			type: 'revolute',
 			localFrameA: {
-				p: { x: -0.095482, y: 0.039584, z: 0.240723 },
-				q: { v: { x: 0.512487, y: -0.180629, z: 0.839474 }, s: 0.003742 },
+				position: [-0.095482, 0.039584, 0.240723],
+				quaternion: [0.512487, -0.180629, 0.839474, 0.003742],
 			},
 			localFrameB: {
-				p: { x: 0.0, y: 0.0, z: 0.0 },
-				q: { v: { x: 0.503803, y: -0.029831, z: 0.858168 }, s: 0.094017 },
+				position: [0.0, 0.0, 0.0],
+				quaternion: [0.503803, -0.029831, 0.858168, 0.094017],
 			},
 			swing: 0.0 * DEG,
 			twistLo: -5.0 * DEG,
@@ -322,21 +324,21 @@ const BONES: Bone[] = [
 	{
 		name: 'upper_arm_r',
 		parent: 3,
-		refP: { x: -0.20378, y: 1.484276, z: -0.115899 },
-		refQ: { v: { x: 0.143083, y: -0.695978, z: 0.690132 }, s: 0.137329 },
-		c1: { x: 0.0, y: 0.0, z: 0.0 },
-		c2: { x: 0.091118, y: 0.037775, z: 0.229718 },
+		refP: [-0.20378, 1.484276, -0.115899],
+		refQ: [0.143083, -0.695978, 0.690132, 0.137329],
+		c1: [0.0, 0.0, 0.0],
+		c2: [0.091118, 0.037775, 0.229718],
 		radius: 0.075,
 		groupFilter: false,
 		joint: {
 			type: 'spherical',
 			localFrameA: {
-				p: { x: -0.203779, y: -0.069371, z: -0.181922 },
-				q: { v: { x: -0.253621, y: -0.414842, z: 0.106962 }, s: 0.867261 },
+				position: [-0.203779, -0.069371, -0.181922],
+				quaternion: [-0.253621, -0.414842, 0.106962, 0.867261],
 			},
 			localFrameB: {
-				p: { x: 0.0, y: 0.0, z: 0.0 },
-				q: { v: { x: -0.201397, y: 0.001587, z: -0.90185 }, s: 0.382233 },
+				position: [0.0, 0.0, 0.0],
+				quaternion: [-0.201397, 0.001587, -0.90185, 0.382233],
 			},
 			swing: 60.0 * DEG,
 			twistLo: -5.0 * DEG,
@@ -347,21 +349,21 @@ const BONES: Bone[] = [
 	{
 		name: 'lower_arm_r',
 		parent: 12,
-		refP: { x: -0.305614, y: 1.242907, z: -0.117599 },
-		refQ: { v: { x: 0.165048, y: -0.563437, z: 0.802002 }, s: 0.109959 },
-		c1: { x: 0.0, y: 0.0, z: 0.0 },
-		c2: { x: 0.142406, y: 0.039392, z: 0.261092 },
+		refP: [-0.305614, 1.242907, -0.117599],
+		refQ: [0.165048, -0.563437, 0.802002, 0.109959],
+		c1: [0.0, 0.0, 0.0],
+		c2: [0.142406, 0.039392, 0.261092],
 		radius: 0.05,
 		groupFilter: false,
 		joint: {
 			type: 'revolute',
 			localFrameA: {
-				p: { x: 0.095484, y: 0.039585, z: 0.240723 },
-				q: { v: { x: -0.180627, y: 0.512487, z: -0.003744 }, s: -0.839474 },
+				position: [0.095484, 0.039585, 0.240723],
+				quaternion: [-0.180627, 0.512487, -0.003744, -0.839474],
 			},
 			localFrameB: {
-				p: { x: 0.0, y: 0.0, z: 0.0 },
-				q: { v: { x: -0.029831, y: 0.503803, z: -0.094017 }, s: -0.858169 },
+				position: [0.0, 0.0, 0.0],
+				quaternion: [-0.029831, 0.503803, -0.094017, -0.858169],
 			},
 			swing: 0.0 * DEG,
 			twistLo: -60.0 * DEG,
@@ -373,12 +375,9 @@ const BONES: Bone[] = [
 
 export type Human = { bodies: b3BodyId[]; joints: b3JointId[] };
 
-function normQ(
-	qv: { x: number; y: number; z: number },
-	s: number,
-): { v: b3Vec3; s: number } {
-	const len = Math.hypot(qv.x, qv.y, qv.z, s) || 1;
-	return { v: { x: qv.x / len, y: qv.y / len, z: qv.z / len }, s: s / len };
+function normQ(q: b3Quat): b3Quat {
+	const len = Math.hypot(q[0], q[1], q[2], q[3]) || 1;
+	return [q[0] / len, q[1] / len, q[2] / len, q[3] / len];
 }
 
 // Faithful port of CreateHuman(): builds the 14-bone humanoid at `position`.
@@ -401,11 +400,11 @@ export function createHuman(
 		const bodyDef = b3.b3DefaultBodyDef();
 		bodyDef.type = b3.b3BodyType.b3_dynamicBody;
 		bodyDef.rotation = bone.refQ;
-		bodyDef.position = {
-			x: position.x + bone.refP.x,
-			y: position.y + bone.refP.y,
-			z: position.z + bone.refP.z,
-		};
+		bodyDef.position = [
+			position[0] + bone.refP[0],
+			position[1] + bone.refP[1],
+			position[2] + bone.refP[2],
+		];
 		const body = b3.b3CreateBody(world, bodyDef);
 
 		const shapeDef = b3.b3DefaultShapeDef();
@@ -426,13 +425,13 @@ export function createHuman(
 		const j = bone.joint;
 		const bodyA = bodies[bone.parent];
 		const bodyB = bodies[i];
-		const frameA = {
-			p: j.localFrameA.p,
-			q: normQ(j.localFrameA.q.v, j.localFrameA.q.s),
+		const frameA: b3Transform = {
+			position: j.localFrameA.position,
+			quaternion: normQ(j.localFrameA.quaternion),
 		};
-		const frameB = {
-			p: j.localFrameB.p,
-			q: normQ(j.localFrameB.q.v, j.localFrameB.q.s),
+		const frameB: b3Transform = {
+			position: j.localFrameB.position,
+			quaternion: normQ(j.localFrameB.quaternion),
 		};
 
 		if (j.type === 'revolute') {

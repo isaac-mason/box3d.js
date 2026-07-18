@@ -12,7 +12,7 @@ const b3: Box3DModule = await Box3D();
 const app = createHarness({ camera: [10, 5, 10], target: [0, 1, 0] });
 
 const worldDef = b3.b3DefaultWorldDef();
-worldDef.gravity = { x: 0, y: -9.81, z: 0 };
+worldDef.gravity = [0, -9.81, 0];
 const world = b3.b3CreateWorld(worldDef);
 
 // category bits
@@ -39,7 +39,7 @@ function staticBox(
 	mask: bigint,
 ): void {
 	const def = b3.b3DefaultBodyDef();
-	def.position = { x, y, z };
+	def.position = [x, y, z];
 	const body = b3.b3CreateBody(world, def);
 	const shapeDef = b3.b3DefaultShapeDef();
 	shapeDef.filter = filter(category, mask);
@@ -65,11 +65,11 @@ for (let j = 0; j < 4; j++) {
 			const isGroupA = k % 2 === 0;
 			const def = b3.b3DefaultBodyDef();
 			def.type = b3.b3BodyType.b3_dynamicBody;
-			def.position = {
-				x: i * shift - centerx,
-				y: j * shift + centery,
-				z: k * shift - centerz,
-			};
+			def.position = [
+				i * shift - centerx,
+				j * shift + centery,
+				k * shift - centerz,
+			];
 			const body = b3.b3CreateBody(world, def);
 			const shapeDef = b3.b3DefaultShapeDef();
 			shapeDef.baseMaterial.friction = 1;

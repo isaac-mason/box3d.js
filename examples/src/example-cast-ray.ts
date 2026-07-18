@@ -12,7 +12,7 @@ const b3: Box3DModule = await Box3D();
 const app = createHarness({ camera: [0, 3, 11], target: [0, 0, 0] });
 
 const worldDef = b3.b3DefaultWorldDef();
-worldDef.gravity = { x: 0, y: 0, z: 0 };
+worldDef.gravity = [0, 0, 0];
 const world = b3.b3CreateWorld(worldDef);
 
 const pointDist = 5;
@@ -24,11 +24,7 @@ const knotIdx = new Uint32Array(knotPos.length / 3);
 for (let i = 0; i < knotIdx.length; i++) knotIdx[i] = i;
 const meshData = b3.b3CreateMesh(knotPos, knotIdx);
 const targetBody = b3.b3CreateBody(world, b3.b3DefaultBodyDef());
-b3.b3CreateMeshShape(targetBody, b3.b3DefaultShapeDef(), meshData, {
-	x: 1,
-	y: 1,
-	z: 1,
-});
+b3.b3CreateMeshShape(targetBody, b3.b3DefaultShapeDef(), meshData, [1, 1, 1]);
 knotGeom.computeVertexNormals();
 const targetMesh = new THREE.Mesh(
 	knotGeom,
@@ -114,11 +110,7 @@ app.onFrame((dt) => {
 		new THREE.Vector3(0.3, 1, 0.2).normalize(),
 		targetAngle,
 	);
-	b3.b3Body_SetTransform(
-		targetBody,
-		{ x: 0, y: 0, z: 0 },
-		{ v: { x: tq.x, y: tq.y, z: tq.z }, s: tq.w },
-	);
+	b3.b3Body_SetTransform(targetBody, [0, 0, 0], [tq.x, tq.y, tq.z, tq.w]);
 	targetMesh.quaternion.copy(tq);
 
 	// physics: step the world, then fire every ray — timed together for the
@@ -139,8 +131,8 @@ app.onFrame((dt) => {
 			const dir = _o.clone().multiplyScalar(-1).normalize();
 			const res = b3.b3World_CastRayClosest(
 				world,
-				{ x: _o.x, y: _o.y, z: _o.z },
-				{ x: dir.x * pointDist, y: dir.y * pointDist, z: dir.z * pointDist },
+				[_o.x, _o.y, _o.z],
+				[dir.x * pointDist, dir.y * pointDist, dir.z * pointDist],
 				filter,
 			);
 			hits[i] = res.hit;

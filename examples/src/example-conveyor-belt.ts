@@ -5,7 +5,7 @@
 // gradient so grip varies. (box3d's tangentVelocity is linear-only, so an
 // angular "lazy susan" belt is omitted.)
 
-import type { Box3DModule } from 'box3d.js';
+import type { Box3DModule, b3Quat } from 'box3d.js';
 import Box3D from 'box3d.js/inline';
 import * as THREE from 'three';
 import { createWorldRenderer } from './box3d-three';
@@ -15,21 +15,18 @@ const b3: Box3DModule = await Box3D();
 const app = createHarness({ camera: [60, 40, 60], target: [0, 0, 0] });
 
 const worldDef = b3.b3DefaultWorldDef();
-worldDef.gravity = { x: 0, y: -10, z: 0 };
+worldDef.gravity = [0, -10, 0];
 const world = b3.b3CreateWorld(worldDef);
 
 // floor
 const floorDef = b3.b3DefaultBodyDef();
-floorDef.position = { x: 0, y: -0.5, z: 0 };
+floorDef.position = [0, -0.5, 0];
 const floor = b3.b3CreateBody(world, floorDef);
 const floorShapeDef = b3.b3DefaultShapeDef();
 floorShapeDef.baseMaterial.friction = 1.0;
 b3.b3CreateBoxShape(floor, floorShapeDef, 100, 0.5, 100);
 
-const quat = (q: THREE.Quaternion) => ({
-	v: { x: q.x, y: q.y, z: q.z },
-	s: q.w,
-});
+const quat = (q: THREE.Quaternion): b3Quat => [q.x, q.y, q.z, q.w];
 
 // four linear belts in a cross, each rotated 90° about Y and tilted 1°
 const beltWidth = 10.0;
@@ -52,13 +49,13 @@ for (let i = 0; i < 4; i++) {
 	).applyQuaternion(rotation);
 
 	const def = b3.b3DefaultBodyDef();
-	def.position = { x: position.x, y: position.y, z: position.z };
+	def.position = [position.x, position.y, position.z];
 	def.rotation = quat(rotation);
 	const belt = b3.b3CreateBody(world, def);
 
 	const shapeDef = b3.b3DefaultShapeDef();
 	shapeDef.baseMaterial.friction = friction;
-	shapeDef.baseMaterial.tangentVelocity = { x: 0, y: 0, z: -10.0 }; // belt surface moves along local -Z
+	shapeDef.baseMaterial.tangentVelocity = [0, 0, -10.0]; // belt surface moves along local -Z
 	b3.b3CreateBoxShape(belt, shapeDef, beltWidth, 0.1, beltLength);
 }
 
@@ -85,7 +82,7 @@ for (let i = 0; i <= 10; i++) {
 	const x = -beltLength + i * 10.0;
 	const def = b3.b3DefaultBodyDef();
 	def.type = b3.b3BodyType.b3_dynamicBody;
-	def.position = { x, y: 10.0, z: -beltLength };
+	def.position = [x, 10.0, -beltLength];
 	const body = b3.b3CreateBody(world, def);
 	const shapeDef = b3.b3DefaultShapeDef();
 	shapeDef.baseMaterial.friction = friction;

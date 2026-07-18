@@ -204,16 +204,7 @@ export type b3QueryFilter = {
   id: bigint
 };
 
-export type b3Vec3 = {
-  x: number,
-  y: number,
-  z: number
-};
-
-export type b3AABB = {
-  lowerBound: b3Vec3,
-  upperBound: b3Vec3
-};
+export type b3Vec3 = [ number, number, number ];
 
 export type b3PlaneSolverResult = {
   delta: b3Vec3,
@@ -226,14 +217,11 @@ export type b3Matrix3 = {
   cz: b3Vec3
 };
 
-export type b3Quat = {
-  v: b3Vec3,
-  s: number
-};
+export type b3Quat = [ number, number, number, number ];
 
 export type b3Transform = {
-  p: b3Vec3,
-  q: b3Quat
+  position: b3Vec3,
+  quaternion: b3Quat
 };
 
 export type b3BodyMoveEvent = {
@@ -249,6 +237,8 @@ export type b3Sweep = {
   q1: b3Quat,
   q2: b3Quat
 };
+
+export type b3AABB = [ number, number, number, number, number, number ];
 
 export type b3Plane = {
   normal: b3Vec3,
@@ -572,11 +562,6 @@ export type b3ContactHitEvent = {
   userMaterialIdB: bigint
 };
 
-export type b3CosSin = {
-  cosine: number,
-  sine: number
-};
-
 interface EmbindModule {
   b3BodyType: {b3_staticBody: b3BodyTypeValue<0>, b3_kinematicBody: b3BodyTypeValue<1>, b3_dynamicBody: b3BodyTypeValue<2>};
   b3ShapeType: {b3_capsuleShape: b3ShapeTypeValue<0>, b3_compoundShape: b3ShapeTypeValue<1>, b3_heightShape: b3ShapeTypeValue<2>, b3_hullShape: b3ShapeTypeValue<3>, b3_meshShape: b3ShapeTypeValue<4>, b3_sphereShape: b3ShapeTypeValue<5>};
@@ -716,6 +701,21 @@ interface EmbindModule {
   b3DynamicTree_GetHeight(tree: b3DynamicTree | null): number;
   b3DynamicTree_GetProxyCount(tree: b3DynamicTree | null): number;
   b3DynamicTree_GetByteCount(tree: b3DynamicTree | null): number;
+  b3World_GetGravity(out: b3Vec3, worldId: b3WorldId): b3Vec3;
+  b3World_GetBounds(out: b3AABB, worldId: b3WorldId): b3AABB;
+  b3Body_GetPosition(out: b3Vec3, bodyId: b3BodyId): b3Vec3;
+  b3Body_GetRotation(out: b3Quat, bodyId: b3BodyId): b3Quat;
+  b3Body_GetTransform(outPosition: b3Vec3, outRotation: b3Quat, bodyId: b3BodyId): [ b3Vec3, b3Quat ];
+  b3Body_GetLinearVelocity(out: b3Vec3, bodyId: b3BodyId): b3Vec3;
+  b3Body_GetAngularVelocity(out: b3Vec3, bodyId: b3BodyId): b3Vec3;
+  b3Body_GetLocalCenterOfMass(out: b3Vec3, bodyId: b3BodyId): b3Vec3;
+  b3Body_GetWorldCenterOfMass(out: b3Vec3, bodyId: b3BodyId): b3Vec3;
+  b3Body_ComputeAABB(out: b3AABB, bodyId: b3BodyId): b3AABB;
+  b3Shape_GetAABB(out: b3AABB, shapeId: b3ShapeId): b3AABB;
+  b3Joint_GetLocalFrameA(outPosition: b3Vec3, outRotation: b3Quat, jointId: b3JointId): [ b3Vec3, b3Quat ];
+  b3Joint_GetLocalFrameB(outPosition: b3Vec3, outRotation: b3Quat, jointId: b3JointId): [ b3Vec3, b3Quat ];
+  b3Joint_GetConstraintForce(out: b3Vec3, jointId: b3JointId): b3Vec3;
+  b3Joint_GetConstraintTorque(out: b3Vec3, jointId: b3JointId): b3Vec3;
   b3CreateRecording(byteCapacity: number): number;
   b3DestroyRecording(recording: number): void;
   b3World_StartRecording(worldId: b3WorldId, recording: number): void;
@@ -738,41 +738,25 @@ interface EmbindModule {
   b3Shape_GetFilter(shapeId: b3ShapeId): b3Filter;
   b3Shape_SetFilter(shapeId: b3ShapeId, filter: b3Filter, invokeContacts: boolean): void;
   b3DefaultQueryFilter(): b3QueryFilter;
-  b3World_GetBounds(worldId: b3WorldId): b3AABB;
-  b3Body_ComputeAABB(bodyId: b3BodyId): b3AABB;
-  b3Shape_GetAABB(shapeId: b3ShapeId): b3AABB;
-  b3AABB_Union(a: b3AABB, b: b3AABB): b3AABB;
-  b3DynamicTree_CreateProxy(tree: b3DynamicTree | null, aabb: b3AABB, categoryBits: number, userData: number): number;
-  b3DynamicTree_MoveProxy(tree: b3DynamicTree | null, proxyId: number, aabb: b3AABB): void;
-  b3DynamicTree_EnlargeProxy(tree: b3DynamicTree | null, proxyId: number, aabb: b3AABB): void;
-  b3DynamicTree_GetRootBounds(tree: b3DynamicTree | null): b3AABB;
   b3World_SetGravity(worldId: b3WorldId, gravity: b3Vec3): void;
-  b3World_GetGravity(worldId: b3WorldId): b3Vec3;
-  b3Body_GetPosition(bodyId: b3BodyId): b3Vec3;
-  b3Body_GetLinearVelocity(bodyId: b3BodyId): b3Vec3;
-  b3Body_GetAngularVelocity(bodyId: b3BodyId): b3Vec3;
   b3CreateBoxMesh(center: b3Vec3, extent: b3Vec3, identifyEdges: boolean): b3MeshData | null;
   b3CreateHollowBoxMesh(center: b3Vec3, extent: b3Vec3): b3MeshData | null;
   b3CreateGrid(rowCount: number, columnCount: number, scale: b3Vec3, makeHoles: boolean): b3HeightFieldData | null;
-  b3Body_GetLocalPoint(bodyId: b3BodyId, worldPoint: b3Vec3): b3Vec3;
-  b3Body_GetWorldPoint(bodyId: b3BodyId, localPoint: b3Vec3): b3Vec3;
-  b3Body_GetLocalVector(bodyId: b3BodyId, worldVector: b3Vec3): b3Vec3;
-  b3Body_GetWorldVector(bodyId: b3BodyId, localVector: b3Vec3): b3Vec3;
+  b3Body_GetLocalPoint(out: b3Vec3, bodyId: b3BodyId, worldPoint: b3Vec3): b3Vec3;
+  b3Body_GetWorldPoint(out: b3Vec3, bodyId: b3BodyId, localPoint: b3Vec3): b3Vec3;
+  b3Body_GetLocalVector(out: b3Vec3, bodyId: b3BodyId, worldVector: b3Vec3): b3Vec3;
+  b3Body_GetWorldVector(out: b3Vec3, bodyId: b3BodyId, localVector: b3Vec3): b3Vec3;
   b3Body_SetLinearVelocity(bodyId: b3BodyId, linearVelocity: b3Vec3): void;
   b3Body_SetAngularVelocity(bodyId: b3BodyId, angularVelocity: b3Vec3): void;
-  b3Body_GetLocalPointVelocity(bodyId: b3BodyId, localPoint: b3Vec3): b3Vec3;
-  b3Body_GetWorldPointVelocity(bodyId: b3BodyId, worldPoint: b3Vec3): b3Vec3;
+  b3Body_GetLocalPointVelocity(out: b3Vec3, bodyId: b3BodyId, localPoint: b3Vec3): b3Vec3;
+  b3Body_GetWorldPointVelocity(out: b3Vec3, bodyId: b3BodyId, worldPoint: b3Vec3): b3Vec3;
   b3Body_ApplyForce(bodyId: b3BodyId, force: b3Vec3, point: b3Vec3, wake: boolean): void;
   b3Body_ApplyForceToCenter(bodyId: b3BodyId, force: b3Vec3, wake: boolean): void;
   b3Body_ApplyTorque(bodyId: b3BodyId, torque: b3Vec3, wake: boolean): void;
   b3Body_ApplyLinearImpulse(bodyId: b3BodyId, impulse: b3Vec3, point: b3Vec3, wake: boolean): void;
   b3Body_ApplyLinearImpulseToCenter(bodyId: b3BodyId, impulse: b3Vec3, wake: boolean): void;
   b3Body_ApplyAngularImpulse(bodyId: b3BodyId, impulse: b3Vec3, wake: boolean): void;
-  b3Body_GetLocalCenterOfMass(bodyId: b3BodyId): b3Vec3;
-  b3Body_GetWorldCenterOfMass(bodyId: b3BodyId): b3Vec3;
-  b3Shape_GetClosestPoint(shapeId: b3ShapeId, target: b3Vec3): b3Vec3;
-  b3Joint_GetConstraintForce(jointId: b3JointId): b3Vec3;
-  b3Joint_GetConstraintTorque(jointId: b3JointId): b3Vec3;
+  b3Shape_GetClosestPoint(out: b3Vec3, shapeId: b3ShapeId, target: b3Vec3): b3Vec3;
   b3MotorJoint_SetLinearVelocity(jointId: b3JointId, velocity: b3Vec3): void;
   b3MotorJoint_GetLinearVelocity(jointId: b3JointId): b3Vec3;
   b3MotorJoint_SetAngularVelocity(jointId: b3JointId, velocity: b3Vec3): void;
@@ -782,32 +766,17 @@ interface EmbindModule {
   b3SphericalJoint_GetMotorTorque(jointId: b3JointId): b3Vec3;
   b3Body_GetLocalRotationalInertia(bodyId: b3BodyId): b3Matrix3;
   b3Body_GetWorldInverseRotationalInertia(bodyId: b3BodyId): b3Matrix3;
-  b3Cross(a: b3Vec3, b: b3Vec3): b3Vec3;
-  b3OffsetPos(p: b3Vec3, v: b3Vec3): b3Vec3;
-  b3Perp(v: b3Vec3): b3Vec3;
-  b3IsNormalized(v: b3Vec3): boolean;
-  b3AABB_Center(aabb: b3AABB): b3Vec3;
-  b3AABB_Extents(aabb: b3AABB): b3Vec3;
-  b3ClosestPointToAABB(aabb: b3Vec3, p: b3AABB): b3Vec3;
-  b3Body_GetTransform(bodyId: b3BodyId): b3Transform;
   b3CloneAndTransformHull(original: b3HullData | null, transform: b3Transform, scale: b3Vec3): b3HullData | null;
-  b3InvMulTransforms(a: b3Transform, b: b3Transform): b3Transform;
-  b3ComputeHullAABB(hull: b3HullData | null, transform: b3Transform): b3AABB;
   b3Joint_SetLocalFrameA(jointId: b3JointId, localFrame: b3Transform): void;
-  b3Joint_GetLocalFrameA(jointId: b3JointId): b3Transform;
   b3Joint_SetLocalFrameB(jointId: b3JointId, localFrame: b3Transform): void;
-  b3Joint_GetLocalFrameB(jointId: b3JointId): b3Transform;
-  b3TransformPoint(transform: b3Transform, v: b3Vec3): b3Vec3;
-  b3MulTransforms(a: b3Transform, b: b3Transform): b3Transform;
-  b3Body_GetRotation(bodyId: b3BodyId): b3Quat;
   b3Body_SetTransform(bodyId: b3BodyId, position: b3Vec3, rotation: b3Quat): void;
   b3SphericalJoint_SetTargetRotation(jointId: b3JointId, targetRotation: b3Quat): void;
   b3SphericalJoint_GetTargetRotation(jointId: b3JointId): b3Quat;
-  b3RotateVector(q: b3Quat, v: b3Vec3): b3Vec3;
-  b3InvRotateVector(q: b3Quat, v: b3Vec3): b3Vec3;
-  b3ComputeQuatBetweenUnitVectors(v1: b3Vec3, v2: b3Vec3): b3Quat;
-  b3InvMulQuat(a: b3Quat, b: b3Quat): b3Quat;
-  b3IsValidPlane(p: b3Plane): boolean;
+  b3ComputeHullAABB(hull: b3HullData | null, transform: b3Transform): b3AABB;
+  b3DynamicTree_CreateProxy(tree: b3DynamicTree | null, aabb: b3AABB, categoryBits: number, userData: number): number;
+  b3DynamicTree_MoveProxy(tree: b3DynamicTree | null, proxyId: number, aabb: b3AABB): void;
+  b3DynamicTree_EnlargeProxy(tree: b3DynamicTree | null, proxyId: number, aabb: b3AABB): void;
+  b3DynamicTree_GetRootBounds(tree: b3DynamicTree | null): b3AABB;
   b3ComputeSphereAABB(sphere: b3Sphere, transform: b3Transform): b3AABB;
   b3Shape_GetSphere(shapeId: b3ShapeId): b3Sphere;
   b3Shape_SetSphere(shapeId: b3ShapeId, sphere: b3Sphere): void;
@@ -1019,20 +988,15 @@ interface EmbindModule {
   b3Shape_ComputeMassData(shapeId: b3ShapeId): b3MassData;
   b3World_CastRayClosest(worldId: b3WorldId, origin: b3Vec3, translation: b3Vec3, filter: b3QueryFilter): b3RayResult;
   b3Shape_RayCast(shapeId: b3ShapeId, origin: b3Vec3, translation: b3Vec3): b3WorldCastOutput;
-  b3Distance(a: b3Vec3, b: b3Vec3): number;
-  b3DistanceSquared(a: b3Vec3, b: b3Vec3): number;
-  b3MakeQuatFromAxisAngle(axis: b3Vec3, radians: number): b3Quat;
-  b3AABB_Area(aabb: b3AABB): number;
-  b3ComputeCosSin(radians: number): b3CosSin;
   b3DynamicTree_GetAreaRatio(tree: b3DynamicTree | null): number;
   b3Body_SetName(bodyId: b3BodyId, name: EmbindString): void;
   b3Body_GetName(bodyId: b3BodyId): string;
   b3CreateHull(points: any): b3HullData | null;
-  b3GetHullVertices(hull: b3HullData | null): any;
+  b3GetHullVertices(hull: b3HullData | null): Float32Array;
   b3CreateMesh(positions: any, indices: any): b3MeshData | null;
-  b3GetMeshVertices(mesh: b3MeshData | null): any;
-  b3GetMeshIndices(mesh: b3MeshData | null): any;
-  b3GetMeshMaterialIndices(mesh: b3MeshData | null): any;
+  b3GetMeshVertices(mesh: b3MeshData | null): Float32Array;
+  b3GetMeshIndices(mesh: b3MeshData | null): Uint32Array;
+  b3GetMeshMaterialIndices(mesh: b3MeshData | null): Uint8Array;
   b3CreateCompound(spec: any): b3CompoundData | null;
   b3CreateHeightField(heights: any, countX: number, countZ: number, scale: b3Vec3): b3HeightFieldData | null;
   b3World_CastMover(worldId: b3WorldId, origin: b3Vec3, mover: b3Capsule, translation: b3Vec3, filter: b3QueryFilter, callback: any): number;
@@ -1062,8 +1026,6 @@ interface EmbindModule {
   b3DistanceJoint_GetSpringForceRange(jointId: b3JointId): any;
   b3World_OverlapAABB(worldId: b3WorldId, aabb: b3AABB, filter: b3QueryFilter, callback: any): void;
   b3World_CastRay(worldId: b3WorldId, origin: b3Vec3, translation: b3Vec3, filter: b3QueryFilter, callback: any): void;
-  b3GetLengthAndNormalize(v: b3Vec3): any;
-  b3GetAxisAngle(q: b3Quat): any;
   b3DynamicTree_Query(tree: b3DynamicTree | null, aabb: b3AABB, maskBits: number, callback: any): b3TreeStats;
   b3DynamicTree_RayCast(tree: b3DynamicTree | null, origin: b3Vec3, translation: b3Vec3, maxFraction: number, maskBits: number, callback: any): b3TreeStats;
   b3DynamicTree_QueryClosest(tree: b3DynamicTree | null, point: b3Vec3, maskBits: number, callback: any): b3TreeStats;
@@ -1104,7 +1066,7 @@ export interface ContactHitEvent {
 export interface BodyMoveEvent {
   bodyId: b3BodyId;
   position: b3Vec3;
-  rotation: { x: number; y: number; z: number; w: number };
+  rotation: b3Quat;
   fellAsleep: boolean;
 }
 export interface SensorTouchEvent { sensorShapeId: b3ShapeId; visitorShapeId: b3ShapeId; }

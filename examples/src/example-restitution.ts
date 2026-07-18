@@ -12,12 +12,12 @@ const b3: Box3DModule = await Box3D();
 const app = createHarness({ camera: [0, 8, 20], target: [0, 3, 0] });
 
 const worldDef = b3.b3DefaultWorldDef();
-worldDef.gravity = { x: 0, y: -10, z: 0 };
+worldDef.gravity = [0, -10, 0];
 const world = b3.b3CreateWorld(worldDef);
 
 // static floor (top surface at y = 1)
 const floorDef = b3.b3DefaultBodyDef();
-floorDef.position = { x: 0, y: 0, z: 0 };
+floorDef.position = [0, 0, 0];
 const floor = b3.b3CreateBody(world, floorDef);
 const floorShapeDef = b3.b3DefaultShapeDef();
 floorShapeDef.baseMaterial.friction = 0.5;
@@ -52,14 +52,14 @@ for (let i = 0; i < restitutionValues.length; i++) {
 
 	const def = b3.b3DefaultBodyDef();
 	def.type = b3.b3BodyType.b3_dynamicBody;
-	def.position = { x, y: dropHeight, z: 0 };
+	def.position = [x, dropHeight, 0];
 	const body = b3.b3CreateBody(world, def);
 
 	const shapeDef = b3.b3DefaultShapeDef();
 	shapeDef.baseMaterial.friction = 0.5;
 	shapeDef.baseMaterial.restitution = restitution;
 	b3.b3CreateSphereShape(body, shapeDef, {
-		center: { x: 0, y: 0, z: 0 },
+		center: [0, 0, 0],
 		radius: 0.5,
 	});
 
@@ -69,13 +69,9 @@ for (let i = 0; i < restitutionValues.length; i++) {
 
 function reset(): void {
 	for (const { body, x } of balls) {
-		b3.b3Body_SetTransform(
-			body,
-			{ x, y: dropHeight, z: 0 },
-			{ v: { x: 0, y: 0, z: 0 }, s: 1 },
-		);
-		b3.b3Body_SetLinearVelocity(body, { x: 0, y: 0, z: 0 });
-		b3.b3Body_SetAngularVelocity(body, { x: 0, y: 0, z: 0 });
+		b3.b3Body_SetTransform(body, [x, dropHeight, 0], [0, 0, 0, 1]);
+		b3.b3Body_SetLinearVelocity(body, [0, 0, 0]);
+		b3.b3Body_SetAngularVelocity(body, [0, 0, 0]);
 		b3.b3Body_SetAwake(body, true);
 	}
 }

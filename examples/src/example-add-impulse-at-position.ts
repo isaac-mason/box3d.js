@@ -12,28 +12,28 @@ const b3: Box3DModule = await Box3D();
 const app = createHarness({ camera: [0, 10, 15], target: [0, 2, 0] });
 
 const worldDef = b3.b3DefaultWorldDef();
-worldDef.gravity = { x: 0, y: -10, z: 0 };
+worldDef.gravity = [0, -10, 0];
 const world = b3.b3CreateWorld(worldDef);
 
 // ground
 const groundDef = b3.b3DefaultBodyDef();
-groundDef.position = { x: 0, y: -0.5, z: 0 };
+groundDef.position = [0, -0.5, 0];
 const ground = b3.b3CreateBody(world, groundDef);
 b3.b3CreateBoxShape(ground, b3.b3DefaultShapeDef(), 30, 0.5, 30);
 
 // a box and a sphere to poke
 const boxDef = b3.b3DefaultBodyDef();
 boxDef.type = b3.b3BodyType.b3_dynamicBody;
-boxDef.position = { x: -3, y: 2, z: 0 };
+boxDef.position = [-3, 2, 0];
 const boxBody = b3.b3CreateBody(world, boxDef);
 b3.b3CreateBoxShape(boxBody, b3.b3DefaultShapeDef(), 1, 1, 1);
 
 const sphereDef = b3.b3DefaultBodyDef();
 sphereDef.type = b3.b3BodyType.b3_dynamicBody;
-sphereDef.position = { x: 3, y: 2, z: 0 };
+sphereDef.position = [3, 2, 0];
 const sphereBody = b3.b3CreateBody(world, sphereDef);
 b3.b3CreateSphereShape(sphereBody, b3.b3DefaultShapeDef(), {
-	center: { x: 0, y: 0, z: 0 },
+	center: [0, 0, 0],
 	radius: 1,
 });
 
@@ -57,8 +57,8 @@ app.renderer.domElement.addEventListener('pointerdown', (e) => {
 
 	const result = b3.b3World_CastRayClosest(
 		world,
-		{ x: o.x, y: o.y, z: o.z },
-		{ x: d.x * MAX_DIST, y: d.y * MAX_DIST, z: d.z * MAX_DIST },
+		[o.x, o.y, o.z],
+		[d.x * MAX_DIST, d.y * MAX_DIST, d.z * MAX_DIST],
 		b3.b3DefaultQueryFilter(),
 	);
 	if (!result.hit) return;
@@ -73,7 +73,7 @@ app.renderer.domElement.addEventListener('pointerdown', (e) => {
 	const s = settings.impulseStrength * b3.b3Body_GetMass(body);
 	b3.b3Body_ApplyLinearImpulse(
 		body,
-		{ x: d.x * s, y: d.y * s, z: d.z * s },
+		[d.x * s, d.y * s, d.z * s],
 		result.point,
 		true,
 	);
