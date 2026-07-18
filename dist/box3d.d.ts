@@ -705,15 +705,15 @@ interface EmbindModule {
   b3World_GetBounds(out: b3AABB, worldId: b3WorldId): b3AABB;
   b3Body_GetPosition(out: b3Vec3, bodyId: b3BodyId): b3Vec3;
   b3Body_GetRotation(out: b3Quat, bodyId: b3BodyId): b3Quat;
-  b3Body_GetTransform(out: { position: b3Vec3, quaternion: b3Quat }, bodyId: b3BodyId): { position: b3Vec3, quaternion: b3Quat };
+  b3Body_GetTransform(outPosition: b3Vec3, outRotation: b3Quat, bodyId: b3BodyId): [ b3Vec3, b3Quat ];
   b3Body_GetLinearVelocity(out: b3Vec3, bodyId: b3BodyId): b3Vec3;
   b3Body_GetAngularVelocity(out: b3Vec3, bodyId: b3BodyId): b3Vec3;
   b3Body_GetLocalCenterOfMass(out: b3Vec3, bodyId: b3BodyId): b3Vec3;
   b3Body_GetWorldCenterOfMass(out: b3Vec3, bodyId: b3BodyId): b3Vec3;
   b3Body_ComputeAABB(out: b3AABB, bodyId: b3BodyId): b3AABB;
   b3Shape_GetAABB(out: b3AABB, shapeId: b3ShapeId): b3AABB;
-  b3Joint_GetLocalFrameA(out: { position: b3Vec3, quaternion: b3Quat }, jointId: b3JointId): { position: b3Vec3, quaternion: b3Quat };
-  b3Joint_GetLocalFrameB(out: { position: b3Vec3, quaternion: b3Quat }, jointId: b3JointId): { position: b3Vec3, quaternion: b3Quat };
+  b3Joint_GetLocalFrameA(outPosition: b3Vec3, outRotation: b3Quat, jointId: b3JointId): [ b3Vec3, b3Quat ];
+  b3Joint_GetLocalFrameB(outPosition: b3Vec3, outRotation: b3Quat, jointId: b3JointId): [ b3Vec3, b3Quat ];
   b3Joint_GetConstraintForce(out: b3Vec3, jointId: b3JointId): b3Vec3;
   b3Joint_GetConstraintTorque(out: b3Vec3, jointId: b3JointId): b3Vec3;
   b3CreateRecording(byteCapacity: number): number;
@@ -992,11 +992,11 @@ interface EmbindModule {
   b3Body_SetName(bodyId: b3BodyId, name: EmbindString): void;
   b3Body_GetName(bodyId: b3BodyId): string;
   b3CreateHull(points: any): b3HullData | null;
-  b3GetHullVertices(hull: b3HullData | null): any;
+  b3GetHullVertices(hull: b3HullData | null): Float32Array;
   b3CreateMesh(positions: any, indices: any): b3MeshData | null;
-  b3GetMeshVertices(mesh: b3MeshData | null): any;
-  b3GetMeshIndices(mesh: b3MeshData | null): any;
-  b3GetMeshMaterialIndices(mesh: b3MeshData | null): any;
+  b3GetMeshVertices(mesh: b3MeshData | null): Float32Array;
+  b3GetMeshIndices(mesh: b3MeshData | null): Uint32Array;
+  b3GetMeshMaterialIndices(mesh: b3MeshData | null): Uint8Array;
   b3CreateCompound(spec: any): b3CompoundData | null;
   b3CreateHeightField(heights: any, countX: number, countZ: number, scale: b3Vec3): b3HeightFieldData | null;
   b3World_CastMover(worldId: b3WorldId, origin: b3Vec3, mover: b3Capsule, translation: b3Vec3, filter: b3QueryFilter, callback: any): number;
@@ -1101,7 +1101,6 @@ export interface Manifold {
   points: ManifoldPoint[];
 }
 export interface Box3DFacade {
-  createTransform(): { position: b3Vec3; quaternion: b3Quat };
   getNumShapeIds(buf: ShapeIdBuffer): number;
   createShapeId(): b3ShapeId;
   getShapeIdAt(out: b3ShapeId, buf: ShapeIdBuffer, i: number): b3ShapeId;

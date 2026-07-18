@@ -15,7 +15,7 @@
 //     for ( let m = 0; m < contact.manifoldCount; m++ )
 //     {
 //       b3.getManifoldAt( manifold, contact, m );
-//       manifold.normal.x; manifold.points[0].separation; // plain reads: no alloc, no crossings
+//       manifold.normal[0]; manifold.points[0].separation; // plain reads: no alloc, no crossings
 //     }
 //   }
 //
@@ -23,7 +23,12 @@
 // reading a pure-JS loop over the wasm heap, so scanning allocates nothing and
 // crosses the wasm/JS boundary only for the fill.
 //
-// STRIDES BELOW MUST STAY IN SYNC with packContactsInto() in src/bindings.cpp.
+// The packed-record tier STRIDES below come from bindings.cpp (namespace layout, via
+// Module._layoutMeta()) — a single source of truth, so they can't drift. The per-field
+// READ order in each reader still has to match the C++ packing order by hand.
+
+// Tier strides, published by src/bindings.cpp's layout namespace.
+const LAYOUT = JSON.parse( Module._layoutMeta() );
 
 // --- shape id overlaps (sensors) -------------------------------------------
 // buffer: { count, data: Int32Array }, 3 int32 per id: index1, world0, generation
@@ -35,7 +40,7 @@ function createShapeId() { return { index1: 0, world0: 0, generation: 0 }; }
 function getShapeIdAt( out, buf, i )
 {
 	const d = buf.data;
-	const s = i * 3;
+	const s = i * LAYOUT.shapeId;
 	out.index1 = d[ s ];
 	out.world0 = d[ s + 1 ];
 	out.generation = d[ s + 2 ];
@@ -44,11 +49,11 @@ function getShapeIdAt( out, buf, i )
 
 // --- contacts (contacts -> manifolds -> points) ----------------------------
 
-const CONTACT_STRIDE = 12; // idA(3) idB(3) contactId(4) manifoldStart manifoldCount
-const MANIFOLD_STRIDE_F = 10; // normal(3) twistImpulse frictionImpulse(3) rollingImpulse(3)
-const MANIFOLD_STRIDE_I = 2; // pointStart pointCount
-const POINT_STRIDE_F = 11; // anchorA(3) anchorB(3) separation baseSeparation normalImpulse totalNormalImpulse normalVelocity
-const POINT_STRIDE_I = 3; // featureId triangleIndex persisted
+const CONTACT_STRIDE = LAYOUT.contact; // idA(3) idB(3) contactId(4) manifoldStart manifoldCount
+const MANIFOLD_STRIDE_F = LAYOUT.manifoldF32; // normal(3) twistImpulse frictionImpulse(3) rollingImpulse(3)
+const MANIFOLD_STRIDE_I = LAYOUT.manifoldI32; // pointStart pointCount
+const POINT_STRIDE_F = LAYOUT.pointF32; // anchorA(3) anchorB(3) separation baseSeparation normalImpulse totalNormalImpulse normalVelocity
+const POINT_STRIDE_I = LAYOUT.pointI32; // featureId triangleIndex persisted
 
 function getNumContacts( buf ) { return buf.count; }
 
@@ -236,15 +241,16 @@ function destroyContactsBuffer( buf )
 //   }
 //   b3.destroyEventsBuffer( eb );                   // free the wasm storage
 //
-// STRIDES MUST STAY IN SYNC with the EventsBuffer struct in src/bindings.cpp.
+// Tier strides come from bindings.cpp (namespace layout, via LAYOUT above); the
+// field READ order below must match the EventsBuffer packing order in src/bindings.cpp.
 
-const CONTACT_TOUCH_STRIDE = 10; // shapeIdA(3) shapeIdB(3) contactId(4)
-const CONTACT_HIT_STRIDE_I = 14; // shapeIdA(3) shapeIdB(3) contactId(4) matA(lo,hi) matB(lo,hi)
-const CONTACT_HIT_STRIDE_F = 7; //  point(3) normal(3) approachSpeed
-const BODY_MOVE_STRIDE_I = 4; //    bodyId(3) fellAsleep
-const BODY_MOVE_STRIDE_F = 7; //    position(3) rotation(x,y,z,w)
-const SENSOR_TOUCH_STRIDE = 6; //   sensorShapeId(3) visitorShapeId(3)
-const JOINT_STRIDE = 3; //          jointId(3)
+const CONTACT_TOUCH_STRIDE = LAYOUT.contactTouch; // shapeIdA(3) shapeIdB(3) contactId(4)
+const CONTACT_HIT_STRIDE_I = LAYOUT.contactHitI32; // shapeIdA(3) shapeIdB(3) contactId(4) matA(lo,hi) matB(lo,hi)
+const CONTACT_HIT_STRIDE_F = LAYOUT.contactHitF64; //  point(3) normal(3) approachSpeed
+const BODY_MOVE_STRIDE_I = LAYOUT.bodyMoveI32; //    bodyId(3) fellAsleep
+const BODY_MOVE_STRIDE_F = LAYOUT.bodyMoveF64; //    position(3) rotation(x,y,z,w)
+const SENSOR_TOUCH_STRIDE = LAYOUT.sensorTouch; //   sensorShapeId(3) visitorShapeId(3)
+const JOINT_STRIDE = LAYOUT.joint; //          jointId(3)
 
 function readShapeId( dst, a, o )
 {
@@ -413,7 +419,7 @@ function getJointEventAt( out, eb, i )
 
 // --- b3World_CollideMover plane results ---------------------------------------
 // The CollideMover callback receives a packed buffer { count, data: Float32Array }
-// (7 floats per plane); read it with these instead of a JS array of objects.
+// (LAYOUT.plane floats per plane); read it with these instead of a JS array of objects.
 
 function getNumPlaneResults( buf ) { return buf.count; }
 function createPlaneResult()
@@ -423,7 +429,7 @@ function createPlaneResult()
 function getPlaneResultAt( out, buf, i )
 {
 	const d = buf.data;
-	const s = i * 7;
+	const s = i * LAYOUT.plane;
 	const nrm = out.plane.normal;
 	nrm[ 0 ] = d[ s ]; nrm[ 1 ] = d[ s + 1 ]; nrm[ 2 ] = d[ s + 2 ];
 	out.plane.offset = d[ s + 3 ];
@@ -435,65 +441,69 @@ function getPlaneResultAt( out, buf, i )
 // Each raw `b3X_GetYInto(out, ...)` writes floats to a static wasm scratch; the
 // public `b3X_GetY(out, ...) -> out` copies scratch -> the caller's mathcat array.
 //
-// Zero-allocation: the readers are specialized per (type × arity), so there is no
-// `arguments`/slice/spread on the hot path — each installed function is a fixed-arity,
-// branch-free, unrolled copy. One wasm crossing per read; HEAPF32 is re-read each call
-// (memory-growth safe). raw fn + scratch pointer are resolved once, lazily (so
-// post-js/embind init order never matters); the static scratch address is stable.
+// The readers are GENERATED from the binding-site metadata (Module._outMeta()), so
+// this file carries no per-method list: add an out getter in bindings.cpp and it is
+// installed automatically. Each generated reader is monomorphic + fixed-arity with
+// an unrolled copy (no arguments/slice/spread on the hot path) and does one wasm
+// crossing per read. The static scratch address is stable, so its element offsets
+// are baked in as literals; HEAPF32 is re-read each call via getF32() so the reader
+// stays correct across memory growth (which can swap the heap view).
 
 // Resolve the static scratch once — the address is stable — and strip the getter
 // from the public module (it's internal plumbing). --post-js runs after embind has
 // registered, so the raw fns are already on Module here.
 const SCRATCH = Module.b3_getMathScratch(); // byte pointer to the static float scratch
-const BASE = SCRATCH >>> 2; //                 element base
+const SCRATCH_F32 = SCRATCH >>> 2; //          element base into HEAPF32
 delete Module.b3_getMathScratch;
 
-// Specialization matrix: MAKERS[type][argc]( rawFn ) -> the installed reader.
-// Each reader is monomorphic + fixed-arity with an unrolled copy — no arguments,
-// slice, spread, or per-call branch. type: v3 (Vec3, 3) · q4 (Quat, 4) · v6 (AABB/
-// Box3, 6) · xf (Transform, 7 split). Add m9/m16 for Mat3/Mat4 (same shape) later.
-const MAKERS = {
-	v3: {
-		1: ( raw ) => ( out, a ) => { raw( SCRATCH, a ); const h = HEAPF32; out[ 0 ] = h[ BASE ]; out[ 1 ] = h[ BASE + 1 ]; out[ 2 ] = h[ BASE + 2 ]; return out; },
-		2: ( raw ) => ( out, a, b ) => { raw( SCRATCH, a, b ); const h = HEAPF32; out[ 0 ] = h[ BASE ]; out[ 1 ] = h[ BASE + 1 ]; out[ 2 ] = h[ BASE + 2 ]; return out; },
-	},
-	q4: {
-		1: ( raw ) => ( out, a ) => { raw( SCRATCH, a ); const h = HEAPF32; out[ 0 ] = h[ BASE ]; out[ 1 ] = h[ BASE + 1 ]; out[ 2 ] = h[ BASE + 2 ]; out[ 3 ] = h[ BASE + 3 ]; return out; },
-	},
-	v6: {
-		1: ( raw ) => ( out, a ) => { raw( SCRATCH, a ); const h = HEAPF32; out[ 0 ] = h[ BASE ]; out[ 1 ] = h[ BASE + 1 ]; out[ 2 ] = h[ BASE + 2 ]; out[ 3 ] = h[ BASE + 3 ]; out[ 4 ] = h[ BASE + 4 ]; out[ 5 ] = h[ BASE + 5 ]; return out; },
-	},
-	// transform out is { position: Vec3, quaternion: Quat } — split the 7-float scratch
-	xf: {
-		1: ( raw ) => ( out, a ) => { raw( SCRATCH, a ); const h = HEAPF32; const p = out.position, q = out.quaternion; p[ 0 ] = h[ BASE ]; p[ 1 ] = h[ BASE + 1 ]; p[ 2 ] = h[ BASE + 2 ]; q[ 0 ] = h[ BASE + 3 ]; q[ 1 ] = h[ BASE + 4 ]; q[ 2 ] = h[ BASE + 5 ]; q[ 3 ] = h[ BASE + 6 ]; return out; },
-	},
-};
+// Live-heap accessor in factory scope: HEAPF32 is a module-scope var that memory
+// growth may reassign, so the generated readers call this each time rather than
+// closing over a stale view. (The readers are built with `new Function`, whose body
+// runs in global scope and so cannot see the bare `HEAPF32` directly.)
+const getF32 = () => HEAPF32;
 
-function createTransform() { return { position: [ 0, 0, 0 ], quaternion: [ 0, 0, 0, 1 ] }; }
-
-// [ publicName, type, argCount ] — install the public reader, capture + strip the raw `*Into`.
-for ( const [ name, type, argc ] of [
-	[ 'b3World_GetGravity', 'v3', 1 ], [ 'b3World_GetBounds', 'v6', 1 ],
-	[ 'b3Body_GetPosition', 'v3', 1 ], [ 'b3Body_GetRotation', 'q4', 1 ],
-	[ 'b3Body_GetLinearVelocity', 'v3', 1 ], [ 'b3Body_GetAngularVelocity', 'v3', 1 ],
-	[ 'b3Body_GetLocalPoint', 'v3', 2 ], [ 'b3Body_GetWorldPoint', 'v3', 2 ],
-	[ 'b3Body_GetLocalVector', 'v3', 2 ], [ 'b3Body_GetWorldVector', 'v3', 2 ],
-	[ 'b3Body_GetLocalPointVelocity', 'v3', 2 ], [ 'b3Body_GetWorldPointVelocity', 'v3', 2 ],
-	[ 'b3Body_GetLocalCenterOfMass', 'v3', 1 ], [ 'b3Body_GetWorldCenterOfMass', 'v3', 1 ],
-	[ 'b3Body_ComputeAABB', 'v6', 1 ], [ 'b3Shape_GetAABB', 'v6', 1 ], [ 'b3Shape_GetClosestPoint', 'v3', 2 ],
-	[ 'b3Joint_GetConstraintForce', 'v3', 1 ], [ 'b3Joint_GetConstraintTorque', 'v3', 1 ],
-	[ 'b3Body_GetTransform', 'xf', 1 ], [ 'b3Joint_GetLocalFrameA', 'xf', 1 ], [ 'b3Joint_GetLocalFrameB', 'xf', 1 ],
-] )
+// Build a reader from one _outMeta entry. `sizes` is the float count of each out
+// slot; `trailing` the number of forwarded input args. Returns the single out for a
+// one-out getter, or [out0, out1, ...] for a multi-out one (a transform reads as
+// position + rotation). The copy is codegen'd unrolled per slot with literal scratch
+// offsets — no per-call allocation or branching.
+function makeOutParamReader( rawInto, sizes, trailing )
 {
-	const rawName = name + 'Into';
+	const outs = sizes.map( ( _, i ) => `out${i}` );
+	const trail = Array.from( { length: trailing }, ( _, i ) => `a${i}` );
+	const params = [ ...outs, ...trail ].join( ', ' );
+
+	// scratch byte pointer per out slot (slots are laid out contiguously)
+	let byteOff = 0;
+	const slotPtrs = sizes.map( ( n ) => { const p = SCRATCH + byteOff; byteOff += n * 4; return p; } );
+	const intoArgs = [ ...slotPtrs, ...trail ].join( ', ' );
+
+	let elemOff = 0;
+	const copy = sizes.map( ( n, i ) =>
+	{
+		const base = SCRATCH_F32 + elemOff; elemOff += n;
+		let body = '';
+		for ( let k = 0; k < n; k++ ) body += `out${i}[${k}]=h[${base + k}];`;
+		return body;
+	} ).join( '' );
+
+	const ret = outs.length === 1 ? outs[ 0 ] : `[ ${outs.join( ', ' )} ]`;
+	return new Function( 'raw', 'getF32',
+		`return function(${params}){raw(${intoArgs});const h=getF32();${copy}return ${ret};};` )( rawInto, getF32 );
+}
+
+// Install a public reader per binding-site entry; capture + strip the raw `*Into`.
+for ( const entry of JSON.parse( Module._outMeta() ) )
+{
+	const rawName = entry.method + 'Into';
 	const raw = Module[ rawName ];
+	if ( !raw ) { console.warn( `box3d.js: _outMeta lists ${rawName}, but it is not on the module — skipping` ); continue; }
 	delete Module[ rawName ]; // strip the raw writer from the public surface
-	Module[ name ] = MAKERS[ type ][ argc ]( raw );
+	Module[ entry.method ] = makeOutParamReader( raw, entry.sizes, entry.trailing );
 }
 
 // Attach onto the Emscripten module object (in scope here as `Module`).
 Object.assign( Module, {
-	createTransform,
 	getNumShapeIds, createShapeId, getShapeIdAt,
 	getNumContacts, createContact, getContactAt,
 	createPoint, createManifold, getManifoldAt,
