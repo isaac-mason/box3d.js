@@ -444,6 +444,70 @@ function getPlaneResultAt( out, buf, i )
 	return out;
 }
 
+// --- b3World_CastRayClosest (single packed record, zero JS alloc) --------------
+//
+//   const hit = b3.createRayResult();                 // reusable, allocate once
+//   // each cast:
+//   b3.b3World_CastRayClosest( hit, world, origin, translation, filter );
+//   if ( hit.hit ) { hit.point; hit.normal; hit.shapeId; hit.fraction; }
+//
+// Like the per-step events, the result lives in stable wasm storage and is read in
+// place; the inputs (worldId/origin/translation/filter) are unpacked into loose scalars
+// so the whole cast allocates nothing on the JS side (bar the userMaterialId BigInt).
+// The raw writer + storage pointers are wired up in the install block at the bottom.
+let _rayInto = null, _rayI32Base = 0, _rayF64Base = 0;
+
+function createRayResult()
+{
+	const r = {
+		shapeId: { index1: 0, world0: 0, generation: 0 },
+		point: [ 0, 0, 0 ],
+		normal: [ 0, 0, 0 ],
+		fraction: 0,
+		triangleIndex: 0,
+		childIndex: 0,
+		nodeVisits: 0,
+		leafVisits: 0,
+		hit: false,
+		_matLo: 0, _matHi: 0, // raw u64 words; userMaterialId builds a BigInt from these on read
+	};
+	// userMaterialId is a lazy getter so a cast that never reads it stays fully zero-alloc
+	// (materialising the BigInt is the only per-cast allocation). Enumerable + bigint-typed,
+	// so it still reads like a plain field.
+	Object.defineProperty( r, 'userMaterialId', {
+		enumerable: true,
+		get() { return BigInt( this._matLo >>> 0 ) | ( BigInt( this._matHi >>> 0 ) << 32n ); },
+	} );
+	return r;
+}
+
+// Field order below must match the g_rayResult packing in src/bindings.cpp (layout::
+// rayResultI32 / rayResultF64). worldId/origin/translation/filter are unpacked to the
+// scalars the raw writer expects (filter's u64 fields cross natively via WASM_BIGINT).
+function b3World_CastRayClosest( out, worldId, origin, translation, filter )
+{
+	_rayInto(
+		worldId.index1, worldId.generation,
+		origin[ 0 ], origin[ 1 ], origin[ 2 ],
+		translation[ 0 ], translation[ 1 ], translation[ 2 ],
+		filter.categoryBits, filter.maskBits, filter.id );
+	const i = HEAP32, s = _rayI32Base;
+	const id = out.shapeId;
+	id.index1 = i[ s ]; id.world0 = i[ s + 1 ]; id.generation = i[ s + 2 ];
+	out._matLo = i[ s + 3 ]; out._matHi = i[ s + 4 ]; // userMaterialId (u64) built lazily on read
+	out.triangleIndex = i[ s + 5 ];
+	out.childIndex = i[ s + 6 ];
+	out.nodeVisits = i[ s + 7 ];
+	out.leafVisits = i[ s + 8 ];
+	out.hit = i[ s + 9 ] !== 0;
+	const f = HEAPF64, fs = _rayF64Base;
+	const p = out.point, n = out.normal;
+	p[ 0 ] = f[ fs ]; p[ 1 ] = f[ fs + 1 ]; p[ 2 ] = f[ fs + 2 ];
+	n[ 0 ] = f[ fs + 3 ]; n[ 1 ] = f[ fs + 4 ]; n[ 2 ] = f[ fs + 5 ];
+	out.fraction = f[ fs + 6 ];
+	return out;
+}
+
 // --- out-param math reads (conventions documented in src/bindings.cpp header) ---
 // Each raw `b3X_GetYInto(out, ...)` writes floats to a static wasm scratch; the
 // public `b3X_GetY(out, ...) -> out` copies scratch -> the caller's mathcat array.
@@ -477,21 +541,43 @@ if ( typeof ENVIRONMENT_IS_PTHREAD === 'undefined' || !ENVIRONMENT_IS_PTHREAD )
 	// runs in global scope and so cannot see the bare `HEAPF32` directly.)
 	const getF32 = () => HEAPF32;
 
+	// Expand one forwarded (pass) arg `a${i}` into the loose scalars its `*Into` writer
+	// expects, keyed by the pass kind from _outMeta. Unpacking the id/vec object here —
+	// rather than letting embind marshal it as a value_object/value_array — is what makes
+	// the crossing zero-alloc: only numbers go over, so there's no per-call wasm temp +
+	// destructor. Field names/orders mirror the embind registrations in bindings.cpp.
+	const unpackPass = ( kind, a ) =>
+	{
+		switch ( kind )
+		{
+			case 'id': return `${a}.index1,${a}.world0,${a}.generation`;
+			case 'worldId': return `${a}.index1,${a}.generation`;
+			case 'vec3': return `${a}[0],${a}[1],${a}[2]`;
+			case 'quat': return `${a}[0],${a}[1],${a}[2],${a}[3]`;
+			default: return a; // scalar — already a number
+		}
+	};
+
 	// Build a reader from one _outMeta entry. `sizes` is the float count of each out
-	// slot; `trailing` the number of forwarded input args. Returns the single out for a
-	// one-out getter, or [out0, out1, ...] for a multi-out one (a transform reads as
-	// position + rotation). The copy is codegen'd unrolled per slot with literal scratch
-	// offsets — no per-call allocation or branching.
-	const makeOutParamReader = ( rawInto, sizes, trailing ) =>
+	// slot; `passKinds` the unpack kind of each forwarded input arg. The public reader
+	// keeps one param per pass (`a0`, `a1`, ...) — API-compatible — but expands each into
+	// scalars for the raw call. Returns the single out for a one-out getter, or a
+	// [out0, out1, ...] tuple for a multi-out one (a transform reads as position +
+	// rotation). That tuple is a per-reader reused array holding the caller's own out
+	// args, so it stays zero-alloc — a view over caller-owned scratch, like every reader
+	// here returns the same out you pass in (don't stash it across calls). The copy is
+	// codegen'd unrolled per slot with literal scratch offsets — no per-call alloc.
+	const makeOutParamReader = ( rawInto, sizes, passKinds ) =>
 	{
 		const outs = sizes.map( ( _, i ) => `out${i}` );
-		const trail = Array.from( { length: trailing }, ( _, i ) => `a${i}` );
+		const trail = passKinds.map( ( _, i ) => `a${i}` );
 		const params = [ ...outs, ...trail ].join( ', ' );
 
 		// scratch byte pointer per out slot (slots are laid out contiguously)
 		let byteOff = 0;
 		const slotPtrs = sizes.map( ( n ) => { const p = SCRATCH + byteOff; byteOff += n * 4; return p; } );
-		const intoArgs = [ ...slotPtrs, ...trail ].join( ', ' );
+		const passArgs = passKinds.map( ( kind, i ) => unpackPass( kind, `a${i}` ) );
+		const intoArgs = [ ...slotPtrs, ...passArgs ].join( ', ' );
 
 		let elemOff = 0;
 		const copy = sizes.map( ( n, i ) =>
@@ -502,9 +588,19 @@ if ( typeof ENVIRONMENT_IS_PTHREAD === 'undefined' || !ENVIRONMENT_IS_PTHREAD )
 			return body;
 		} ).join( '' );
 
-		const ret = outs.length === 1 ? outs[ 0 ] : `[ ${outs.join( ', ' )} ]`;
+		// One out: return it directly. Multiple: fill + return a reused tuple (allocated
+		// once at install) so the convenience return costs no per-call allocation.
+		if ( outs.length === 1 )
+		{
+			return new Function( 'raw', 'getF32',
+				`return function(${params}){raw(${intoArgs});const h=getF32();${copy}return ${outs[ 0 ]};};` )( rawInto, getF32 );
+		}
+		// Reused tuple as a PACKED array literal (not new Array(N), which is HOLEY and
+		// never transitions back) so its element reads/writes stay on V8's fast path.
+		const emptyRet = `[${outs.map( () => 'null' ).join( ',' )}]`;
+		const fillRet = outs.map( ( o, i ) => `_ret[${i}]=${o};` ).join( '' );
 		return new Function( 'raw', 'getF32',
-			`return function(${params}){raw(${intoArgs});const h=getF32();${copy}return ${ret};};` )( rawInto, getF32 );
+			`const _ret=${emptyRet};return function(${params}){raw(${intoArgs});const h=getF32();${copy}${fillRet}return _ret;};` )( rawInto, getF32 );
 	};
 
 	// Install a public reader per binding-site entry; capture + strip the raw `*Into`.
@@ -514,8 +610,18 @@ if ( typeof ENVIRONMENT_IS_PTHREAD === 'undefined' || !ENVIRONMENT_IS_PTHREAD )
 		const raw = Module[ rawName ];
 		if ( !raw ) { console.warn( `box3d.js: _outMeta lists ${rawName}, but it is not on the module — skipping` ); continue; }
 		delete Module[ rawName ]; // strip the raw writer from the public surface
-		Module[ entry.method ] = makeOutParamReader( raw, entry.sizes, entry.trailing );
+		Module[ entry.method ] = makeOutParamReader( raw, entry.sizes, entry.passKinds );
 	}
+
+	// Wire the ray cast reader: capture its raw scalar-in writer + the (stable) storage
+	// pointers once, then strip the plumbing from the public surface. b3World_CastRayClosest
+	// (module scope above) reads through the captured bases; see createRayResult.
+	_rayInto = Module.b3World_CastRayClosestInto;
+	_rayI32Base = Module.b3_getRayResultI32Ptr() >> 2;
+	_rayF64Base = Module.b3_getRayResultF64Ptr() >> 3;
+	delete Module.b3World_CastRayClosestInto;
+	delete Module.b3_getRayResultI32Ptr;
+	delete Module.b3_getRayResultF64Ptr;
 
 	// Attach onto the Emscripten module object (in scope here as `Module`).
 	Object.assign( Module, {
@@ -532,5 +638,6 @@ if ( typeof ENVIRONMENT_IS_PTHREAD === 'undefined' || !ENVIRONMENT_IS_PTHREAD )
 		createSensorTouchEvent, getSensorBeginEventAt, getSensorEndEventAt,
 		createJointEvent, getJointEventAt,
 		getNumPlaneResults, createPlaneResult, getPlaneResultAt,
+		createRayResult, b3World_CastRayClosest,
 	} );
 }

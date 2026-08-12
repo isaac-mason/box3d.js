@@ -339,6 +339,10 @@ export interface Box3DFacade {
   getNumPlaneResults(buf: PlaneResultBuffer): number;
   createPlaneResult(): PlaneResult;
   getPlaneResultAt(out: PlaneResult, buf: PlaneResultBuffer, i: number): PlaneResult;
+  /** Reusable ray-cast result; allocate once with createRayResult, fill per cast. */
+  createRayResult(): b3RayResult;
+  /** Zero-alloc closest-ray cast: fills the caller-owned result in place and returns it. */
+  b3World_CastRayClosest(out: b3RayResult, worldId: b3WorldId, origin: b3Vec3, translation: b3Vec3, filter: b3QueryFilter): b3RayResult;
 }`;
 
 const tsdPath = join( root, 'dist', 'box3d.d.ts' );
@@ -361,25 +365,23 @@ for ( const { method, tsType } of retMeta )
 	tsd = tsd.replace( re, `$1${method}($2): ${tsType};` );
 }
 
-// out-param math reads: rewrite each raw `MethodInto(out: number, ...): void;` embind
-// method to its public reader `Method(out: T, ...): T;`, driven entirely by the
-// binding-site metadata (outMeta above). The out value types live once in
-// bindings.cpp's out_function DSL; nothing is duplicated here. A multi-out getter
-// (e.g. a transform read as position + rotation) returns a tuple of its out types.
+// out-param math reads: replace each raw `MethodInto(...): void;` embind line with its
+// public reader `Method(out: T, id: b3BodyId, ...): T;`, rebuilt entirely from the
+// binding-site metadata (outMeta above). The raw `*Into` takes loose scalars (the facade
+// unpacks ids/vecs before the wasm crossing), so its params are an implementation detail
+// — the public signature comes from `names` (public param names, out slots then passes),
+// `outTs` (out value types) and `passTs` (input types). The out types live once in
+// bindings.cpp's out_function DSL; nothing is duplicated here. A multi-out getter (e.g. a
+// transform read as position + rotation) returns a tuple of its out types.
 if ( !outMeta.length ) throw new Error( 'tsd: _outMeta() returned no entries — did the out_function DSL change?' );
-for ( const { method, tsTypes } of outMeta )
+for ( const { method, names, outTs, passTs } of outMeta )
 {
-	const nOuts = tsTypes.length;
-	const re = new RegExp( `^(\\s*)${method}Into\\(([^)]*)\\): void;`, 'm' );
+	const re = new RegExp( `^(\\s*)${method}Into\\([^)]*\\): void;`, 'm' );
 	if ( !re.test( tsd ) ) throw new Error( `tsd: no \`${method}Into(...): void;\` line to retype — binding renamed/removed?` );
-	tsd = tsd.replace( re, ( _, indent, params ) =>
-	{
-		// first nOuts params are the `outX: number` slots — retype them; keep the rest.
-		const parts = params.split( ', ' );
-		for ( let k = 0; k < nOuts; k++ ) parts[ k ] = parts[ k ].replace( /: .+$/, `: ${tsTypes[ k ]}` );
-		const ret = nOuts === 1 ? tsTypes[ 0 ] : `[ ${tsTypes.join( ', ' )} ]`;
-		return `${indent}${method}(${parts.join( ', ' )}): ${ret};`;
-	} );
+	const paramTypes = [ ...outTs, ...passTs ]; // positional: out slots then passes
+	const params = names.map( ( name, i ) => `${name}: ${paramTypes[ i ]}` ).join( ', ' );
+	const ret = outTs.length === 1 ? outTs[ 0 ] : `[ ${outTs.join( ', ' )} ]`;
+	tsd = tsd.replace( re, `$1${method}(${params}): ${ret};` );
 }
 
 // Internal plumbing — strip from the public types. b3_getMathScratch: scratch
@@ -390,6 +392,18 @@ tsd = tsd.replace( /^\s*b3_getMathScratch\(\): number;\r?\n/m, '' );
 tsd = tsd.replace( /^\s*_outMeta\(\): any;\r?\n/m, '' );
 tsd = tsd.replace( /^\s*_retMeta\(\): any;\r?\n/m, '' );
 tsd = tsd.replace( /^\s*_layoutMeta\(\): any;\r?\n/m, '' );
+// Ray cast plumbing — the facade captures these and exposes the public reader from
+// Box3DFacade above (b3World_CastRayClosest / createRayResult); strip the raw scalar-in
+// writer + the two storage-pointer getters so they don't leak into the public surface.
+for ( const re of [
+	/^\s*b3World_CastRayClosestInto\([^)]*\): void;\r?\n/m,
+	/^\s*b3_getRayResultI32Ptr\(\): number;\r?\n/m,
+	/^\s*b3_getRayResultF64Ptr\(\): number;\r?\n/m,
+] )
+{
+	if ( !re.test( tsd ) ) throw new Error( `tsd: expected to strip ${re} but it was not found — ray cast binding renamed/removed?` );
+	tsd = tsd.replace( re, '' );
+}
 
 writeFileSync( tsdPath, tsd );
 

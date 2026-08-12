@@ -55,7 +55,9 @@ app.renderer.domElement.addEventListener('pointerdown', (e) => {
 	const o = raycaster.ray.origin;
 	const d = raycaster.ray.direction;
 
-	const result = b3.b3World_CastRayClosest(
+	const result = b3.createRayResult();
+	b3.b3World_CastRayClosest(
+		result,
 		world,
 		[o.x, o.y, o.z],
 		[d.x * MAX_DIST, d.y * MAX_DIST, d.z * MAX_DIST],

@@ -311,6 +311,7 @@ let pogoVelocity = 0;
 let onGround = false;
 
 const filter = b3.b3DefaultQueryFilter();
+const groundRay = b3.createRayResult(); // reused each frame for the pogo ground probe
 
 const charMesh = new THREE.Mesh(
 	new THREE.CapsuleGeometry(RADIUS, 2.0, 8, 16),
@@ -449,10 +450,10 @@ function solveMove(
 		position[1] + CAP1[1],
 		position[2] + CAP1[2],
 	];
-	const ray = b3.b3World_CastRayClosest(world, rayOrigin, [0, -rayLength, 0], filter);
-	if (ray.hit && velocity[1] <= 0.1) {
+	b3.b3World_CastRayClosest(groundRay, world, rayOrigin, [0, -rayLength, 0], filter);
+	if (groundRay.hit && velocity[1] <= 0.1) {
 		onGround = true;
-		const currentLength = ray.fraction * rayLength;
+		const currentLength = groundRay.fraction * rayLength;
 		const zeta = 0.7,
 			hertz = 8;
 		const omega = 2 * Math.PI * hertz;

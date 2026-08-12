@@ -742,21 +742,14 @@ interface EmbindModule {
   b3CreateBoxMesh(center: b3Vec3, extent: b3Vec3, identifyEdges: boolean): b3MeshData | null;
   b3CreateHollowBoxMesh(center: b3Vec3, extent: b3Vec3): b3MeshData | null;
   b3CreateGrid(rowCount: number, columnCount: number, scale: b3Vec3, makeHoles: boolean): b3HeightFieldData | null;
-  b3Body_GetLocalPoint(out: b3Vec3, bodyId: b3BodyId, worldPoint: b3Vec3): b3Vec3;
-  b3Body_GetWorldPoint(out: b3Vec3, bodyId: b3BodyId, localPoint: b3Vec3): b3Vec3;
-  b3Body_GetLocalVector(out: b3Vec3, bodyId: b3BodyId, worldVector: b3Vec3): b3Vec3;
-  b3Body_GetWorldVector(out: b3Vec3, bodyId: b3BodyId, localVector: b3Vec3): b3Vec3;
   b3Body_SetLinearVelocity(bodyId: b3BodyId, linearVelocity: b3Vec3): void;
   b3Body_SetAngularVelocity(bodyId: b3BodyId, angularVelocity: b3Vec3): void;
-  b3Body_GetLocalPointVelocity(out: b3Vec3, bodyId: b3BodyId, localPoint: b3Vec3): b3Vec3;
-  b3Body_GetWorldPointVelocity(out: b3Vec3, bodyId: b3BodyId, worldPoint: b3Vec3): b3Vec3;
   b3Body_ApplyForce(bodyId: b3BodyId, force: b3Vec3, point: b3Vec3, wake: boolean): void;
   b3Body_ApplyForceToCenter(bodyId: b3BodyId, force: b3Vec3, wake: boolean): void;
   b3Body_ApplyTorque(bodyId: b3BodyId, torque: b3Vec3, wake: boolean): void;
   b3Body_ApplyLinearImpulse(bodyId: b3BodyId, impulse: b3Vec3, point: b3Vec3, wake: boolean): void;
   b3Body_ApplyLinearImpulseToCenter(bodyId: b3BodyId, impulse: b3Vec3, wake: boolean): void;
   b3Body_ApplyAngularImpulse(bodyId: b3BodyId, impulse: b3Vec3, wake: boolean): void;
-  b3Shape_GetClosestPoint(out: b3Vec3, shapeId: b3ShapeId, target: b3Vec3): b3Vec3;
   b3MotorJoint_SetLinearVelocity(jointId: b3JointId, velocity: b3Vec3): void;
   b3MotorJoint_GetLinearVelocity(jointId: b3JointId): b3Vec3;
   b3MotorJoint_SetAngularVelocity(jointId: b3JointId, velocity: b3Vec3): void;
@@ -821,7 +814,13 @@ interface EmbindModule {
   b3DefaultExplosionDef(): b3ExplosionDef;
   b3World_Explode(worldId: b3WorldId, explosionDef: b3ExplosionDef): void;
   b3Body_CastRay(bodyId: b3BodyId, origin: b3Vec3, translation: b3Vec3, filter: b3QueryFilter, maxFraction: number, bodyTransform: b3Transform): b3BodyCastResult;
+  b3Body_GetLocalPoint(out: b3Vec3, bodyId: b3BodyId, worldPoint: b3Vec3): b3Vec3;
+  b3Body_GetWorldPoint(out: b3Vec3, bodyId: b3BodyId, localPoint: b3Vec3): b3Vec3;
+  b3Body_GetLocalVector(out: b3Vec3, bodyId: b3BodyId, worldVector: b3Vec3): b3Vec3;
+  b3Body_GetWorldVector(out: b3Vec3, bodyId: b3BodyId, localVector: b3Vec3): b3Vec3;
   b3Body_SetTargetTransform(bodyId: b3BodyId, target: b3Transform, timeStep: number, wake: boolean): void;
+  b3Body_GetLocalPointVelocity(out: b3Vec3, bodyId: b3BodyId, localPoint: b3Vec3): b3Vec3;
+  b3Body_GetWorldPointVelocity(out: b3Vec3, bodyId: b3BodyId, worldPoint: b3Vec3): b3Vec3;
   b3Body_GetMass(bodyId: b3BodyId): number;
   b3Body_GetInverseMass(bodyId: b3BodyId): number;
   b3Body_SetLinearDamping(bodyId: b3BodyId, linearDamping: number): void;
@@ -838,6 +837,7 @@ interface EmbindModule {
   b3Shape_GetFriction(shapeId: b3ShapeId): number;
   b3Shape_SetRestitution(shapeId: b3ShapeId, restitution: number): void;
   b3Shape_GetRestitution(shapeId: b3ShapeId): number;
+  b3Shape_GetClosestPoint(out: b3Vec3, shapeId: b3ShapeId, target: b3Vec3): b3Vec3;
   b3Shape_ApplyWind(shapeId: b3ShapeId, wind: b3Vec3, drag: number, lift: number, maxSpeed: number, wake: boolean): void;
   b3DefaultFilterJointDef(): b3FilterJointDef;
   b3CreateFilterJoint(worldId: b3WorldId, def: b3FilterJointDef): b3JointId;
@@ -986,7 +986,6 @@ interface EmbindModule {
   b3Body_GetMassData(bodyId: b3BodyId): b3MassData;
   b3Body_SetMassData(bodyId: b3BodyId, massData: b3MassData): void;
   b3Shape_ComputeMassData(shapeId: b3ShapeId): b3MassData;
-  b3World_CastRayClosest(worldId: b3WorldId, origin: b3Vec3, translation: b3Vec3, filter: b3QueryFilter): b3RayResult;
   b3Shape_RayCast(shapeId: b3ShapeId, origin: b3Vec3, translation: b3Vec3): b3WorldCastOutput;
   b3DynamicTree_GetAreaRatio(tree: b3DynamicTree | null): number;
   b3Body_SetName(bodyId: b3BodyId, name: EmbindString): void;
@@ -1139,6 +1138,10 @@ export interface Box3DFacade {
   getNumPlaneResults(buf: PlaneResultBuffer): number;
   createPlaneResult(): PlaneResult;
   getPlaneResultAt(out: PlaneResult, buf: PlaneResultBuffer, i: number): PlaneResult;
+  /** Reusable ray-cast result; allocate once with createRayResult, fill per cast. */
+  createRayResult(): b3RayResult;
+  /** Zero-alloc closest-ray cast: fills the caller-owned result in place and returns it. */
+  b3World_CastRayClosest(out: b3RayResult, worldId: b3WorldId, origin: b3Vec3, translation: b3Vec3, filter: b3QueryFilter): b3RayResult;
 }
 export type Box3DModule = WasmModule & EmbindModule & Box3DFacade;
 export default function Box3DFactory (options?: unknown): Promise<Box3DModule>;

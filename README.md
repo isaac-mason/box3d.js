@@ -1040,12 +1040,15 @@ Queries ask questions about the physics world without advancing the simulation.
 ### Cast Ray (Closest)
 
 ```ts
-// Cast a ray and return the closest hit. origin/translation are b3Vec3 arrays.
-// origin + translation defines the ray: it runs from origin to origin+translation.
+// Cast a ray for the closest hit. origin/translation are b3Vec3 arrays; origin +
+// translation defines the ray (it runs from origin to origin+translation). The result
+// is filled into a caller-owned object — allocate it once with createRayResult and
+// reuse it across casts so hot-loop raycasts allocate nothing.
 const origin: b3Vec3 = [0, 10, 0];
 const translation: b3Vec3 = [0, -20, 0]; // cast 20m downward
 
-const rayResult = b3.b3World_CastRayClosest(world, origin, translation, filter);
+const rayResult = b3.createRayResult(); // reuse across casts
+b3.b3World_CastRayClosest(rayResult, world, origin, translation, filter);
 
 if (rayResult.hit) {
     const fraction = rayResult.fraction;    // [0..1] how far along translation

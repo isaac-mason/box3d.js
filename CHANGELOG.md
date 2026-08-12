@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Out-param readers (`b3Body_GetPosition`, `b3Body_GetWorldPointVelocity`, `b3World_GetGravity`, …) are now truly zero-allocation. Their id/vector arguments cross the wasm boundary as loose scalars instead of embind value objects, removing the ~100–200 B/call marshaling temporaries that remained after v0.1.0. Multi-out readers (`b3Body_GetTransform`, `b3Joint_GetLocalFrameA/B`) return a reused tuple of the caller's out args rather than a fresh array, so they're zero-alloc too. No API or type change. A `test:alloc` regression test guards this.
+- **Breaking:** `b3World_CastRayClosest` is now an out-param-first zero-allocation reader: `b3World_CastRayClosest(out, worldId, origin, translation, filter)`, where `out` is a reusable result from the new `createRayResult()`. It fills `out` in place and returns it instead of allocating a fresh `b3RayResult` per cast (`userMaterialId` is a lazy getter, so casts that don't read it allocate nothing). Migrate `const r = b3World_CastRayClosest(world, o, t, filter)` to `const r = createRayResult()` once, then `b3World_CastRayClosest(r, world, o, t, filter)`.
+
 ## v0.1.1
 
 - Documentation updates to reflect the new API surface and usage patterns, included in the npm package README.md

@@ -27,7 +27,8 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "build:debug": "node scripts/build.mjs --debug",
-    "test": "node test/smoke.mjs",
+    "test": "node test/smoke.mjs && node --expose-gc test/alloc.mjs",
+    "test:alloc": "node --expose-gc test/alloc.mjs",
     "docs:build": "node docs/build.js",
     "docs:check": "pnpm --filter @box3d/examples exec tsc --noEmit -p ../docs/tsconfig.json",
     "lint": "biome lint examples/src",

@@ -80,6 +80,21 @@ inline void writeAABB( uintptr_t out, b3AABB a )
 // rotation — so both land as flat mathcat arrays via the generic reader (no
 // composite/nested descriptor needed). See out_function below.
 
+// Rebuild an id/vector from the scalar fields the facade reader unpacks JS-side
+// (see the pass descriptors in namespace out_desc). Passing an id/vec as a
+// value_object/value_array costs an embind toWireType temp + destructor per call;
+// crossing the same data as loose scalars costs nothing, so the out_function
+// lambdas take plain numbers and reconstruct the box3d struct here.
+inline b3BodyId  mkBody( int32_t index1, uint16_t world0, uint16_t generation )  { return { index1, world0, generation }; }
+inline b3ShapeId mkShape( int32_t index1, uint16_t world0, uint16_t generation ) { return { index1, world0, generation }; }
+inline b3JointId mkJoint( int32_t index1, uint16_t world0, uint16_t generation ) { return { index1, world0, generation }; }
+inline b3WorldId mkWorld( uint16_t index1, uint16_t generation )                 { return { index1, generation }; }
+inline b3Vec3    mkVec3( float x, float y, float z )                             { return { x, y, z }; }
+// b3Pos is b3Vec3 (float) by default, double under BOX3D_DOUBLE_PRECISION. Take doubles
+// and assign (not brace-init, which would reject the double->float narrowing) so this
+// works at full precision in a double build and truncates cleanly in a float one.
+inline b3Pos     mkPos( double x, double y, double z ) { b3Pos p; p.x = x; p.y = y; p.z = z; return p; }
+
 // ---- binding-site metadata (single source of truth) ----------------------
 // The out-param value types are declared once, at the binding site, via the
 // out_function DSL below. That one declaration drives BOTH the runtime reader
@@ -88,23 +103,31 @@ inline void writeAABB( uintptr_t out, b3AABB a )
 // getter needs no matching edit in facade.js or build.mjs — metadata carries it.
 
 // One row per out-param getter, filled during EMSCRIPTEN_BINDINGS by out_function
-// and published by the _outMeta() getter. `method` is the public name (no "Into"),
-// `sizes` the float count of each out slot, `trailing` the count of forwarded input
-// args, `tsTypes` the TS value type of each out slot (b3Vec3 / b3Quat / b3AABB).
+// and published by the _outMeta() getter. Drives both the facade reader codegen and
+// the emitted .d.ts. `method` is the public name (no "Into"); `names` the public
+// param names (out slots then passes, in order); `sizes`/`outTs` the float count and
+// TS type of each out slot; `passKinds`/`passTs` the JS unpack kind and TS type of
+// each forwarded input arg (id / worldId / vec3 / quat / scalar).
 struct OutEntry
 {
 	std::string method;
+	std::vector<std::string> names;
 	std::vector<int> sizes;
-	std::vector<std::string> tsTypes;
-	int trailing;
+	std::vector<std::string> outTs;
+	std::vector<std::string> passKinds;
+	std::vector<std::string> passTs;
 };
 std::vector<OutEntry> g_outRegistry;
 
 // ---- out_function descriptor DSL ----
-// Call sites read as: out_function("b3Body_GetLocalPoint(out, bodyId, p)",
-//   out_desc::Vec3, out_desc::Pass, +[]( uintptr_t out, b3BodyId id, b3Vec3 p ){ ... });
-// Each out_desc::<Type> declares an out slot of that value type; out_desc::Pass a
-// forwarded input arg. Add a value type = add a Tag.
+// Call sites read as: out_function("b3Body_GetLocalPoint(out, bodyId, worldPoint)",
+//   out_desc::Vec3, out_desc::PassBodyId, out_desc::PassVec3,
+//   +[]( uintptr_t out, int32_t i1, uint16_t w0, uint16_t g, float px, float py, float pz ){ ... });
+// Each out_desc::<Type> declares an out slot of that value type; each out_desc::Pass*
+// a forwarded input arg the facade reader unpacks into loose scalars at the call site
+// (so no embind toWireType temp/destructor per call). The lambda therefore takes the
+// unpacked scalars and rebuilds the box3d struct via mk*() above. Add a value type =
+// add an out Tag; add a passable input type = add a Pass tag.
 namespace out_desc
 {
 struct Vec3Tag { static constexpr const char* tsType = "b3Vec3"; static constexpr int size = 3; };
@@ -112,63 +135,125 @@ struct QuatTag { static constexpr const char* tsType = "b3Quat"; static constexp
 struct AABBTag { static constexpr const char* tsType = "b3AABB"; static constexpr int size = 6; };
 
 template<typename Tag> struct out_t {};
-struct pass_t {};
-inline constexpr pass_t Pass{};       // a forwarded (non-out) input arg
 inline constexpr out_t<Vec3Tag> Vec3{};
 inline constexpr out_t<QuatTag> Quat{};
 inline constexpr out_t<AABBTag> AABB{};
+
+// Pass tags: `jsKind` tells the facade how to unpack the JS object into scalars,
+// `nScalars` how many wasm args that expands to, `tsType` the public .d.ts type.
+struct BodyIdPass  { static constexpr const char* tsType = "b3BodyId";  static constexpr const char* jsKind = "id";      static constexpr int nScalars = 3; };
+struct ShapeIdPass { static constexpr const char* tsType = "b3ShapeId"; static constexpr const char* jsKind = "id";      static constexpr int nScalars = 3; };
+struct JointIdPass { static constexpr const char* tsType = "b3JointId"; static constexpr const char* jsKind = "id";      static constexpr int nScalars = 3; };
+struct WorldIdPass { static constexpr const char* tsType = "b3WorldId"; static constexpr const char* jsKind = "worldId"; static constexpr int nScalars = 2; };
+struct Vec3Pass    { static constexpr const char* tsType = "b3Vec3";    static constexpr const char* jsKind = "vec3";    static constexpr int nScalars = 3; };
+struct QuatPass    { static constexpr const char* tsType = "b3Quat";    static constexpr const char* jsKind = "quat";    static constexpr int nScalars = 4; };
+struct ScalarPass  { static constexpr const char* tsType = "number";    static constexpr const char* jsKind = "scalar";  static constexpr int nScalars = 1; };
+
+template<typename Tag> struct pass_t {};
+inline constexpr pass_t<BodyIdPass>  PassBodyId{};
+inline constexpr pass_t<ShapeIdPass> PassShapeId{};
+inline constexpr pass_t<JointIdPass> PassJointId{};
+inline constexpr pass_t<WorldIdPass> PassWorldId{};
+inline constexpr pass_t<Vec3Pass>    PassVec3{};
+inline constexpr pass_t<QuatPass>    PassQuat{};
+inline constexpr pass_t<ScalarPass>  Pass{};     // a forwarded scalar (number) arg
 
 // function-pointer arity (works with +[] non-capturing lambdas)
 template<typename F> struct FnArity;
 template<typename R, typename... A>
 struct FnArity<R ( * )( A... )> : std::integral_constant<int, (int)sizeof...( A )> {};
 
-// descriptor pack: count outs/trailing, collect slot sizes + TS type names
+// descriptor pack: count out slots / passes, sum out sizes + the lambda's scalar
+// arity, and collect the per-slot metadata the facade + .d.ts codegen read back.
+struct PassInfo { const char* tsType; const char* jsKind; int nScalars; };
+
 template<typename... Ds> struct DescInfo
 {
-	static constexpr int nOuts = 0, trailing = 0, totalSize = 0;
-	static void sizes( std::vector<int>& ) {}
-	static void tsTypes( std::vector<std::string>& ) {}
+	static constexpr int nOuts = 0, nPass = 0, lambdaTrailing = 0, totalSize = 0;
+	static void outSizes( std::vector<int>& ) {}
+	static void outTs( std::vector<std::string>& ) {}
+	static void passes( std::vector<PassInfo>& ) {}
 };
 template<typename Tag, typename... Rest> struct DescInfo<out_t<Tag>, Rest...>
 {
 	static constexpr int nOuts = 1 + DescInfo<Rest...>::nOuts;
-	static constexpr int trailing = DescInfo<Rest...>::trailing;
+	static constexpr int nPass = DescInfo<Rest...>::nPass;
+	static constexpr int lambdaTrailing = DescInfo<Rest...>::lambdaTrailing;
 	static constexpr int totalSize = Tag::size + DescInfo<Rest...>::totalSize;
-	static void sizes( std::vector<int>& v ) { v.push_back( Tag::size ); DescInfo<Rest...>::sizes( v ); }
-	static void tsTypes( std::vector<std::string>& v ) { v.push_back( Tag::tsType ); DescInfo<Rest...>::tsTypes( v ); }
+	static void outSizes( std::vector<int>& v ) { v.push_back( Tag::size ); DescInfo<Rest...>::outSizes( v ); }
+	static void outTs( std::vector<std::string>& v ) { v.push_back( Tag::tsType ); DescInfo<Rest...>::outTs( v ); }
+	static void passes( std::vector<PassInfo>& v ) { DescInfo<Rest...>::passes( v ); }
 };
-template<typename... Rest> struct DescInfo<pass_t, Rest...>
+template<typename Tag, typename... Rest> struct DescInfo<pass_t<Tag>, Rest...>
 {
 	static constexpr int nOuts = DescInfo<Rest...>::nOuts;
-	static constexpr int trailing = 1 + DescInfo<Rest...>::trailing;
+	static constexpr int nPass = 1 + DescInfo<Rest...>::nPass;
+	static constexpr int lambdaTrailing = Tag::nScalars + DescInfo<Rest...>::lambdaTrailing;
 	static constexpr int totalSize = DescInfo<Rest...>::totalSize;
-	static void sizes( std::vector<int>& v ) { DescInfo<Rest...>::sizes( v ); }
-	static void tsTypes( std::vector<std::string>& v ) { DescInfo<Rest...>::tsTypes( v ); }
+	static void outSizes( std::vector<int>& v ) { DescInfo<Rest...>::outSizes( v ); }
+	static void outTs( std::vector<std::string>& v ) { DescInfo<Rest...>::outTs( v ); }
+	static void passes( std::vector<PassInfo>& v ) { v.push_back( { Tag::tsType, Tag::jsKind, Tag::nScalars } ); DescInfo<Rest...>::passes( v ); }
 };
+
+// Split "Name(out, bodyId, worldPoint)" into ["out","bodyId","worldPoint"] — the
+// public param names, paired positionally with the out slots then passes.
+inline std::vector<std::string> parseParamNames( const char* sig )
+{
+	std::vector<std::string> names;
+	const char* l = strchr( sig, '(' );
+	const char* r = l ? strrchr( l, ')' ) : nullptr;
+	if ( !l || !r ) return names;
+	std::string inner( l + 1, r );
+	size_t i = 0;
+	while ( i <= inner.size() )
+	{
+		size_t c = inner.find( ',', i );
+		if ( c == std::string::npos ) c = inner.size();
+		size_t a = inner.find_first_not_of( " \t", i );
+		if ( a != std::string::npos && a < c )
+		{
+			size_t b = inner.find_last_not_of( " \t", c - 1 );
+			names.push_back( inner.substr( a, b - a + 1 ) );
+		}
+		i = c + 1;
+	}
+	return names;
+}
 } // namespace out_desc
 
-// Register a `<method>Into(<params>)` embind writer from a descriptor list + lambda,
+// Register a `<method>Into(<scalars>)` embind writer from a descriptor list + lambda,
 // and record its metadata into g_outRegistry. The static_asserts make a mismatched
 // reader a compile error rather than a runtime surprise.
 template<typename Fn, typename... Descs>
 void out_fn_core( const char* sig, Fn fn, Descs... )
 {
 	using DI = out_desc::DescInfo<Descs...>;
-	// Free functions (no leading self param): lambda takes each out ptr then each
-	// forwarded arg, so arity is exactly nOuts + trailing.
-	static_assert( out_desc::FnArity<Fn>::value == DI::nOuts + DI::trailing,
-		"out_function: lambda arity != nOuts + trailing — check descriptors vs lambda params" );
+	// The lambda takes one ptr per out slot then the unpacked scalars of every pass,
+	// so its arity is nOuts + the summed pass scalar counts.
+	constexpr int arity = DI::nOuts + DI::lambdaTrailing;
+	static_assert( out_desc::FnArity<Fn>::value == arity,
+		"out_function: lambda arity != out slots + pass scalars — check descriptors vs lambda params" );
 	static_assert( DI::totalSize <= 16,
 		"out_function: combined out sizes exceed g_mathScratch[16] — bump it or split the getter" );
 	const char* paren = strchr( sig, '(' );
 	std::string method = paren ? std::string( sig, paren ) : std::string( sig );
 	while ( !method.empty() && method.back() == ' ' ) method.pop_back();
-	std::string intoSig = method + "Into" + ( paren ? paren : "()" );
+	// Register under a name whose param count matches the lambda's scalar arity, so
+	// --emit-tsd renders a well-formed `<method>Into(...): void;` line for build.mjs to
+	// replace wholesale with the public reader signature (rebuilt from the metadata).
+	std::string intoParams;
+	for ( int i = 0; i < arity; i++ ) { if ( i ) intoParams += ", "; intoParams += "a" + std::to_string( i ); }
+	std::string intoSig = method + "Into(" + intoParams + ")";
 	emscripten::function( intoSig.c_str(), fn );
-	std::vector<int> szVec; DI::sizes( szVec );
-	std::vector<std::string> tsVec; DI::tsTypes( tsVec );
-	g_outRegistry.push_back( { method, szVec, tsVec, DI::trailing } );
+
+	OutEntry e;
+	e.method = method;
+	e.names = out_desc::parseParamNames( sig );
+	DI::outSizes( e.sizes );
+	DI::outTs( e.outTs );
+	std::vector<out_desc::PassInfo> pis; DI::passes( pis );
+	for ( const auto& p : pis ) { e.passKinds.push_back( p.jsKind ); e.passTs.push_back( p.tsType ); }
+	g_outRegistry.push_back( std::move( e ) );
 }
 template<typename Tup, std::size_t... I, typename Fn>
 void out_fn_dispatch( const char* sig, Fn fn, const Tup& tup, std::index_sequence<I...> )
@@ -250,6 +335,10 @@ constexpr int joint = idW;                                        //  3: jointId
 // single-record query buffers
 constexpr int plane = 3 + 1 + 3; // 7: plane.normal plane.offset point
 constexpr int shapeId = idW;     // 3: index1 world0 generation
+// ray cast result (b3World_CastRayClosest): same mixed i32/f64 field family as a
+// contact hit event, so it reads through the packed tier instead of the float scratch.
+constexpr int rayResultI32 = idW + u64W + 4 + 1; // 10: shapeId userMaterialId, 4 diagnostic ints (triangleIndex childIndex nodeVisits leafVisits), hit
+constexpr int rayResultF64 = 3 + 3 + 1;          //  7: point normal fraction
 
 // Tripwires: pin each stride to its known total, so changing a field width is a
 // deliberate, compile-checked edit (and a nudge to reconcile the facade's field reads
@@ -260,9 +349,15 @@ static_assert( contact == 12 && manifoldF32 == 10 && manifoldI32 == 2 && pointF3
 static_assert( contactTouch == 10 && contactHitI32 == 14 && contactHitF64 == 7 && bodyMoveI32 == 4
 	&& bodyMoveF64 == 7 && sensorTouch == 6 && joint == 3,
 	"events buffer stride changed — update the facade field reads + _layoutMeta" );
-static_assert( plane == 7 && shapeId == 3,
-	"plane/shapeId stride changed — update the facade field reads + _layoutMeta" );
+static_assert( plane == 7 && shapeId == 3 && rayResultI32 == 10 && rayResultF64 == 7,
+	"plane/shapeId/rayResult stride changed — update the facade field reads + _layoutMeta" );
 }
+
+// Static packed storage for the single-record ray cast result. Mixed i32/f64 can't ride
+// the float scratch, so the facade reads it via HEAP32/HEAPF64 at these stable pointers,
+// exactly like the per-step event buffers. b3World_CastRayClosestInto (below) fills it.
+int32_t g_rayResultI32[layout::rayResultI32];
+double g_rayResultF64[layout::rayResultF64];
 
 // Fill flat typed-array tiers from b3ContactData[] (CSR: contacts -> manifolds
 // -> points). The vectors are cleared but keep their capacity, so a reused
@@ -622,20 +717,26 @@ EMSCRIPTEN_BINDINGS( box3d )
 	// Binding-site out-param metadata. Read at build time by scripts/build.mjs (to
 	// codegen the public facade readers + emit the .d.ts). Returns a plain JS value
 	// (val), built the same way as the query-buffer returns above — no hand-rolled
-	// JSON. Shape: [{method, sizes:[N], trailing:N, tsTypes:["b3Vec3",...]}].
+	// JSON. Shape: [{method, names:[...], sizes:[N], outTs:[...], passKinds:[...], passTs:[...]}]
+	// where names is the public param list (out slots then passes, in order).
 	function( "_outMeta", +[]() -> val {
 		val arr = val::array();
+		auto toStrArray = []( const std::vector<std::string>& v ) {
+			val a = val::array();
+			for ( const auto& s : v ) a.call<void>( "push", val( s ) );
+			return a;
+		};
 		for ( const auto& e : g_outRegistry )
 		{
 			val o = val::object();
 			o.set( "method", val( e.method ) );
+			o.set( "names", toStrArray( e.names ) );
 			val sizes = val::array();
 			for ( int s : e.sizes ) sizes.call<void>( "push", s );
 			o.set( "sizes", sizes );
-			o.set( "trailing", e.trailing );
-			val tsTypes = val::array();
-			for ( const auto& t : e.tsTypes ) tsTypes.call<void>( "push", val( t ) );
-			o.set( "tsTypes", tsTypes );
+			o.set( "outTs", toStrArray( e.outTs ) );
+			o.set( "passKinds", toStrArray( e.passKinds ) );
+			o.set( "passTs", toStrArray( e.passTs ) );
 			arr.call<void>( "push", o );
 		}
 		return arr;
@@ -673,6 +774,8 @@ EMSCRIPTEN_BINDINGS( box3d )
 		o.set( "joint", layout::joint );
 		o.set( "plane", layout::plane );
 		o.set( "shapeId", layout::shapeId );
+		o.set( "rayResultI32", layout::rayResultI32 );
+		o.set( "rayResultF64", layout::rayResultF64 );
 		return o;
 	} );
 
@@ -799,11 +902,11 @@ EMSCRIPTEN_BINDINGS( box3d )
 	function( "b3World_IsValid(worldId)", &b3World_IsValid );
 	function( "b3World_Step(worldId, timeStep, subStepCount)", &b3World_Step );
 	function( "b3World_SetGravity(worldId, gravity)", &b3World_SetGravity );
-	out_function( "b3World_GetGravity(out, worldId)", out_desc::Vec3, out_desc::Pass, +[]( uintptr_t out, b3WorldId worldId ) { writeVec3( out, b3World_GetGravity( worldId ) ); } );
+	out_function( "b3World_GetGravity(out, worldId)", out_desc::Vec3, out_desc::PassWorldId, +[]( uintptr_t out, uint16_t i1, uint16_t gen ) { writeVec3( out, b3World_GetGravity( mkWorld( i1, gen ) ) ); } );
 
 	function( "b3GetWorldCount()", &b3GetWorldCount );
 	function( "b3GetMaxWorldCount()", &b3GetMaxWorldCount );
-	out_function( "b3World_GetBounds(out, worldId)", out_desc::AABB, out_desc::Pass, +[]( uintptr_t out, b3WorldId worldId ) { writeAABB( out, b3World_GetBounds( worldId ) ); } );
+	out_function( "b3World_GetBounds(out, worldId)", out_desc::AABB, out_desc::PassWorldId, +[]( uintptr_t out, uint16_t i1, uint16_t gen ) { writeAABB( out, b3World_GetBounds( mkWorld( i1, gen ) ) ); } );
 	function( "b3World_EnableSleeping(worldId, flag)", &b3World_EnableSleeping );
 	function( "b3World_IsSleepingEnabled(worldId)", &b3World_IsSleepingEnabled );
 	function( "b3World_EnableContinuous(worldId, flag)", &b3World_EnableContinuous );
@@ -831,14 +934,14 @@ EMSCRIPTEN_BINDINGS( box3d )
 	function( "b3DestroyBody(bodyId)", &b3DestroyBody );
 	function( "b3Body_IsValid(id)", &b3Body_IsValid );
 	function( "b3Body_GetType(bodyId)", &b3Body_GetType );
-	out_function( "b3Body_GetPosition(out, bodyId)", out_desc::Vec3, out_desc::Pass, +[]( uintptr_t out, b3BodyId id ) { writeVec3( out, b3Body_GetPosition( id ) ); } );
-	out_function( "b3Body_GetRotation(out, bodyId)", out_desc::Quat, out_desc::Pass, +[]( uintptr_t out, b3BodyId id ) { writeQuat( out, b3Body_GetRotation( id ) ); } );
+	out_function( "b3Body_GetPosition(out, bodyId)", out_desc::Vec3, out_desc::PassBodyId, +[]( uintptr_t out, int32_t i1, uint16_t w0, uint16_t gen ) { writeVec3( out, b3Body_GetPosition( mkBody( i1, w0, gen ) ) ); } );
+	out_function( "b3Body_GetRotation(out, bodyId)", out_desc::Quat, out_desc::PassBodyId, +[]( uintptr_t out, int32_t i1, uint16_t w0, uint16_t gen ) { writeQuat( out, b3Body_GetRotation( mkBody( i1, w0, gen ) ) ); } );
 	// Transform reads as two out params — position (Vec3) then rotation (Quat).
-	out_function( "b3Body_GetTransform(outPosition, outRotation, bodyId)", out_desc::Vec3, out_desc::Quat, out_desc::Pass,
-		+[]( uintptr_t outPos, uintptr_t outRot, b3BodyId id ) { b3Transform t = b3Body_GetTransform( id ); writeVec3( outPos, t.p ); writeQuat( outRot, t.q ); } );
+	out_function( "b3Body_GetTransform(outPosition, outRotation, bodyId)", out_desc::Vec3, out_desc::Quat, out_desc::PassBodyId,
+		+[]( uintptr_t outPos, uintptr_t outRot, int32_t i1, uint16_t w0, uint16_t gen ) { b3Transform t = b3Body_GetTransform( mkBody( i1, w0, gen ) ); writeVec3( outPos, t.p ); writeQuat( outRot, t.q ); } );
 	function( "b3Body_SetTransform(bodyId, position, rotation)", &b3Body_SetTransform );
-	out_function( "b3Body_GetLinearVelocity(out, bodyId)", out_desc::Vec3, out_desc::Pass, +[]( uintptr_t out, b3BodyId id ) { writeVec3( out, b3Body_GetLinearVelocity( id ) ); } );
-	out_function( "b3Body_GetAngularVelocity(out, bodyId)", out_desc::Vec3, out_desc::Pass, +[]( uintptr_t out, b3BodyId id ) { writeVec3( out, b3Body_GetAngularVelocity( id ) ); } );
+	out_function( "b3Body_GetLinearVelocity(out, bodyId)", out_desc::Vec3, out_desc::PassBodyId, +[]( uintptr_t out, int32_t i1, uint16_t w0, uint16_t gen ) { writeVec3( out, b3Body_GetLinearVelocity( mkBody( i1, w0, gen ) ) ); } );
+	out_function( "b3Body_GetAngularVelocity(out, bodyId)", out_desc::Vec3, out_desc::PassBodyId, +[]( uintptr_t out, int32_t i1, uint16_t w0, uint16_t gen ) { writeVec3( out, b3Body_GetAngularVelocity( mkBody( i1, w0, gen ) ) ); } );
 
 	function( "b3CreateSphereShape(bodyId, shapeDef, sphere)",
 		+[]( b3BodyId bodyId, b3ShapeDef def, b3Sphere sphere ) { return b3CreateSphereShape( bodyId, &def, &sphere ); } );
@@ -1379,16 +1482,16 @@ EMSCRIPTEN_BINDINGS( box3d )
 	function( "b3Body_SetName(bodyId, name)", +[]( b3BodyId bodyId, std::string name ) { b3Body_SetName( bodyId, name.c_str() ); } );
 	function( "b3Body_GetName(bodyId)", +[]( b3BodyId bodyId ) { const char* n = b3Body_GetName( bodyId ); return std::string( n ? n : "" ); } );
 
-	out_function( "b3Body_GetLocalPoint(out, bodyId, worldPoint)", out_desc::Vec3, out_desc::Pass, out_desc::Pass, +[]( uintptr_t out, b3BodyId bodyId, b3Vec3 worldPoint ) { writeVec3( out, b3Body_GetLocalPoint( bodyId, worldPoint ) ); } );
-	out_function( "b3Body_GetWorldPoint(out, bodyId, localPoint)", out_desc::Vec3, out_desc::Pass, out_desc::Pass, +[]( uintptr_t out, b3BodyId bodyId, b3Vec3 localPoint ) { writeVec3( out, b3Body_GetWorldPoint( bodyId, localPoint ) ); } );
-	out_function( "b3Body_GetLocalVector(out, bodyId, worldVector)", out_desc::Vec3, out_desc::Pass, out_desc::Pass, +[]( uintptr_t out, b3BodyId bodyId, b3Vec3 worldVector ) { writeVec3( out, b3Body_GetLocalVector( bodyId, worldVector ) ); } );
-	out_function( "b3Body_GetWorldVector(out, bodyId, localVector)", out_desc::Vec3, out_desc::Pass, out_desc::Pass, +[]( uintptr_t out, b3BodyId bodyId, b3Vec3 localVector ) { writeVec3( out, b3Body_GetWorldVector( bodyId, localVector ) ); } );
+	out_function( "b3Body_GetLocalPoint(out, bodyId, worldPoint)", out_desc::Vec3, out_desc::PassBodyId, out_desc::PassVec3, +[]( uintptr_t out, int32_t i1, uint16_t w0, uint16_t gen, float px, float py, float pz ) { writeVec3( out, b3Body_GetLocalPoint( mkBody( i1, w0, gen ), mkVec3( px, py, pz ) ) ); } );
+	out_function( "b3Body_GetWorldPoint(out, bodyId, localPoint)", out_desc::Vec3, out_desc::PassBodyId, out_desc::PassVec3, +[]( uintptr_t out, int32_t i1, uint16_t w0, uint16_t gen, float px, float py, float pz ) { writeVec3( out, b3Body_GetWorldPoint( mkBody( i1, w0, gen ), mkVec3( px, py, pz ) ) ); } );
+	out_function( "b3Body_GetLocalVector(out, bodyId, worldVector)", out_desc::Vec3, out_desc::PassBodyId, out_desc::PassVec3, +[]( uintptr_t out, int32_t i1, uint16_t w0, uint16_t gen, float vx, float vy, float vz ) { writeVec3( out, b3Body_GetLocalVector( mkBody( i1, w0, gen ), mkVec3( vx, vy, vz ) ) ); } );
+	out_function( "b3Body_GetWorldVector(out, bodyId, localVector)", out_desc::Vec3, out_desc::PassBodyId, out_desc::PassVec3, +[]( uintptr_t out, int32_t i1, uint16_t w0, uint16_t gen, float vx, float vy, float vz ) { writeVec3( out, b3Body_GetWorldVector( mkBody( i1, w0, gen ), mkVec3( vx, vy, vz ) ) ); } );
 
 	function( "b3Body_SetLinearVelocity(bodyId, linearVelocity)", &b3Body_SetLinearVelocity );
 	function( "b3Body_SetAngularVelocity(bodyId, angularVelocity)", &b3Body_SetAngularVelocity );
 	function( "b3Body_SetTargetTransform(bodyId, target, timeStep, wake)", &b3Body_SetTargetTransform );
-	out_function( "b3Body_GetLocalPointVelocity(out, bodyId, localPoint)", out_desc::Vec3, out_desc::Pass, out_desc::Pass, +[]( uintptr_t out, b3BodyId bodyId, b3Vec3 localPoint ) { writeVec3( out, b3Body_GetLocalPointVelocity( bodyId, localPoint ) ); } );
-	out_function( "b3Body_GetWorldPointVelocity(out, bodyId, worldPoint)", out_desc::Vec3, out_desc::Pass, out_desc::Pass, +[]( uintptr_t out, b3BodyId bodyId, b3Vec3 worldPoint ) { writeVec3( out, b3Body_GetWorldPointVelocity( bodyId, worldPoint ) ); } );
+	out_function( "b3Body_GetLocalPointVelocity(out, bodyId, localPoint)", out_desc::Vec3, out_desc::PassBodyId, out_desc::PassVec3, +[]( uintptr_t out, int32_t i1, uint16_t w0, uint16_t gen, float px, float py, float pz ) { writeVec3( out, b3Body_GetLocalPointVelocity( mkBody( i1, w0, gen ), mkVec3( px, py, pz ) ) ); } );
+	out_function( "b3Body_GetWorldPointVelocity(out, bodyId, worldPoint)", out_desc::Vec3, out_desc::PassBodyId, out_desc::PassVec3, +[]( uintptr_t out, int32_t i1, uint16_t w0, uint16_t gen, float px, float py, float pz ) { writeVec3( out, b3Body_GetWorldPointVelocity( mkBody( i1, w0, gen ), mkVec3( px, py, pz ) ) ); } );
 
 	function( "b3Body_ApplyForce(bodyId, force, point, wake)", &b3Body_ApplyForce );
 	function( "b3Body_ApplyForceToCenter(bodyId, force, wake)", &b3Body_ApplyForceToCenter );
@@ -1399,8 +1502,8 @@ EMSCRIPTEN_BINDINGS( box3d )
 
 	function( "b3Body_GetMass(bodyId)", &b3Body_GetMass );
 	function( "b3Body_GetInverseMass(bodyId)", &b3Body_GetInverseMass );
-	out_function( "b3Body_GetLocalCenterOfMass(out, bodyId)", out_desc::Vec3, out_desc::Pass, +[]( uintptr_t out, b3BodyId bodyId ) { writeVec3( out, b3Body_GetLocalCenterOfMass( bodyId ) ); } );
-	out_function( "b3Body_GetWorldCenterOfMass(out, bodyId)", out_desc::Vec3, out_desc::Pass, +[]( uintptr_t out, b3BodyId bodyId ) { writeVec3( out, b3Body_GetWorldCenterOfMass( bodyId ) ); } );
+	out_function( "b3Body_GetLocalCenterOfMass(out, bodyId)", out_desc::Vec3, out_desc::PassBodyId, +[]( uintptr_t out, int32_t i1, uint16_t w0, uint16_t gen ) { writeVec3( out, b3Body_GetLocalCenterOfMass( mkBody( i1, w0, gen ) ) ); } );
+	out_function( "b3Body_GetWorldCenterOfMass(out, bodyId)", out_desc::Vec3, out_desc::PassBodyId, +[]( uintptr_t out, int32_t i1, uint16_t w0, uint16_t gen ) { writeVec3( out, b3Body_GetWorldCenterOfMass( mkBody( i1, w0, gen ) ) ); } );
 	function( "b3Body_ApplyMassFromShapes(bodyId)", &b3Body_ApplyMassFromShapes );
 
 	function( "b3Body_SetLinearDamping(bodyId, linearDamping)", &b3Body_SetLinearDamping );
@@ -1443,7 +1546,7 @@ EMSCRIPTEN_BINDINGS( box3d )
 		if ( !out.empty() ) b3Body_GetJoints( bodyId, out.data(), (int)out.size() );
 		return out;
 	} );
-	out_function( "b3Body_ComputeAABB(out, bodyId)", out_desc::AABB, out_desc::Pass, +[]( uintptr_t out, b3BodyId bodyId ) { writeAABB( out, b3Body_ComputeAABB( bodyId ) ); } );
+	out_function( "b3Body_ComputeAABB(out, bodyId)", out_desc::AABB, out_desc::PassBodyId, +[]( uintptr_t out, int32_t i1, uint16_t w0, uint16_t gen ) { writeAABB( out, b3Body_ComputeAABB( mkBody( i1, w0, gen ) ) ); } );
 
 	function( "b3Shape_GetType(shapeId)", &b3Shape_GetType );
 	function( "b3Shape_GetBody(shapeId)", &b3Shape_GetBody );
@@ -1483,8 +1586,8 @@ EMSCRIPTEN_BINDINGS( box3d )
 	function( "b3Shape_SetSphere(shapeId, sphere)", +[]( b3ShapeId shapeId, b3Sphere sphere ) { b3Shape_SetSphere( shapeId, &sphere ); } );
 	function( "b3Shape_SetCapsule(shapeId, capsule)", +[]( b3ShapeId shapeId, b3Capsule capsule ) { b3Shape_SetCapsule( shapeId, &capsule ); } );
 
-	out_function( "b3Shape_GetAABB(out, shapeId)", out_desc::AABB, out_desc::Pass, +[]( uintptr_t out, b3ShapeId shapeId ) { writeAABB( out, b3Shape_GetAABB( shapeId ) ); } );
-	out_function( "b3Shape_GetClosestPoint(out, shapeId, target)", out_desc::Vec3, out_desc::Pass, out_desc::Pass, +[]( uintptr_t out, b3ShapeId shapeId, b3Vec3 target ) { writeVec3( out, b3Shape_GetClosestPoint( shapeId, target ) ); } );
+	out_function( "b3Shape_GetAABB(out, shapeId)", out_desc::AABB, out_desc::PassShapeId, +[]( uintptr_t out, int32_t i1, uint16_t w0, uint16_t gen ) { writeAABB( out, b3Shape_GetAABB( mkShape( i1, w0, gen ) ) ); } );
+	out_function( "b3Shape_GetClosestPoint(out, shapeId, target)", out_desc::Vec3, out_desc::PassShapeId, out_desc::PassVec3, +[]( uintptr_t out, int32_t i1, uint16_t w0, uint16_t gen, float tx, float ty, float tz ) { writeVec3( out, b3Shape_GetClosestPoint( mkShape( i1, w0, gen ), mkVec3( tx, ty, tz ) ) ); } );
 	function( "b3Shape_ApplyWind(shapeId, wind, drag, lift, maxSpeed, wake)", &b3Shape_ApplyWind );
 	function( "b3DestroyShape(shapeId, updateBodyMass)", &b3DestroyShape );
 
@@ -1633,16 +1736,16 @@ EMSCRIPTEN_BINDINGS( box3d )
 	function( "b3Joint_GetBodyB(jointId)", &b3Joint_GetBodyB );
 	function( "b3Joint_GetWorld(jointId)", &b3Joint_GetWorld );
 	function( "b3Joint_SetLocalFrameA(jointId, localFrame)", &b3Joint_SetLocalFrameA );
-	out_function( "b3Joint_GetLocalFrameA(outPosition, outRotation, jointId)", out_desc::Vec3, out_desc::Quat, out_desc::Pass,
-		+[]( uintptr_t outPos, uintptr_t outRot, b3JointId jointId ) { b3Transform t = b3Joint_GetLocalFrameA( jointId ); writeVec3( outPos, t.p ); writeQuat( outRot, t.q ); } );
+	out_function( "b3Joint_GetLocalFrameA(outPosition, outRotation, jointId)", out_desc::Vec3, out_desc::Quat, out_desc::PassJointId,
+		+[]( uintptr_t outPos, uintptr_t outRot, int32_t i1, uint16_t w0, uint16_t gen ) { b3Transform t = b3Joint_GetLocalFrameA( mkJoint( i1, w0, gen ) ); writeVec3( outPos, t.p ); writeQuat( outRot, t.q ); } );
 	function( "b3Joint_SetLocalFrameB(jointId, localFrame)", &b3Joint_SetLocalFrameB );
-	out_function( "b3Joint_GetLocalFrameB(outPosition, outRotation, jointId)", out_desc::Vec3, out_desc::Quat, out_desc::Pass,
-		+[]( uintptr_t outPos, uintptr_t outRot, b3JointId jointId ) { b3Transform t = b3Joint_GetLocalFrameB( jointId ); writeVec3( outPos, t.p ); writeQuat( outRot, t.q ); } );
+	out_function( "b3Joint_GetLocalFrameB(outPosition, outRotation, jointId)", out_desc::Vec3, out_desc::Quat, out_desc::PassJointId,
+		+[]( uintptr_t outPos, uintptr_t outRot, int32_t i1, uint16_t w0, uint16_t gen ) { b3Transform t = b3Joint_GetLocalFrameB( mkJoint( i1, w0, gen ) ); writeVec3( outPos, t.p ); writeQuat( outRot, t.q ); } );
 	function( "b3Joint_SetCollideConnected(jointId, shouldCollide)", &b3Joint_SetCollideConnected );
 	function( "b3Joint_GetCollideConnected(jointId)", &b3Joint_GetCollideConnected );
 	function( "b3Joint_WakeBodies(jointId)", &b3Joint_WakeBodies );
-	out_function( "b3Joint_GetConstraintForce(out, jointId)", out_desc::Vec3, out_desc::Pass, +[]( uintptr_t out, b3JointId jointId ) { writeVec3( out, b3Joint_GetConstraintForce( jointId ) ); } );
-	out_function( "b3Joint_GetConstraintTorque(out, jointId)", out_desc::Vec3, out_desc::Pass, +[]( uintptr_t out, b3JointId jointId ) { writeVec3( out, b3Joint_GetConstraintTorque( jointId ) ); } );
+	out_function( "b3Joint_GetConstraintForce(out, jointId)", out_desc::Vec3, out_desc::PassJointId, +[]( uintptr_t out, int32_t i1, uint16_t w0, uint16_t gen ) { writeVec3( out, b3Joint_GetConstraintForce( mkJoint( i1, w0, gen ) ) ); } );
+	out_function( "b3Joint_GetConstraintTorque(out, jointId)", out_desc::Vec3, out_desc::PassJointId, +[]( uintptr_t out, int32_t i1, uint16_t w0, uint16_t gen ) { writeVec3( out, b3Joint_GetConstraintTorque( mkJoint( i1, w0, gen ) ) ); } );
 	function( "b3Joint_GetLinearSeparation(jointId)", &b3Joint_GetLinearSeparation );
 	function( "b3Joint_GetAngularSeparation(jointId)", &b3Joint_GetAngularSeparation );
 	function( "b3Joint_SetConstraintTuning(jointId, hertz, dampingRatio)", &b3Joint_SetConstraintTuning );
@@ -1875,7 +1978,32 @@ EMSCRIPTEN_BINDINGS( box3d )
 
 	function( "b3DefaultQueryFilter()", &b3DefaultQueryFilter );
 
-	function( "b3World_CastRayClosest(worldId, origin, translation, filter)", &b3World_CastRayClosest );
+	// b3World_CastRayClosest returns a small mixed-type record (shapeId + b3Pos point +
+	// vec3 normal + u64 material id + diagnostic ints + hit flag), so like the per-step
+	// events it packs into stable i32/f64 storage the facade reads in place — no
+	// value_object return per cast. The facade also unpacks worldId/origin/translation/
+	// filter into loose scalars, so the inputs cross with no per-call marshaling temps.
+	// The two ptr getters are internal plumbing the facade captures once and strips (like
+	// the math scratch); see createRayResult / b3World_CastRayClosest in src/facade.js.
+	function( "b3_getRayResultI32Ptr", +[]() -> uintptr_t { return reinterpret_cast<uintptr_t>( g_rayResultI32 ); } );
+	function( "b3_getRayResultF64Ptr", +[]() -> uintptr_t { return reinterpret_cast<uintptr_t>( g_rayResultF64 ); } );
+	function( "b3World_CastRayClosestInto(worldIndex1, worldGeneration, ox, oy, oz, tx, ty, tz, categoryBits, maskBits, filterId)",
+		+[]( uint16_t worldIndex1, uint16_t worldGeneration,
+			double ox, double oy, double oz, float tx, float ty, float tz,
+			uint64_t categoryBits, uint64_t maskBits, uint64_t filterId )
+		{
+			b3RayResult r = b3World_CastRayClosest( mkWorld( worldIndex1, worldGeneration ),
+				mkPos( ox, oy, oz ), mkVec3( tx, ty, tz ),
+				b3QueryFilter{ categoryBits, maskBits, filterId } );
+			int32_t* i = g_rayResultI32;
+			i[0] = r.shapeId.index1; i[1] = r.shapeId.world0; i[2] = r.shapeId.generation;
+			i[3] = (int32_t)( r.userMaterialId & 0xffffffffu ); i[4] = (int32_t)( r.userMaterialId >> 32 );
+			i[5] = r.triangleIndex; i[6] = r.childIndex; i[7] = r.nodeVisits; i[8] = r.leafVisits; i[9] = r.hit ? 1 : 0;
+			double* f = g_rayResultF64;
+			f[0] = r.point.x; f[1] = r.point.y; f[2] = r.point.z;
+			f[3] = r.normal.x; f[4] = r.normal.y; f[5] = r.normal.z;
+			f[6] = r.fraction;
+		} );
 	function( "b3Body_GetMassData(bodyId)", &b3Body_GetMassData );
 	function( "b3Body_SetMassData(bodyId, massData)", &b3Body_SetMassData );
 	function( "b3Body_GetLocalRotationalInertia(bodyId)", &b3Body_GetLocalRotationalInertia );

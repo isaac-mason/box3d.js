@@ -50,6 +50,35 @@ function fallingBox( b3 )
 	return { startY, endY };
 }
 
+// Cast a ray down onto a static ground box and read the hit via the packed reader
+// (createRayResult + the out-first b3World_CastRayClosest).
+function rayCast( b3 )
+{
+	const world = b3.b3CreateWorld( b3.b3DefaultWorldDef() );
+	const groundDef = b3.b3DefaultBodyDef();
+	groundDef.type = b3.b3BodyType.b3_staticBody;
+	const ground = b3.b3CreateBody( world, groundDef );
+	b3.b3CreateBoxShape( ground, b3.b3DefaultShapeDef(), 25, 0.5, 25 );
+
+	const hit = b3.createRayResult();
+	// straight down from y=10 through the origin; ground top is at y=0.5
+	const ret = b3.b3World_CastRayClosest( hit, world, [ 0, 10, 0 ], [ 0, -20, 0 ], b3.b3DefaultQueryFilter() );
+	assert.ok( ret === hit, 'CastRayClosest fills the caller result and returns it' );
+	assert.ok( hit.hit === true, 'ray hit the ground' );
+	assert.ok( Math.abs( hit.point[ 1 ] - 0.5 ) < 1e-3, `hit point is on the ground top (y=${hit.point[ 1 ].toFixed( 3 )})` );
+	assert.ok( hit.normal[ 1 ] > 0.99, `hit normal points up (ny=${hit.normal[ 1 ].toFixed( 3 )})` );
+	assert.ok( hit.fraction > 0 && hit.fraction < 1, `fraction in (0,1) (got ${hit.fraction.toFixed( 3 )})` );
+	assert.equal( typeof hit.userMaterialId, 'bigint', 'userMaterialId reads as a bigint' );
+	const hitY = hit.point[ 1 ]; // capture before reusing the (shared) result below
+
+	// a ray into empty space misses — reusing the same result object clears .hit
+	const miss = b3.b3World_CastRayClosest( hit, world, [ 100, 10, 0 ], [ 0, 5, 0 ], b3.b3DefaultQueryFilter() );
+	assert.ok( miss.hit === false, 'ray into empty space reports no hit' );
+
+	b3.b3DestroyWorld( world );
+	return { hitY };
+}
+
 // Drop a box onto the ground, let it settle, then read the resulting contact via
 // the packed buffer + facade readers (createContact/getContactAt/getManifoldAt).
 function contactRead( b3 )
@@ -206,6 +235,9 @@ async function check( label, importPath )
 
 	assert.ok( endY < startY - 5, `body fell (start=${startY.toFixed( 2 )} end=${endY.toFixed( 2 )})` );
 	assert.ok( endY > 0.5, `body rests above the ground, not through it (end=${endY.toFixed( 2 )})` );
+
+	const { hitY } = rayCast( b3 );
+	assert.ok( Math.abs( hitY - 0.5 ) < 1e-3, `ray cast hit the ground top (y=${hitY.toFixed( 3 )})` );
 
 	const { n, totalPoints, worstNormalErr } = contactRead( b3 );
 	assert.ok( n >= 1, `resting box reports a contact (got ${n})` );

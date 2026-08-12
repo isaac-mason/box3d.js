@@ -62,7 +62,9 @@ app.renderer.domElement.addEventListener('pointerdown', (e) => {
 	raycaster.setFromCamera(mouse, app.camera);
 	const o = raycaster.ray.origin;
 	const d = raycaster.ray.direction;
-	const r = b3.b3World_CastRayClosest(
+	const r = b3.createRayResult();
+	b3.b3World_CastRayClosest(
+		r,
 		world,
 		[o.x, o.y, o.z],
 		[d.x * 100, d.y * 100, d.z * 100],

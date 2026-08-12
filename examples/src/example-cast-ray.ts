@@ -102,6 +102,7 @@ app.gui
 const _o = new THREE.Vector3();
 const _dq = new THREE.Quaternion();
 const _e = new THREE.Euler();
+const _rayResult = b3.createRayResult(); // reused across every cast — zero per-cast alloc
 let targetAngle = 0;
 
 app.onFrame((dt) => {
@@ -129,14 +130,15 @@ app.onFrame((dt) => {
 			// origin in world; ray fires toward the centre
 			c.root.children[1].getWorldPosition(_o);
 			const dir = _o.clone().multiplyScalar(-1).normalize();
-			const res = b3.b3World_CastRayClosest(
+			b3.b3World_CastRayClosest(
+				_rayResult,
 				world,
 				[_o.x, _o.y, _o.z],
 				[dir.x * pointDist, dir.y * pointDist, dir.z * pointDist],
 				filter,
 			);
-			hits[i] = res.hit;
-			hitDists[i] = res.hit ? res.fraction * pointDist : pointDist;
+			hits[i] = _rayResult.hit;
+			hitDists[i] = _rayResult.hit ? _rayResult.fraction * pointDist : pointDist;
 		}
 	});
 
